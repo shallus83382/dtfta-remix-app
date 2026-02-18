@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { LoaderFunctionArgs } from 'react-router';
+import { useLoaderData } from 'react-router';
 import {
   Page,
   Card,
@@ -12,25 +13,28 @@ import {
   InlineGrid,
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
-import { useAppStore, OrderStatus } from '../store/useAppStore';
+import type { Order, OrderStatus } from '../types';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  return null;
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
+  const headers = (await import('../lib/external-api.server')).createExternalApiHeaders("", { "X-Shop": shop });
+
+  try {
+    const res = await fetch(`${API_BASE}/orders?shop=${encodeURIComponent(shop)}`, { headers });
+    const orders = res.ok ? await res.json() : [];
+    return { orders };
+  } catch {
+    return { orders: [] };
+  }
 };
 
 export default function Orders() {
-  const {
-    orders,
-    selectedOrderFilter,
-    setSelectedOrderFilter,
-    fetchOrders,
-  } = useAppStore();
+  const loaderData = useLoaderData<typeof loader>() as { orders?: Order[] } | undefined;
+  const [orders, setOrders] = useState<Order[]>((loaderData && loaderData.orders) || []);
+  const [selectedOrderFilter, setSelectedOrderFilter] = useState<OrderStatus | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
 
   const getBadgeTone = (status: OrderStatus): 'success' | 'attention' | 'info' | 'critical' | 'warning' => {
     switch (status) {

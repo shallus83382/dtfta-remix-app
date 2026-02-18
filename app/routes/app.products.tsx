@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LoaderFunctionArgs } from 'react-router';
+import { useLoaderData } from 'react-router';
 import {
   Page,
   Card,
@@ -10,21 +11,29 @@ import {
   InlineStack,
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
-import { useAppStore } from '../store/useAppStore';
+import { createExternalApiHeaders } from '../lib/external-api.server';
 import ProductCard from '../common/ProductCard';
+import type { Product } from '../types';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  return null;
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
+  const headers = createExternalApiHeaders("", { "X-Shop": shop });
+
+  try {
+    const res = await fetch(`${API_BASE}/products?shop=${encodeURIComponent(shop)}`, { headers });
+    const products = res.ok ? await res.json() : [];
+    return { products };
+  } catch {
+    return { products: [] };
+  }
 };
 
 export default function Products() {
-  const { products, fetchProducts, toggleFavorite } = useAppStore();
+  const loaderData = useLoaderData<typeof loader>();
+  const [products, setProducts] = useState<Product[]>(loaderData.products || []);
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
 
   const selectedProductData = selectedProduct
     ? products.find((p) => p.id === selectedProduct)
@@ -46,15 +55,19 @@ export default function Products() {
 
               <InlineGrid columns={{ xs: 1, sm: 4 }} gap="400">
                 {products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onToggleFavorite={toggleFavorite}
-                    onClick={(productId) => setSelectedProduct(productId)}
-                    isSelected={selectedProduct === product.id}
-                    showFavorite={true}
-                    variant="default"
-                  />
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onToggleFavorite={(pid) => {
+                        setProducts((prev) =>
+                          prev.map((p) => (p.id === pid ? { ...p, isFavorite: !p.isFavorite } : p))
+                        );
+                      }}
+                      onClick={(productId) => setSelectedProduct(productId)}
+                      isSelected={selectedProduct === product.id}
+                      showFavorite={true}
+                      variant="default"
+                    />
                 ))}
               </InlineGrid>
             </BlockStack>

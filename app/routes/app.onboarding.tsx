@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { LoaderFunctionArgs, ActionFunctionArgs } from 'react-router';
 import { Form, useActionData, useNavigate } from 'react-router';
 import {
@@ -13,7 +13,8 @@ import {
   Banner,
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
-import { useAppStore } from '../store/useAppStore';
+import { createExternalApiHeaders } from '../lib/external-api.server';
+import type { BrandSettings, SetupStatus } from '../types';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Just ensure the admin session is valid; fulfillment setup is handled on index.
@@ -22,9 +23,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const formData = await request.formData();
-  
+
   const brandSettings = {
     brandName: formData.get('brandName') as string,
     returnAddress: {
@@ -40,18 +41,46 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     },
   };
 
-  // Save to store (not Prisma)
-  return { success: true, brandSettings };
+  const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
+  const headers = createExternalApiHeaders(brandSettings, { "X-Shop": session.shop });
+
+  try {
+    const res = await fetch(`${API_BASE}/brand-settings?shop=${encodeURIComponent(session.shop)}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(brandSettings),
+    });
+
+    if (!res.ok) {
+      return { success: false, error: `Laravel API returned ${res.status}` };
+    }
+
+    const data = await res.json();
+    return { success: true, brandSettings: data };
+  } catch (e) {
+    return { success: false, error: String(e) };
+  }
 };
 
 export default function Onboarding() {
-  const { 
-    brandSettings, 
-    setBrandSettings, 
-    updateSetupStatus,
-    completeOnboarding,
-    isBrandSettingsComplete
-  } = useAppStore();
+  const [brandSettings, setBrandSettings] = useState<BrandSettings | null>(null);
+  const [setupStatus, setSetupStatus] = useState<SetupStatus>({
+    fulfillmentServiceConnected: false,
+    locationCreated: false,
+  });
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
+
+  const isBrandSettingsComplete = useCallback(() => {
+    if (!brandSettings) return false;
+    return !!(
+      brandSettings.brandName &&
+      brandSettings.returnAddress.street &&
+      brandSettings.returnAddress.city &&
+      brandSettings.returnAddress.state &&
+      brandSettings.returnAddress.zipCode &&
+      brandSettings.supportContact.email
+    );
+  }, [brandSettings]);
   const actionData = useActionData<typeof action>();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -85,17 +114,17 @@ export default function Onboarding() {
     if (actionData?.success && actionData.brandSettings) {
       setBrandSettings(actionData.brandSettings);
       // Mark fulfillment service and location as connected (mock for now)
-      updateSetupStatus({
+      setSetupStatus({
         fulfillmentServiceConnected: true,
         locationCreated: true,
       });
-      completeOnboarding();
+      setIsOnboardingComplete(true);
       // Redirect to dashboard after onboarding
       setTimeout(() => {
         navigate('/app/dashboard');
       }, 1000);
     }
-  }, [actionData, setBrandSettings, updateSetupStatus, completeOnboarding, navigate]);
+  }, [actionData, navigate]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

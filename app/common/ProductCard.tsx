@@ -6,7 +6,7 @@ import {
   Badge,
   InlineStack,
 } from '@shopify/polaris';
-import type { Product } from '../store/useAppStore';
+import type { Product } from '../types';
 
 interface ProductCardProps {
   product: Product;

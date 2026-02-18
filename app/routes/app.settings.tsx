@@ -12,7 +12,8 @@ import {
   List,
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
-import { useAppStore } from '../store/useAppStore';
+import { createExternalApiHeaders } from '../lib/external-api.server';
+import type { BrandSettings } from '../types';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -20,7 +21,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const formData = await request.formData();
   
   const brandSettings = {
@@ -38,51 +39,66 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     },
   };
 
-  // In a real app, this would save to a database
-  // For now, we'll just return success
-  return { success: true, brandSettings };
+  const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
+  const headers = createExternalApiHeaders(brandSettings, { "X-Shop": session.shop });
+
+  try {
+    const res = await fetch(`${API_BASE}/brand-settings?shop=${encodeURIComponent(session.shop)}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(brandSettings),
+    });
+
+    if (!res.ok) {
+      return { success: false, error: `Laravel API returned ${res.status}` };
+    }
+
+    const data = await res.json();
+    return { success: true, brandSettings: data };
+  } catch (e) {
+    return { success: false, error: String(e) };
+  }
 };
 
 export default function Settings() {
-  const { brandSettings, setBrandSettings, updateSetupStatus } = useAppStore();
   const actionData = useActionData<typeof action>();
+  const [brandSettings, setBrandSettings] = useState<BrandSettings | null>(null);
   const [formData, setFormData] = useState({
-    brandName: brandSettings?.brandName || '',
-    streetAddress: brandSettings?.returnAddress?.street || '',
-    city: brandSettings?.returnAddress?.city || '',
-    state: brandSettings?.returnAddress?.state || '',
-    zipCode: brandSettings?.returnAddress?.zipCode || '',
-    country: brandSettings?.returnAddress?.country || 'US',
-    supportEmail: brandSettings?.supportContact?.email || '',
-    supportPhone: brandSettings?.supportContact?.phone || '',
+    brandName: '',
+    streetAddress: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'US',
+    supportEmail: '',
+    supportPhone: '',
   });
+  const updateSetupStatus = (_status: Partial<any>) => {
+    // placeholder: in the new flow setup status should be handled by your API
+  };
 
-  // Update form data when brandSettings change (from store)
-  useEffect(() => {
-    if (brandSettings) {
-      setFormData({
-        brandName: brandSettings.brandName || '',
-        streetAddress: brandSettings.returnAddress.street || '',
-        city: brandSettings.returnAddress.city || '',
-        state: brandSettings.returnAddress.state || '',
-        zipCode: brandSettings.returnAddress.zipCode || '',
-        country: brandSettings.returnAddress.country || 'US',
-        supportEmail: brandSettings.supportContact.email || '',
-        supportPhone: brandSettings.supportContact.phone || '',
-      });
-    }
-  }, [brandSettings]);
-
+  // Update form data when brandSettings change (from action result)
   useEffect(() => {
     if (actionData?.success && actionData.brandSettings) {
-      setBrandSettings(actionData.brandSettings);
-      // Mark setup as complete when settings are saved
+      const bs = actionData.brandSettings as BrandSettings;
+      setBrandSettings(bs);
+      setFormData({
+        brandName: bs.brandName || '',
+        streetAddress: bs.returnAddress.street || '',
+        city: bs.returnAddress.city || '',
+        state: bs.returnAddress.state || '',
+        zipCode: bs.returnAddress.zipCode || '',
+        country: bs.returnAddress.country || 'US',
+        supportEmail: bs.supportContact.email || '',
+        supportPhone: bs.supportContact.phone || '',
+      });
+      // Mark setup as complete when settings are saved (mock)
       updateSetupStatus({
         fulfillmentServiceConnected: true,
         locationCreated: true,
       });
     }
-  }, [actionData, setBrandSettings, updateSetupStatus]);
+  }, [actionData]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

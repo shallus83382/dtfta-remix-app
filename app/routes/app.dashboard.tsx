@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { LoaderFunctionArgs } from 'react-router';
 import { useNavigate, useLoaderData } from 'react-router';
 import {
@@ -13,42 +13,93 @@ import {
   Box,
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
-import { useAppStore } from '../store/useAppStore';
+import { createExternalApiHeaders } from '../lib/external-api.server';
 import ProductCard from '../common/ProductCard';
+import type { Order, Product, DashboardStats, BrandSettings, SetupStatus } from '../types';
 import { getFulfillmentStatus } from '../lib/fulfillment.server';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  
+
+  const shop = session.shop;
+
+  const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
+  const headers = createExternalApiHeaders("", { "X-Shop": shop });
+
   const fulfillmentStatus = await getFulfillmentStatus(session.shop);
 
-  // If authenticate.admin() succeeds without error, app IS connected
+  // Fetch orders, products, and dashboard stats in parallel from Laravel API
+  const [ordersRes, productsRes, statsRes] = await Promise.allSettled([
+    fetch(`${API_BASE}/orders?shop=${encodeURIComponent(shop)}`, { headers }),
+    fetch(`${API_BASE}/products?shop=${encodeURIComponent(shop)}`, { headers }),
+    fetch(`${API_BASE}/dashboard-stats?shop=${encodeURIComponent(shop)}`, { headers }),
+  ]);
+
+  const safeJson = async (r: any) => {
+    try {
+      if (r && r.status && r.ok) return await r.json();
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const orders = ordersRes.status === 'fulfilled' ? await safeJson(ordersRes.value) : [];
+  const products = productsRes.status === 'fulfilled' ? await safeJson(productsRes.value) : [];
+  const dashboardStats = statsRes.status === 'fulfilled' ? (await safeJson(statsRes.value)) || null : null;
+
   return {
     isConnected: true,
-    shop: session.shop,
-    shopDomain: session.shop,
+    shop,
+    shopDomain: shop,
     hasAccessToken: !!session.accessToken,
     scopes: session.scope,
     fulfillmentStatus,
+    orders: orders || [],
+    products: products || [],
+    dashboardStats: dashboardStats || null,
   };
 };
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const loaderData = useLoaderData<typeof loader>();
-  const { 
-    dashboardStats, 
-    orders, 
-    fetchOrders, 
-    fetchDashboardStats,
-    products,
-    fetchProducts,
-    toggleFavorite,
-    isOnboardingComplete,
-    isBrandSettingsComplete,
-    setupStatus,
-    updateSetupStatus
-  } = useAppStore();
+  const loaderData = useLoaderData<typeof loader>() ?? ({} as any);
+  const [orders, setOrders] = useState<Order[]>(loaderData?.orders || []);
+  const [products, setProducts] = useState<Product[]>(loaderData?.products || []);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>(
+    loaderData?.dashboardStats || {
+      totalOrders: 0,
+      pending: 0,
+      inProduction: 0,
+      shipped: 0,
+      exceptions: 0,
+      fulfillmentRate: 0,
+    }
+  );
+  const [brandSettings, setBrandSettings] = useState<BrandSettings | null>(null);
+  const [setupStatus, setSetupStatus] = useState<SetupStatus>(
+    loaderData?.fulfillmentStatus || {
+      fulfillmentServiceConnected: false,
+      locationCreated: false,
+    }
+  );
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
+
+  const API_BASE = typeof process !== 'undefined' && process.env.EXTERNAL_API_BASE ? process.env.EXTERNAL_API_BASE : '/api';
+
+  // Data is provided via server loader (useLoaderData). Client-side refreshes can be implemented later if needed.
+
+  const toggleFavorite = (productId: string) => {
+    setProducts((prevProducts) =>
+      prevProducts.map((product) =>
+        product.id === productId ? { ...product, isFavorite: !product.isFavorite } : product
+      )
+    );
+  };
+
+  const updateSetupStatus = (status: Partial<SetupStatus>) => {
+    setSetupStatus((prev) => ({ ...prev, ...status }));
+  };
 
   // Sync fulfillment status from loader into the client store
   useEffect(() => {
@@ -62,16 +113,24 @@ export default function Dashboard() {
 
   // Check onboarding status - redirect to onboarding if not complete
   useEffect(() => {
+    const isBrandSettingsComplete = () => {
+      if (!brandSettings) return false;
+      return !!(
+        brandSettings.brandName &&
+        brandSettings.returnAddress.street &&
+        brandSettings.returnAddress.city &&
+        brandSettings.returnAddress.state &&
+        brandSettings.returnAddress.zipCode &&
+        brandSettings.supportContact.email
+      );
+    };
+
     if (!isOnboardingComplete || !isBrandSettingsComplete()) {
       navigate('/app/onboarding');
     }
-  }, [isOnboardingComplete, isBrandSettingsComplete, navigate]);
+  }, [isOnboardingComplete, brandSettings, navigate]);
 
-  useEffect(() => {
-    fetchOrders();
-    fetchDashboardStats();
-    fetchProducts();
-  }, [fetchOrders, fetchDashboardStats, fetchProducts]);
+  // initial data comes from loader
 
   const recentOrders = orders.slice(0, 3);
   const featuredProducts = products.filter(p => p.isBestseller).slice(0, 4);
