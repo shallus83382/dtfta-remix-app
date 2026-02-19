@@ -17,4 +17,3 @@ export function createExternalApiHeaders(body: unknown = "", extraHeaders: Recor
     ...extraHeaders,
   };
 }
-

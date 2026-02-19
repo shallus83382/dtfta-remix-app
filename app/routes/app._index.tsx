@@ -9,18 +9,10 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useNavigate } from "react-router"; // Add this import
-import { setupFulfillmentService } from "../lib/fulfillment.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Authenticate the store session – if this passes, the store is connected.
   const { session } = await authenticate.admin(request);
-
-  // Ensure the DTFTA fulfillment service + location exist for this shop.
-  // This is idempotent and safe to run on each index load.
-  if (session?.shop && session.accessToken) {
-    const result = await setupFulfillmentService(session.shop, session.accessToken);
-    console.log(`✅ Fulfillment setup completed for ${session.shop}:`, result);
-  }
 
   return null;
 };

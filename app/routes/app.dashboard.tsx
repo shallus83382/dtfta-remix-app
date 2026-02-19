@@ -16,7 +16,6 @@ import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 import ProductCard from '../common/ProductCard';
 import type { Order, Product, DashboardStats, BrandSettings, SetupStatus } from '../types';
-import { getFulfillmentStatus } from '../lib/fulfillment.server';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -26,13 +25,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
   const headers = createExternalApiHeaders("", { "X-Shop": shop });
 
-  const fulfillmentStatus = await getFulfillmentStatus(session.shop);
-
-  // Fetch orders, products, and dashboard stats in parallel from Laravel API
-  const [ordersRes, productsRes, statsRes] = await Promise.allSettled([
+  // Fetch orders, products, dashboard stats and fulfillment status in parallel from Laravel API
+  const [ordersRes, productsRes, statsRes, fulfillmentRes] = await Promise.allSettled([
     fetch(`${API_BASE}/orders?shop=${encodeURIComponent(shop)}`, { headers }),
     fetch(`${API_BASE}/products?shop=${encodeURIComponent(shop)}`, { headers }),
     fetch(`${API_BASE}/dashboard-stats?shop=${encodeURIComponent(shop)}`, { headers }),
+    fetch(`${API_BASE}/fulfillment-status?shop=${encodeURIComponent(shop)}`, { headers }),
   ]);
 
   const safeJson = async (r: any) => {
@@ -47,6 +45,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const orders = ordersRes.status === 'fulfilled' ? await safeJson(ordersRes.value) : [];
   const products = productsRes.status === 'fulfilled' ? await safeJson(productsRes.value) : [];
   const dashboardStats = statsRes.status === 'fulfilled' ? (await safeJson(statsRes.value)) || null : null;
+  const fulfillmentStatus = fulfillmentRes.status === 'fulfilled' ? (await safeJson(fulfillmentRes.value)) || null : null;
 
   return {
     isConnected: true,
