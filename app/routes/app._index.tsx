@@ -12,7 +12,7 @@ import { useNavigate } from "react-router"; // Add this import
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Authenticate the store session – if this passes, the store is connected.
-  const { session } = await authenticate.admin(request);
+  await authenticate.admin(request);
 
   return null;
 };

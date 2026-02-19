@@ -1,13 +1,12 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "c35903a7579b0ae4f436c9cbec6bc76d"
+client_id = "b1b89dde1455b94c139a5d941df1c942"
 name = "dtfta"
-application_url = "https://example.com"
+application_url = "https://447f-122-180-87-40.ngrok-free.app"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-include_config_on_deploy = true
 
 [webhooks]
 api_version = "2026-04"
@@ -25,4 +24,8 @@ api_version = "2026-04"
 scopes = "read_orders,write_products,write_fulfillments,read_assigned_fulfillment_orders,write_assigned_fulfillment_orders"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [
+  "https://447f-122-180-87-40.ngrok-free.app/auth",
+  "https://447f-122-180-87-40.ngrok-free.app/auth/callback",
+  "https://447f-122-180-87-40.ngrok-free.app/api/auth"
+]
