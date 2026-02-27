@@ -60,3 +60,12 @@ export interface SetupStatus {
   locationCreated: boolean;
 }
 
+/** Design payload sent to Laravel create-in-shopify endpoint */
+export interface CreateInShopifyPayload {
+  shop: string;
+  productKey: string;
+  title?: string;
+  printPlan: string;
+  artworkUrls: { front?: string; back?: string };
+}
+

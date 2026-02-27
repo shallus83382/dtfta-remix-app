@@ -33,10 +33,11 @@ export async function syncInstallToLaravel(
     };
 
     const headers = createExternalApiHeaders(payload, {
-      "X-Shop": session.shop,
+      "X-Shopify-Topic": "app/installed",
+      "X-Shop": session.shop
     });
 
-    const url = `${API_BASE.replace(/\/$/, "")}/shopify/install`;
+    const url = `${API_BASE.replace(/\/$/, "")}/api/v1/webhooks/shopify`;
     const response = await fetch(url, {
       method: "POST",
       headers,
@@ -59,7 +60,7 @@ export async function syncUninstallToLaravel(shop: string) {
 
   const headers = createExternalApiHeaders('', {
     "X-Shopify-Topic": "app/uninstalled",
-    "X-Shopify-Shop-Domain": shop
+    "X-Shop": shop
   });
 
   const url = `${API_BASE.replace(/\/$/, "")}/api/v1/webhooks/shopify`;
