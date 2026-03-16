@@ -75,11 +75,15 @@ export default function DesignCanvas({
   const scale = Math.min(scaleX, scaleY);
 
   const region = designableRegion ?? DEFAULT_REGION;
-  const regionSize = region.size * scale;
-  const displayRegion = {
-    left: (width - regionSize) / 2,
-    top: (height - regionSize) / 2,
-    size: regionSize,
+
+  const getRegionCenter = () => {
+    const rect = regionRectRef.current;
+    if (!rect) return { x: width / 2, y: height / 2 };
+  
+    return {
+      x: (rect.left ?? 0) + (rect.width ?? 0) / 2,
+      y: (rect.top ?? 0) + (rect.height ?? 0) / 2,
+    };
   };
 
   useEffect(() => {
@@ -113,23 +117,29 @@ export default function DesignCanvas({
 
     import("fabric").then((fabric) => {
       if (!mounted || !containerRef.current) return;
+    
       const canvasEl = document.createElement("canvas");
       canvasEl.width = cw;
       canvasEl.height = ch;
+    
       containerRef.current.innerHTML = "";
       containerRef.current.appendChild(canvasEl);
+    
       fabricCanvas = new fabric.Canvas(canvasEl, {
         width: cw,
         height: ch,
       });
+    
       canvasRef.current = fabricCanvas;
-
-      const r = displayRegion;
+        
+      // Create centered design region rectangle
       const rect = new fabric.Rect({
-        left: r.left,
-        top: r.top,
-        width: r.size,
-        height: r.size,
+        left: region.left * scale,
+        top: region.top * scale,
+        width: region.size * scale,
+        height: region.size * scale,
+        originX: "left",
+        originY: "top",
         fill: "transparent",
         stroke: "#374151",
         strokeWidth: 2,
@@ -137,41 +147,52 @@ export default function DesignCanvas({
         selectable: false,
         evented: false,
       });
+    
       fabricCanvas.add(rect);
       regionRectRef.current = rect;
-
+    
       if (backgroundImageUrl) {
         fabric.FabricImage.fromURL(backgroundImageUrl).then((img) => {
-          if (!mounted || !fabricCanvas) return;
+          if (!mounted || !canvasRef.current) return;
+    
+          const canvas = canvasRef.current;
+    
           const imgW = (img as unknown as { width?: number }).width ?? 1;
           const imgH = (img as unknown as { height?: number }).height ?? 1;
+    
           const scaleBg = Math.min(cw / imgW, ch / imgH);
+    
           const scaledW = imgW * scaleBg;
           const scaledH = imgH * scaleBg;
+    
           img.set({
             scaleX: scaleBg,
             scaleY: scaleBg,
-            left: (cw - scaledW) / 2,
-            top: (ch - scaledH) / 2,
-            originX: "left",
-            originY: "top",
-            selectable: true,
-            evented: true,
+            originX: "center",
+            originY: "center",
+            left: cw / 2,
+            top: ch / 2,
+            selectable: false,
+            evented: false,
             lockScalingX: true,
             lockScalingY: true,
             lockRotation: true,
             hasControls: false,
             hasBorders: true,
           });
-          fabricCanvas.add(img);
+    
+          canvas.add(img);
+          canvas.sendObjectToBack(img);
           backgroundImageRef.current = img;
-          fabricCanvas.sendObjectToBack(img);
-          fabricCanvas.requestRenderAll();
+          positionRegionRect();
+          canvas.requestRenderAll();
         });
       }
+    
       fabricCanvas.requestRenderAll();
       onCanvasReady?.(fabricCanvas);
     });
+
 
     return () => {
       mounted = false;
@@ -185,38 +206,142 @@ export default function DesignCanvas({
     };
   }, [onCanvasReady, backgroundImageUrl, width, height, hasDimensions]);
 
-  useEffect(() => {
-    if (!canvasRef.current || !regionRectRef.current) return;
+  const buildRegionClipPath = useCallback(async () => {
     const rect = regionRectRef.current;
-    rect.set({ left: displayRegion.left, top: displayRegion.top, width: displayRegion.size, height: displayRegion.size });
-    rect.setCoords();
-    canvasRef.current.requestRenderAll();
-  }, [displayRegion.left, displayRegion.top, displayRegion.size]);
+    if (!rect) return null;
+  
+    const fabric = await import("fabric");
+  
+    return new fabric.Rect({
+      left: rect.left ?? 0,
+      top: rect.top ?? 0,
+      width: rect.width ?? 0,
+      height: rect.height ?? 0,
+      originX: "left",
+      originY: "top",
+      absolutePositioned: true,
+    });
+  }, []);
 
-  const clampObjectToRegion = useCallback(
-    (obj: FabricObject) => {
-      if (!canvasRef.current) return;
-      if (obj === backgroundImageRef.current || obj === regionRectRef.current) return;
-      const r = displayRegion;
-      const bound = obj.getBoundingRect();
-      const w = bound.width;
-      const h = bound.height;
-      let left = (obj as unknown as { left?: number }).left ?? 0;
-      let top = (obj as unknown as { top?: number }).top ?? 0;
-      if (left < r.left) left = r.left;
-      if (top < r.top) top = r.top;
-      if (left + w > r.left + r.size) left = r.left + r.size - w;
-      if (top + h > r.top + r.size) top = r.top + r.size - h;
-      obj.set({ left, top });
+  const positionRegionRect = useCallback(() => {
+    const canvas = canvasRef.current;
+    const rect = regionRectRef.current;
+    const bg = backgroundImageRef.current as (FabricObject & {
+      getScaledWidth?: () => number;
+      getScaledHeight?: () => number;
+    }) | null;
+  
+    if (!canvas || !rect) return;
+  
+    const scaledSize = region.size * scale;
+  
+    // if background exists, center the region on the image
+    if (bg) {
+      const bgWidth =
+        typeof bg.getScaledWidth === "function"
+          ? bg.getScaledWidth()
+          : (bg.getBoundingRect().width ?? scaledSize);
+  
+      const bgHeight =
+        typeof bg.getScaledHeight === "function"
+          ? bg.getScaledHeight()
+          : (bg.getBoundingRect().height ?? scaledSize);
+  
+      const bgLeft = (bg.left ?? 0) - bgWidth / 2;
+      const bgTop = (bg.top ?? 0) - bgHeight / 2;
+  
+      const left = bgLeft + (bgWidth - scaledSize) / 2;
+      const top = bgTop + (bgHeight - scaledSize) / 2;
+  
+      rect.set({
+        originX: "left",
+        originY: "top",
+        left,
+        top,
+        width: scaledSize,
+        height: scaledSize,
+      });
+  
+      rect.setCoords();
+      canvas.requestRenderAll();
+  
+      // optional: sync visible rect back to parent state
+      onDesignableRegionChange?.({
+        left: Math.round(left / scale),
+        top: Math.round(top / scale),
+        size: region.size,
+      });
+  
+      return;
+    }
+  
+    // fallback if no background image
+    rect.set({
+      originX: "left",
+      originY: "top",
+      left: region.left * scale,
+      top: region.top * scale,
+      width: scaledSize,
+      height: scaledSize,
+    });
+  
+    rect.setCoords();
+    canvas.requestRenderAll();
+  }, [region.left, region.top, region.size, scale, onDesignableRegionChange]);
+
+  const clampObjectToRegion = useCallback((obj: FabricObject) => {
+    const canvas = canvasRef.current;
+    const regionRect = regionRectRef.current;
+  
+    if (!canvas || !regionRect) return;
+    if (obj === backgroundImageRef.current || obj === regionRect) return;
+  
+    obj.setCoords();
+    regionRect.setCoords();
+  
+    const objBounds = obj.getBoundingRect();
+    const regionBounds = regionRect.getBoundingRect();
+  
+    const marginX = regionBounds.width;
+    const marginY = regionBounds.height;
+  
+    let dx = 0;
+    let dy = 0;
+  
+    if (objBounds.left + objBounds.width < regionBounds.left - marginX) {
+      dx = (regionBounds.left - marginX) - (objBounds.left + objBounds.width);
+    }
+  
+    if (objBounds.left > regionBounds.left + regionBounds.width + marginX) {
+      dx = (regionBounds.left + regionBounds.width + marginX) - objBounds.left;
+    }
+  
+    if (objBounds.top + objBounds.height < regionBounds.top - marginY) {
+      dy = (regionBounds.top - marginY) - (objBounds.top + objBounds.height);
+    }
+  
+    if (objBounds.top > regionBounds.top + regionBounds.height + marginY) {
+      dy = (regionBounds.top + regionBounds.height + marginY) - objBounds.top;
+    }
+  
+    if (dx !== 0 || dy !== 0) {
+      obj.set({
+        left: (obj.left ?? 0) + dx,
+        top: (obj.top ?? 0) + dy,
+      });
       obj.setCoords();
-      canvasRef.current.requestRenderAll();
-    },
-    [displayRegion]
-  );
+      canvas.requestRenderAll();
+    }
+  }, []);
+
+  useEffect(() => {
+    positionRegionRect();
+  }, [positionRegionRect]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
     const canvas = canvasRef.current;
+  
     const onMoving = (e: { target?: FabricObject }) => {
       if (e.target) clampObjectToRegion(e.target);
     };
@@ -226,9 +351,11 @@ export default function DesignCanvas({
     const onModified = (e: { target?: FabricObject }) => {
       if (e.target) clampObjectToRegion(e.target);
     };
-    canvas.on("object:modified", onModified);
+  
     canvas.on("object:moving", onMoving);
     canvas.on("object:scaling", onScaling);
+    canvas.on("object:modified", onModified);
+  
     return () => {
       canvas.off("object:moving", onMoving);
       canvas.off("object:scaling", onScaling);
@@ -269,6 +396,7 @@ export default function DesignCanvas({
 
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -322,53 +450,119 @@ export default function DesignCanvas({
     applyZoom(zoom - ZOOM_STEP);
   }, [zoom, applyZoom]);
 
-  const regionCenterLeft = displayRegion.left + displayRegion.size / 2;
-  const regionCenterTop = displayRegion.top + displayRegion.size / 2;
 
   const handleAddText = useCallback(() => {
-    if (!canvasRef.current) return;
-    import("fabric").then((fabric) => {
-      const maxWidth = Math.max(100, displayRegion.size - 20);
+    if (!canvasRef.current || !regionRectRef.current) return;
+  
+    import("fabric").then(async (fabric) => {
+      const canvas = canvasRef.current!;
+      const rect = regionRectRef.current!;
+  
+      const centerX = (rect.left ?? 0) + (rect.width ?? 0) / 2;
+      const centerY = (rect.top ?? 0) + (rect.height ?? 0) / 2;
+      const maxWidth = Math.max(100, (rect.width ?? 0) - 20);
+  
+      const clipPath = await buildRegionClipPath();
+  
       const text = new fabric.Textbox("Your text", {
         width: maxWidth,
         fontSize: 24,
-        left: regionCenterLeft - maxWidth / 2,
-        top: regionCenterTop - 14,
+        left: centerX,
+        top: centerY,
+        originX: "center",
+        originY: "center",
+        textAlign: "center",
+        clipPath: clipPath ?? undefined,
       });
-      const canvas = canvasRef.current;
-      canvas?.add(text);
-      if (backgroundImageRef.current) canvas?.sendObjectToBack(backgroundImageRef.current);
-      canvas?.requestRenderAll();
+  
+      canvas.add(text);
+      canvas.setActiveObject(text);
+      text.setCoords();
+      canvas.requestRenderAll();
     });
-  }, [displayRegion.size, regionCenterLeft, regionCenterTop]);
+  }, [buildRegionClipPath]);
 
-  const handleAddImage = useCallback(
-    (file: File) => {
-      if (!canvasRef.current) return;
-      const url = URL.createObjectURL(file);
-      import("fabric").then((fabric) => {
-        fabric.FabricImage.fromURL(url).then((img) => {
-          if (!img || !canvasRef.current) return;
-          const w = (img as unknown as { width?: number }).width ?? 1;
-          const h = (img as unknown as { height?: number }).height ?? 1;
-          const maxDim = displayRegion.size - 20;
-          const imgScale = Math.min(maxDim / w, maxDim / h, 1);
-          img.set({
-            scaleX: imgScale,
-            scaleY: imgScale,
-            left: regionCenterLeft - (w * imgScale) / 2,
-            top: regionCenterTop - (h * imgScale) / 2,
-          });
-          const canvas = canvasRef.current;
-          canvas.add(img);
-          if (backgroundImageRef.current) canvas.sendObjectToBack(backgroundImageRef.current);
-          canvas.requestRenderAll();
-          URL.revokeObjectURL(url);
+  const handleAddImage = useCallback((file: File) => {
+    if (!canvasRef.current || !regionRectRef.current) return;
+  
+    const url = URL.createObjectURL(file);
+  
+    import("fabric").then(async (fabric) => {
+      const clipPath = await buildRegionClipPath();
+  
+      fabric.FabricImage.fromURL(url).then((img) => {
+        if (!img || !canvasRef.current || !regionRectRef.current) return;
+  
+        const canvas = canvasRef.current!;
+        const rect = regionRectRef.current!;
+  
+        const centerX = (rect.left ?? 0) + (rect.width ?? 0) / 2;
+        const centerY = (rect.top ?? 0) + (rect.height ?? 0) / 2;
+  
+        const w = img.width ?? 1;
+        const h = img.height ?? 1;
+        const maxDim = Math.max(50, (rect.width ?? 0) - 20);
+        const imgScale = Math.min(maxDim / w, maxDim / h, 1);
+  
+        img.set({
+          left: centerX,
+          top: centerY,
+          scaleX: imgScale,
+          scaleY: imgScale,
+          originX: "center",
+          originY: "center",
+          clipPath: clipPath ?? undefined,
         });
+  
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        img.setCoords();
+        canvas.requestRenderAll();
+  
+        URL.revokeObjectURL(url);
       });
-    },
-    [displayRegion.size, regionCenterLeft, regionCenterTop]
-  );
+    });
+  }, [buildRegionClipPath]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const rect = regionRectRef.current;
+    if (!canvas || !rect) return;
+  
+    let cancelled = false;
+  
+    import("fabric").then((fabric) => {
+      if (cancelled || !canvasRef.current || !regionRectRef.current) return;
+  
+      const currentRect = regionRectRef.current;
+  
+      const objects = canvas.getObjects();
+      objects.forEach((obj) => {
+        if (obj === backgroundImageRef.current || obj === currentRect) return;
+  
+        const clip = new fabric.Rect({
+          left: currentRect.left ?? 0,
+          top: currentRect.top ?? 0,
+          width: currentRect.width ?? 0,
+          height: currentRect.height ?? 0,
+          originX: "left",
+          originY: "top",
+          absolutePositioned: true,
+        });
+  
+        obj.set({
+          clipPath: clip,
+        });
+        obj.setCoords();
+      });
+  
+      canvas.requestRenderAll();
+    });
+  
+    return () => {
+      cancelled = true;
+    };
+  }, [region.left, region.top, region.size, scale]);
 
   const handleClear = useCallback(() => {
     if (!canvasRef.current) return;
@@ -440,7 +634,7 @@ export default function DesignCanvas({
           cursor: "crosshair",
         }}
       >
-        <div ref={containerRef} />
+        <div ref={containerRef}  style={{ height: 500 }} />
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
         <button type="button" onClick={handleAddText} style={{ padding: "6px 12px", cursor: "pointer" }}>
@@ -473,9 +667,9 @@ export default function DesignCanvas({
             <span>Left</span>
             <input
               type="number"
-            min={0}
-            max={maxPos}
-            value={region.left}
+              min={0}
+              max={maxPos}
+              value={region.left}
               onChange={(e) => onDesignableRegionChange?.({ ...region, left: Number(e.target.value) || 0 })}
               style={{ width: 56 }}
             />
@@ -484,9 +678,9 @@ export default function DesignCanvas({
             <span>Top</span>
             <input
               type="number"
-            min={0}
-            max={maxPos}
-            value={region.top}
+              min={0}
+              max={maxPos}
+              value={region.top}
               onChange={(e) => onDesignableRegionChange?.({ ...region, top: Number(e.target.value) || 0 })}
               style={{ width: 56 }}
             />
@@ -495,9 +689,9 @@ export default function DesignCanvas({
             <span>Size</span>
             <input
               type="number"
-            min={50}
-            max={maxSizeVal}
-            value={region.size}
+              min={50}
+              max={maxSizeVal}
+              value={region.size}
               onChange={(e) => onDesignableRegionChange?.({ ...region, size: Number(e.target.value) || 100 })}
               style={{ width: 56 }}
             />
