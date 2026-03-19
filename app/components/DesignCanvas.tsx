@@ -11,13 +11,15 @@ const ZOOM_STEP = 0.15;
 export interface DesignableRegion {
   left: number;
   top: number;
-  size: number;
+  width: number;
+  height: number;
 }
 
 const DEFAULT_REGION: DesignableRegion = {
   left: 125,
   top: 125,
-  size: 250,
+  width: 250,
+  height: 250,
 };
 
 interface DesignCanvasProps {
@@ -51,6 +53,22 @@ export default function DesignCanvas({
   const regionRectRef = useRef<Rect | null>(null);
   const backgroundImageRef = useRef<FabricObject | null>(null);
 
+  const onCanvasReadyRef = useRef(onCanvasReady);
+  const onPrintDimensionsChangeRef = useRef(onPrintDimensionsChange);
+  const onDesignableRegionChangeRef = useRef(onDesignableRegionChange);
+
+  useEffect(() => {
+    onCanvasReadyRef.current = onCanvasReady;
+  }, [onCanvasReady]);
+
+  useEffect(() => {
+    onPrintDimensionsChangeRef.current = onPrintDimensionsChange;
+  }, [onPrintDimensionsChange]);
+
+  useEffect(() => {
+    onDesignableRegionChangeRef.current = onDesignableRegionChange;
+  }, [onDesignableRegionChange]);
+
   const [canvasDimensions, setCanvasDimensions] = useState<{ w: number; h: number } | number>(
     fillWidth ? 0 : CANVAS_SIZE
   );
@@ -63,18 +81,13 @@ export default function DesignCanvas({
     : true;
 
   const width =
-    fillWidth && typeof canvasDimensions === "object"
-      ? canvasDimensions.w
-      : CANVAS_SIZE;
+    fillWidth && typeof canvasDimensions === "object" ? canvasDimensions.w : CANVAS_SIZE;
 
   const height =
-    fillWidth && typeof canvasDimensions === "object"
-      ? canvasDimensions.h
-      : CANVAS_SIZE;
+    fillWidth && typeof canvasDimensions === "object" ? canvasDimensions.h : CANVAS_SIZE;
 
   const scaleX = width / CANVAS_SIZE;
   const scaleY = height / CANVAS_SIZE;
-  const scale = Math.min(scaleX, scaleY);
 
   useEffect(() => {
     if (!fillWidth || !wrapperRef.current) return;
@@ -103,60 +116,20 @@ export default function DesignCanvas({
   const positionRegionRect = useCallback(() => {
     const canvas = canvasRef.current;
     const rect = regionRectRef.current;
-    const bg = backgroundImageRef.current as
-      | (FabricObject & {
-          getScaledWidth?: () => number;
-          getScaledHeight?: () => number;
-        })
-      | null;
-
     if (!canvas || !rect) return;
-
-    const scaledSize = region.size * scale;
-
-    if (bg) {
-      const bgWidth =
-        typeof bg.getScaledWidth === "function"
-          ? bg.getScaledWidth()
-          : bg.getBoundingRect().width;
-
-      const bgHeight =
-        typeof bg.getScaledHeight === "function"
-          ? bg.getScaledHeight()
-          : bg.getBoundingRect().height;
-
-      const bgLeft = (bg.left ?? 0) - bgWidth / 2;
-      const bgTop = (bg.top ?? 0) - bgHeight / 2;
-
-      const left = bgLeft + (bgWidth - scaledSize) / 2;
-      const top = bgTop + (bgHeight - scaledSize) / 2;
-
-      rect.set({
-        originX: "left",
-        originY: "top",
-        left,
-        top,
-        width: scaledSize,
-        height: scaledSize,
-      });
-
-      rect.setCoords();
-      canvas.requestRenderAll();
-      return;
-    }
 
     rect.set({
       originX: "left",
       originY: "top",
-      left: region.left * scale,
-      top: region.top * scale,
-      width: scaledSize,
-      height: scaledSize,
+      left: region.left * scaleX,
+      top: region.top * scaleY,
+      width: region.width * scaleX,
+      height: region.height * scaleY,
     });
 
     rect.setCoords();
     canvas.requestRenderAll();
-  }, [region.left, region.top, region.size, scale]);
+  }, [region.left, region.top, region.width, region.height, scaleX, scaleY]);
 
   const buildRegionClipPath = useCallback(async () => {
     const rect = regionRectRef.current;
@@ -178,132 +151,132 @@ export default function DesignCanvas({
   const clampObjectToRegion = useCallback((obj: FabricObject) => {
     const canvas = canvasRef.current;
     const regionRect = regionRectRef.current;
-  
+
     if (!canvas || !regionRect) return;
     if (obj === backgroundImageRef.current || obj === regionRect) return;
-  
+
     obj.setCoords();
     regionRect.setCoords();
-  
+
     const regionLeft = regionRect.left ?? 0;
     const regionTop = regionRect.top ?? 0;
     const regionWidth = regionRect.width ?? 0;
     const regionHeight = regionRect.height ?? 0;
-  
+
     const scaledWidth =
       typeof (obj as FabricObject & { getScaledWidth?: () => number }).getScaledWidth === "function"
         ? (obj as FabricObject & { getScaledWidth: () => number }).getScaledWidth()
         : obj.getBoundingRect().width;
-  
+
     const scaledHeight =
       typeof (obj as FabricObject & { getScaledHeight?: () => number }).getScaledHeight === "function"
         ? (obj as FabricObject & { getScaledHeight: () => number }).getScaledHeight()
         : obj.getBoundingRect().height;
-  
+
     const halfW = scaledWidth / 2;
     const halfH = scaledHeight / 2;
-  
+
     let nextLeft = obj.left ?? 0;
     let nextTop = obj.top ?? 0;
-  
+
     const minLeft = regionLeft + halfW;
     const maxLeft = regionLeft + regionWidth - halfW;
     const minTop = regionTop + halfH;
     const maxTop = regionTop + regionHeight - halfH;
-  
-    // if object is larger than region, force it to center
+
     if (scaledWidth >= regionWidth) {
       nextLeft = regionLeft + regionWidth / 2;
     } else {
       nextLeft = Math.max(minLeft, Math.min(nextLeft, maxLeft));
     }
-  
+
     if (scaledHeight >= regionHeight) {
       nextTop = regionTop + regionHeight / 2;
     } else {
       nextTop = Math.max(minTop, Math.min(nextTop, maxTop));
     }
-  
+
     obj.set({
       left: nextLeft,
       top: nextTop,
       originX: "center",
       originY: "center",
     });
-  
+
     obj.setCoords();
     canvas.requestRenderAll();
   }, []);
 
-  const constrainScaleToRegion = useCallback((obj: FabricObject) => {
-    const canvas = canvasRef.current;
-    const regionRect = regionRectRef.current;
-  
-    if (!canvas || !regionRect) return;
-    if (obj === backgroundImageRef.current || obj === regionRect) return;
-  
-    obj.setCoords();
-    regionRect.setCoords();
-  
-    const regionWidth = regionRect.width ?? 0;
-    const regionHeight = regionRect.height ?? 0;
-  
-    const bounds = obj.getBoundingRect();
-  
-    if (bounds.width <= regionWidth && bounds.height <= regionHeight) {
+  const constrainScaleToRegion = useCallback(
+    (obj: FabricObject) => {
+      const canvas = canvasRef.current;
+      const regionRect = regionRectRef.current;
+
+      if (!canvas || !regionRect) return;
+      if (obj === backgroundImageRef.current || obj === regionRect) return;
+
+      obj.setCoords();
+      regionRect.setCoords();
+
+      const regionWidth = regionRect.width ?? 0;
+      const regionHeight = regionRect.height ?? 0;
+      const bounds = obj.getBoundingRect();
+
+      if (bounds.width <= regionWidth && bounds.height <= regionHeight) {
+        clampObjectToRegion(obj);
+        return;
+      }
+
+      const currentScaleX = obj.scaleX ?? 1;
+      const currentScaleY = obj.scaleY ?? 1;
+      const widthRatio = regionWidth / bounds.width;
+      const heightRatio = regionHeight / bounds.height;
+      const ratio = Math.min(widthRatio, heightRatio);
+
+      obj.set({
+        scaleX: currentScaleX * ratio,
+        scaleY: currentScaleY * ratio,
+      });
+
+      obj.setCoords();
       clampObjectToRegion(obj);
-      return;
-    }
-  
-    const currentScaleX = obj.scaleX ?? 1;
-    const currentScaleY = obj.scaleY ?? 1;
-  
-    const widthRatio = regionWidth / bounds.width;
-    const heightRatio = regionHeight / bounds.height;
-    const ratio = Math.min(widthRatio, heightRatio);
-  
-    obj.set({
-      scaleX: currentScaleX * ratio,
-      scaleY: currentScaleY * ratio,
-    });
-  
-    obj.setCoords();
-    clampObjectToRegion(obj);
-    canvas.requestRenderAll();
-  }, [clampObjectToRegion]);
+      canvas.requestRenderAll();
+    },
+    [clampObjectToRegion]
+  );
 
   useEffect(() => {
     if (typeof window === "undefined" || !containerRef.current) return;
     if (fillWidth && !hasDimensions) return;
-  
+
     let mounted = true;
     let cleanupListeners: (() => void) | null = null;
-  
+
     const cw = width;
     const ch = height;
-  
+
     import("fabric").then((fabric) => {
       if (!mounted || !containerRef.current) return;
-  
+
       const canvasEl = document.createElement("canvas");
       canvasEl.width = cw;
       canvasEl.height = ch;
-  
+
       containerRef.current.innerHTML = "";
       containerRef.current.appendChild(canvasEl);
-  
+
       const fabricCanvas = new fabric.Canvas(canvasEl, {
         width: cw,
         height: ch,
       });
-  
+
       canvasRef.current = fabricCanvas;
-  
+
       const rect = new fabric.Rect({
-        left: region.left * scale,
-        top: region.top * scale,
-        width: region.size * scale,
-        height: region.size * scale,
+        left: region.left * scaleX,
+        top: region.top * scaleY,
+        width: region.width * scaleX,
+        height: region.height * scaleY,
         originX: "left",
         originY: "top",
         fill: "transparent",
@@ -313,44 +286,43 @@ export default function DesignCanvas({
         selectable: false,
         evented: false,
       });
-  
+
       fabricCanvas.add(rect);
       regionRectRef.current = rect;
-  
-      // attach listeners HERE
+
       const onMoving = (e: { target?: FabricObject }) => {
         if (e.target) clampObjectToRegion(e.target);
       };
-  
+
       const onScaling = (e: { target?: FabricObject }) => {
         if (e.target) constrainScaleToRegion(e.target);
       };
-  
+
       const onModified = (e: { target?: FabricObject }) => {
         if (e.target) {
           constrainScaleToRegion(e.target);
           clampObjectToRegion(e.target);
         }
       };
-  
+
       fabricCanvas.on("object:moving", onMoving);
       fabricCanvas.on("object:scaling", onScaling);
       fabricCanvas.on("object:modified", onModified);
-  
+
       cleanupListeners = () => {
         fabricCanvas.off("object:moving", onMoving);
         fabricCanvas.off("object:scaling", onScaling);
         fabricCanvas.off("object:modified", onModified);
       };
-  
+
       if (backgroundImageUrl) {
         fabric.FabricImage.fromURL(backgroundImageUrl).then((img) => {
           if (!mounted || !canvasRef.current) return;
-  
+
           const imgW = img.width ?? 1;
           const imgH = img.height ?? 1;
           const scaleBg = Math.min(cw / imgW, ch / imgH);
-  
+
           img.set({
             scaleX: scaleBg,
             scaleY: scaleBg,
@@ -366,39 +338,36 @@ export default function DesignCanvas({
             hasControls: false,
             hasBorders: true,
           });
-  
+
           fabricCanvas.add(img);
           fabricCanvas.sendObjectToBack(img);
           backgroundImageRef.current = img;
-  
+
           positionRegionRect();
           fabricCanvas.requestRenderAll();
         });
       } else {
         positionRegionRect();
       }
-  
+
       fabricCanvas.requestRenderAll();
-      onCanvasReady?.(fabricCanvas);
+      onCanvasReadyRef.current?.(fabricCanvas);
     });
-  
+
     return () => {
       mounted = false;
-  
       cleanupListeners?.();
-  
       regionRectRef.current = null;
       backgroundImageRef.current = null;
-  
+
       if (canvasRef.current) {
         canvasRef.current.dispose();
         canvasRef.current = null;
       }
-  
+
       if (containerRef.current) containerRef.current.innerHTML = "";
     };
   }, [
-    onCanvasReady,
     backgroundImageUrl,
     width,
     height,
@@ -406,8 +375,10 @@ export default function DesignCanvas({
     fillWidth,
     region.left,
     region.top,
-    region.size,
-    scale,
+    region.width,
+    region.height,
+    scaleX,
+    scaleY,
     positionRegionRect,
     clampObjectToRegion,
     constrainScaleToRegion,
@@ -416,7 +387,6 @@ export default function DesignCanvas({
   useEffect(() => {
     positionRegionRect();
   }, [positionRegionRect]);
-
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -453,7 +423,18 @@ export default function DesignCanvas({
     return () => {
       cancelled = true;
     };
-  }, [positionRegionRect, region.left, region.top, region.size, scale, width, height, backgroundImageUrl]);
+  }, [
+    positionRegionRect,
+    region.left,
+    region.top,
+    region.width,
+    region.height,
+    scaleX,
+    scaleY,
+    width,
+    height,
+    backgroundImageUrl,
+  ]);
 
   const setZoomAtPoint = useCallback(
     (canvas: Canvas, point: { x: number; y: number }, z: number) => {
@@ -569,17 +550,17 @@ export default function DesignCanvas({
 
   const handleAddText = useCallback(() => {
     if (!canvasRef.current || !regionRectRef.current) return;
-  
+
     import("fabric").then(async (fabric) => {
       const canvas = canvasRef.current!;
       const rect = regionRectRef.current!;
-  
+
       const centerX = (rect.left ?? 0) + (rect.width ?? 0) / 2;
       const centerY = (rect.top ?? 0) + (rect.height ?? 0) / 2;
       const maxWidth = Math.max(100, (rect.width ?? 0) - 20);
-  
+
       const clipPath = await buildRegionClipPath();
-  
+
       const text = new fabric.Textbox("Your text", {
         width: maxWidth,
         fontSize: 24,
@@ -592,65 +573,69 @@ export default function DesignCanvas({
         lockRotation: false,
         centeredRotation: true,
       });
-  
+
       canvas.add(text);
       text.setCoords();
-  
+
       constrainScaleToRegion(text);
       clampObjectToRegion(text);
-  
+
       canvas.setActiveObject(text);
       canvas.requestRenderAll();
     });
   }, [buildRegionClipPath, clampObjectToRegion, constrainScaleToRegion]);
 
-  const handleAddImage = useCallback((file: File) => {
-    if (!canvasRef.current || !regionRectRef.current) return;
-  
-    const url = URL.createObjectURL(file);
-  
-    import("fabric").then(async (fabric) => {
-      const clipPath = await buildRegionClipPath();
-  
-      fabric.FabricImage.fromURL(url).then((img) => {
-        if (!img || !canvasRef.current || !regionRectRef.current) return;
-  
-        const canvas = canvasRef.current!;
-        const rect = regionRectRef.current!;
-  
-        const centerX = (rect.left ?? 0) + (rect.width ?? 0) / 2;
-        const centerY = (rect.top ?? 0) + (rect.height ?? 0) / 2;
-  
-        const w = img.width ?? 1;
-        const h = img.height ?? 1;
-        const maxDim = Math.max(50, (rect.width ?? 0) - 20);
-        const imgScale = Math.min(maxDim / w, maxDim / h, 1);
-  
-        img.set({
-          left: centerX,
-          top: centerY,
-          scaleX: imgScale,
-          scaleY: imgScale,
-          originX: "center",
-          originY: "center",
-          clipPath: clipPath ?? undefined,
-          lockRotation: false,
-          centeredRotation: true,
+  const handleAddImage = useCallback(
+    (file: File) => {
+      if (!canvasRef.current || !regionRectRef.current) return;
+
+      const url = URL.createObjectURL(file);
+
+      import("fabric").then(async (fabric) => {
+        const clipPath = await buildRegionClipPath();
+
+        fabric.FabricImage.fromURL(url).then((img) => {
+          if (!img || !canvasRef.current || !regionRectRef.current) return;
+
+          const canvas = canvasRef.current!;
+          const rect = regionRectRef.current!;
+
+          const centerX = (rect.left ?? 0) + (rect.width ?? 0) / 2;
+          const centerY = (rect.top ?? 0) + (rect.height ?? 0) / 2;
+
+          const w = img.width ?? 1;
+          const h = img.height ?? 1;
+          const maxWidth = Math.max(50, (rect.width ?? 0) - 20);
+          const maxHeight = Math.max(50, (rect.height ?? 0) - 20);
+          const imgScale = Math.min(maxWidth / w, maxHeight / h, 1);
+
+          img.set({
+            left: centerX,
+            top: centerY,
+            scaleX: imgScale,
+            scaleY: imgScale,
+            originX: "center",
+            originY: "center",
+            clipPath: clipPath ?? undefined,
+            lockRotation: false,
+            centeredRotation: true,
+          });
+
+          canvas.add(img);
+          img.setCoords();
+
+          constrainScaleToRegion(img);
+          clampObjectToRegion(img);
+
+          canvas.setActiveObject(img);
+          canvas.requestRenderAll();
+
+          URL.revokeObjectURL(url);
         });
-  
-        canvas.add(img);
-        img.setCoords();
-  
-        constrainScaleToRegion(img);
-        clampObjectToRegion(img);
-  
-        canvas.setActiveObject(img);
-        canvas.requestRenderAll();
-  
-        URL.revokeObjectURL(url);
       });
-    });
-  }, [buildRegionClipPath, clampObjectToRegion, constrainScaleToRegion]);
+    },
+    [buildRegionClipPath, clampObjectToRegion, constrainScaleToRegion]
+  );
 
   const handleClear = useCallback(() => {
     if (!canvasRef.current) return;
@@ -676,8 +661,10 @@ export default function DesignCanvas({
     }
   }, []);
 
-  const maxPos = CANVAS_SIZE - 50;
-  const maxSizeVal = CANVAS_SIZE;
+  const maxLeft = CANVAS_SIZE - 1;
+  const maxTop = CANVAS_SIZE - 1;
+  const maxWidthVal = CANVAS_SIZE;
+  const maxHeightVal = CANVAS_SIZE;
 
   const content = (
     <>
@@ -733,8 +720,8 @@ export default function DesignCanvas({
         <div
           ref={containerRef}
           style={{
-            width:500,
-            height:500,
+            width: 500,
+            height: 500,
           }}
         />
       </div>
@@ -776,15 +763,15 @@ export default function DesignCanvas({
             <input
               type="number"
               min={0}
-              max={maxPos}
+              max={maxLeft}
               value={region.left}
               onChange={(e) =>
-                onDesignableRegionChange?.({
+                onDesignableRegionChangeRef.current?.({
                   ...region,
                   left: Number(e.target.value) || 0,
                 })
               }
-              style={{ width: 56 }}
+              style={{ width: 64 }}
             />
           </label>
 
@@ -793,46 +780,65 @@ export default function DesignCanvas({
             <input
               type="number"
               min={0}
-              max={maxPos}
+              max={maxTop}
               value={region.top}
               onChange={(e) =>
-                onDesignableRegionChange?.({
+                onDesignableRegionChangeRef.current?.({
                   ...region,
                   top: Number(e.target.value) || 0,
                 })
               }
-              style={{ width: 56 }}
+              style={{ width: 64 }}
             />
           </label>
 
           <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span>Size</span>
+            <span>Width</span>
             <input
               type="number"
               min={50}
-              max={maxSizeVal}
-              value={region.size}
+              max={maxWidthVal}
+              value={region.width}
               onChange={(e) =>
-                onDesignableRegionChange?.({
+                onDesignableRegionChangeRef.current?.({
                   ...region,
-                  size: Number(e.target.value) || 100,
+                  width: Number(e.target.value) || 100,
                 })
               }
-              style={{ width: 56 }}
+              style={{ width: 64 }}
+            />
+          </label>
+
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span>Height</span>
+            <input
+              type="number"
+              min={50}
+              max={maxHeightVal}
+              value={region.height}
+              onChange={(e) =>
+                onDesignableRegionChangeRef.current?.({
+                  ...region,
+                  height: Number(e.target.value) || 100,
+                })
+              }
+              style={{ width: 64 }}
             />
           </label>
         </div>
       </div>
 
       <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
-        <span>Print size (in):</span>
+        <span>Print size:</span>
 
         <input
           type="number"
           min={1}
           max={24}
           value={printWidth}
-          onChange={(e) => onPrintDimensionsChange?.(Number(e.target.value) || 12, printHeight)}
+          onChange={(e) =>
+            onPrintDimensionsChangeRef.current?.(Number(e.target.value) || 12, printHeight)
+          }
           style={{ width: 56 }}
         />
 
@@ -843,7 +849,9 @@ export default function DesignCanvas({
           min={1}
           max={24}
           value={printHeight}
-          onChange={(e) => onPrintDimensionsChange?.(printWidth, Number(e.target.value) || 16)}
+          onChange={(e) =>
+            onPrintDimensionsChangeRef.current?.(printWidth, Number(e.target.value) || 16)
+          }
           style={{ width: 56 }}
         />
       </div>

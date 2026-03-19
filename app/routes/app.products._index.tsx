@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import type { LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, useNavigate } from 'react-router';
+import { useState } from "react";
+import type { LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useNavigate } from "react-router";
 import {
   Page,
   Card,
@@ -10,44 +10,107 @@ import {
   List,
   InlineStack,
   Button,
-} from '@shopify/polaris';
-import { authenticate } from '../shopify.server';
-import { createExternalApiHeaders } from '../lib/external-api.server';
+} from "@shopify/polaris";
+import { authenticate } from "../shopify.server";
+import { createExternalApiHeaders } from "../lib/external-api.server";
 import {
   resolveProductKeyFromApiProduct,
   getPlaceholderImageForApiProduct,
   getPlaceholderProducts,
-} from '../lib/dtfta-products.server';
-import ProductCard from '../common/ProductCard';
-import type { Product } from '../types';
+  normalizeDtftaProduct,
+} from "../lib/dtfta-products.server";
+import ProductCard from "../common/ProductCard";
+import type { Product } from "../types";
 
-export type ProductWithKey = Product & { productKey?: string };
+export type ProductWithKey = Product & {
+  productKey?: string;
+  colors?: string[];
+  sizes?: string[];
+  print_areas?: Array<{
+    id: number;
+    title: string;
+    area_width: string;
+    area_height: string;
+    unit: string;
+    position_x: string;
+    position_y: string;
+    tshirt_size: string;
+    display_order: number;
+    is_active: boolean;
+    image: string;
+  }>;
+};
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
-  const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
+  const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
   const headers = createExternalApiHeaders("", { "X-Shop": shop });
 
   try {
-    const res = await fetch(`${API_BASE}/products/get?shop_id=${encodeURIComponent(shop)}`, { headers });
-    const response = await res.json();
-    //const rawProducts: Product[] = res.ok ? await res.json() : [];
+    const res = await fetch(
+      `${API_BASE}/products/get?shop_id=${encodeURIComponent(shop)}`,
+      { headers }
+    );
+    const response = await res.json().catch(() => ({}));
+
     const rawProducts: Product[] = Array.isArray(response?.data) ? response.data : [];
+    
 
     if (rawProducts.length === 0) {
       return { products: getPlaceholderProducts() as ProductWithKey[] };
     }
+
     const products: ProductWithKey[] = rawProducts.map((p) => {
-      const productKey = resolveProductKeyFromApiProduct(p);
-      const placeholderImage = getPlaceholderImageForApiProduct(p);
+      const normalized = normalizeDtftaProduct({
+        id: p.id,
+        productKey: (p as ProductWithKey).productKey,
+        key: (p as ProductWithKey).productKey ?? String(p.id ?? ""),
+        name: p.name,
+        category: p.category,
+        brandCode: (p as ProductWithKey & { brandCode?: string }).brandCode ?? "",
+        brand: p.brand,
+        style: (p as ProductWithKey & { style?: string }).style ?? p.model ?? "",
+        model: p.model ?? "",
+        image: p.image,
+        images: (p as ProductWithKey & { images?: string[] }).images,
+        description: (p as ProductWithKey & { description?: string | null }).description ?? null,
+        status: (p as ProductWithKey & { status?: string }).status ?? "active",
+        price: p.price ?? 0,
+        currency: p.currency ?? "USD",
+        colors: (p as ProductWithKey).colors,
+        sizes: (p as ProductWithKey).sizes,
+        variants: ((p as ProductWithKey & { variants?: any[] }).variants ?? []) as any[],
+        print_areas: (p as ProductWithKey).print_areas,
+        created_at: (p as ProductWithKey & { created_at?: string }).created_at,
+        updated_at: (p as ProductWithKey & { updated_at?: string }).updated_at,
+      });
+
+      const productKey =
+        resolveProductKeyFromApiProduct({
+          id: p.id,
+          model: p.model,
+          productKey: (p as ProductWithKey).productKey,
+        }) ??
+        normalized?.productKey ??
+        normalized?.key;
+
+      const placeholderImage = getPlaceholderImageForApiProduct({
+        id: String(p.id ?? ""),
+        model: p.model,
+        productKey: (p as ProductWithKey).productKey,
+      });
 
       return {
         ...p,
         productKey: productKey ?? undefined,
         image: p.image?.trim() ? p.image : placeholderImage ?? p.image,
+        colors: normalized?.colors ?? (p as ProductWithKey).colors ?? [],
+        sizes: normalized?.sizes ?? (p as ProductWithKey).sizes ?? [],
+        print_areas: normalized?.print_areas ?? (p as ProductWithKey).print_areas ?? [],
       };
     });
+
     return { products };
   } catch {
     return { products: getPlaceholderProducts() as ProductWithKey[] };
@@ -61,12 +124,13 @@ export default function ProductsIndex() {
   const navigate = useNavigate();
 
   const selectedProductData = selectedProduct
-    ? products.find((p) => p.id === selectedProduct)
+    ? products.find((p) => String(p.id) === selectedProduct)
     : null;
+
   return (
     <Page title="DTFTA Products" fullWidth>
       <InlineStack align="start" gap="500" blockAlign="start">
-        <div style={{ flex: '1', minWidth: 0 }}>
+        <div style={{ flex: "1", minWidth: 0 }}>
           <Card>
             <BlockStack gap="500">
               <Text as="h2" variant="headingMd">
@@ -80,15 +144,19 @@ export default function ProductsIndex() {
               <InlineGrid columns={{ xs: 1, sm: 4 }} gap="400">
                 {products.map((product) => (
                   <ProductCard
-                    key={product.id}
+                    key={String(product.id)}
                     product={product}
                     onToggleFavorite={(pid) => {
                       setProducts((prev) =>
-                        prev.map((p) => (p.id === pid ? { ...p, isFavorite: !p.isFavorite } : p))
+                        prev.map((p) =>
+                          String(p.id) === String(pid)
+                            ? { ...p, isFavorite: !p.isFavorite }
+                            : p
+                        )
                       );
                     }}
-                    onClick={(productId) => setSelectedProduct(productId)}
-                    isSelected={selectedProduct === product.id}
+                    onClick={(productId) => setSelectedProduct(String(productId))}
+                    isSelected={selectedProduct === String(product.id)}
                     showFavorite={true}
                     variant="default"
                   />
@@ -98,7 +166,7 @@ export default function ProductsIndex() {
           </Card>
         </div>
 
-        <div style={{ minWidth: '280px', maxWidth: '320px', flexShrink: 0 }}>
+        <div style={{ minWidth: "280px", maxWidth: "320px", flexShrink: 0 }}>
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
@@ -125,9 +193,13 @@ export default function ProductsIndex() {
                   variant="primary"
                   fullWidth
                   onClick={() => {
-                    const productKey = (selectedProductData as ProductWithKey).productKey ?? selectedProductData.id;
+                    const productKey =
+                      selectedProductData.productKey ?? String(selectedProductData.id);
+
                     navigate(
-                      `/app/products/customize?productId=${encodeURIComponent(selectedProductData.id)}&productKey=${encodeURIComponent(productKey)}`
+                      `/app/products/customize?productId=${encodeURIComponent(
+                        String(selectedProductData.id)
+                      )}&productKey=${encodeURIComponent(productKey)}`
                     );
                   }}
                 >
