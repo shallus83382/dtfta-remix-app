@@ -37,7 +37,7 @@ export async function syncInstallToLaravel(
       "X-Shop": session.shop
     });
 
-    const url = `${API_BASE.replace(/\/$/, "")}/api/v1/webhooks/shopify`;
+    const url = `${API_BASE.replace(/\/$/, "")}/webhooks/shopify`;
     const response = await fetch(url, {
       method: "POST",
       headers,

@@ -30,14 +30,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const headers = createExternalApiHeaders("", { "X-Shop": shop });
 
   try {
-    const res = await fetch(`${API_BASE}/products?shop=${encodeURIComponent(shop)}`, { headers });
-    const rawProducts: Product[] = res.ok ? await res.json() : [];
+    const res = await fetch(`${API_BASE}/products/get?shop_id=${encodeURIComponent(shop)}`, { headers });
+    const response = await res.json();
+    //const rawProducts: Product[] = res.ok ? await res.json() : [];
+    const rawProducts: Product[] = Array.isArray(response?.data) ? response.data : [];
+
     if (rawProducts.length === 0) {
       return { products: getPlaceholderProducts() as ProductWithKey[] };
     }
     const products: ProductWithKey[] = rawProducts.map((p) => {
       const productKey = resolveProductKeyFromApiProduct(p);
       const placeholderImage = getPlaceholderImageForApiProduct(p);
+
       return {
         ...p,
         productKey: productKey ?? undefined,

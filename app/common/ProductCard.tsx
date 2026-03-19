@@ -135,7 +135,7 @@ export default function ProductCard({
             variant={variant === 'compact' ? 'bodySm' : 'bodyMd'}
             fontWeight="semibold"
           >
-            From {product.currency} {product.price.toFixed(2)}
+            From {product?.currency} {product?.price?.toFixed(2)}
           </Text>
         </BlockStack>
       </Card>
