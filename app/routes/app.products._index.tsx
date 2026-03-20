@@ -55,17 +55,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const response = await res.json().catch(() => ({}));
 
     const rawProducts: Product[] = Array.isArray(response?.data) ? response.data : [];
-    
 
     if (rawProducts.length === 0) {
       return { products: getPlaceholderProducts() as ProductWithKey[] };
     }
 
     const products: ProductWithKey[] = rawProducts.map((p) => {
+      const apiProductKey = (p as ProductWithKey).productKey?.trim();
+
       const normalized = normalizeDtftaProduct({
         id: p.id,
-        productKey: (p as ProductWithKey).productKey,
-        key: (p as ProductWithKey).productKey ?? String(p.id ?? ""),
+        productKey: apiProductKey,
+        key: apiProductKey ?? String(p.id ?? ""),
         name: p.name,
         category: p.category,
         brandCode: (p as ProductWithKey & { brandCode?: string }).brandCode ?? "",
@@ -87,18 +88,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
 
       const productKey =
+        apiProductKey ||
+        normalized?.productKey ||
+        normalized?.key ||
         resolveProductKeyFromApiProduct({
           id: p.id,
           model: p.model,
-          productKey: (p as ProductWithKey).productKey,
-        }) ??
-        normalized?.productKey ??
-        normalized?.key;
+          productKey: apiProductKey,
+        });
 
       const placeholderImage = getPlaceholderImageForApiProduct({
         id: String(p.id ?? ""),
         model: p.model,
-        productKey: (p as ProductWithKey).productKey,
+        productKey: apiProductKey,
       });
 
       return {

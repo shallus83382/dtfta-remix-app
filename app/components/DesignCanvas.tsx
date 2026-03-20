@@ -32,6 +32,28 @@ interface DesignCanvasProps {
   backgroundImageUrl?: string;
   designableRegion: DesignableRegion;
   onDesignableRegionChange?: (region: DesignableRegion) => void;
+  initialCanvasState?: unknown;
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Failed to read file as data URL"));
+      }
+    };
+
+    reader.onerror = () => reject(reader.error ?? new Error("File read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function isFabricCanvasObject(value: unknown): value is FabricObject {
+  return !!value && typeof value === "object" && "setCoords" in value && "set" in value;
 }
 
 export default function DesignCanvas({
@@ -44,6 +66,7 @@ export default function DesignCanvas({
   backgroundImageUrl,
   designableRegion,
   onDesignableRegionChange,
+  initialCanvasState,
 }: DesignCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,6 +96,7 @@ export default function DesignCanvas({
     fillWidth ? 0 : CANVAS_SIZE
   );
   const [zoom, setZoom] = useState(1);
+  const [canvasReadyTick, setCanvasReadyTick] = useState(0);
 
   const region = designableRegion ?? DEFAULT_REGION;
 
@@ -169,7 +193,8 @@ export default function DesignCanvas({
         : obj.getBoundingRect().width;
 
     const scaledHeight =
-      typeof (obj as FabricObject & { getScaledHeight?: () => number }).getScaledHeight === "function"
+      typeof (obj as FabricObject & { getScaledHeight?: () => number }).getScaledHeight ===
+      "function"
         ? (obj as FabricObject & { getScaledHeight: () => number }).getScaledHeight()
         : obj.getBoundingRect().height;
 
@@ -248,29 +273,28 @@ export default function DesignCanvas({
   useEffect(() => {
     if (typeof window === "undefined" || !containerRef.current) return;
     if (fillWidth && !hasDimensions) return;
+    if (canvasRef.current) return;
 
     let mounted = true;
     let cleanupListeners: (() => void) | null = null;
 
-    const cw = width;
-    const ch = height;
-
     import("fabric").then((fabric) => {
-      if (!mounted || !containerRef.current) return;
+      if (!mounted || !containerRef.current || canvasRef.current) return;
 
       const canvasEl = document.createElement("canvas");
-      canvasEl.width = cw;
-      canvasEl.height = ch;
+      canvasEl.width = width;
+      canvasEl.height = height;
 
       containerRef.current.innerHTML = "";
       containerRef.current.appendChild(canvasEl);
 
       const fabricCanvas = new fabric.Canvas(canvasEl, {
-        width: cw,
-        height: ch,
+        width,
+        height,
       });
 
       canvasRef.current = fabricCanvas;
+      setCanvasReadyTick((v) => v + 1);
 
       const rect = new fabric.Rect({
         left: region.left * scaleX,
@@ -285,6 +309,7 @@ export default function DesignCanvas({
         strokeDashArray: [8, 8],
         selectable: false,
         evented: false,
+        data: { __internal: true, kind: "region" },
       });
 
       fabricCanvas.add(rect);
@@ -315,41 +340,6 @@ export default function DesignCanvas({
         fabricCanvas.off("object:modified", onModified);
       };
 
-      if (backgroundImageUrl) {
-        fabric.FabricImage.fromURL(backgroundImageUrl).then((img) => {
-          if (!mounted || !canvasRef.current) return;
-
-          const imgW = img.width ?? 1;
-          const imgH = img.height ?? 1;
-          const scaleBg = Math.min(cw / imgW, ch / imgH);
-
-          img.set({
-            scaleX: scaleBg,
-            scaleY: scaleBg,
-            originX: "center",
-            originY: "center",
-            left: cw / 2,
-            top: ch / 2,
-            selectable: false,
-            evented: false,
-            lockScalingX: true,
-            lockScalingY: true,
-            lockRotation: true,
-            hasControls: false,
-            hasBorders: true,
-          });
-
-          fabricCanvas.add(img);
-          fabricCanvas.sendObjectToBack(img);
-          backgroundImageRef.current = img;
-
-          positionRegionRect();
-          fabricCanvas.requestRenderAll();
-        });
-      } else {
-        positionRegionRect();
-      }
-
       fabricCanvas.requestRenderAll();
       onCanvasReadyRef.current?.(fabricCanvas);
     });
@@ -368,21 +358,114 @@ export default function DesignCanvas({
       if (containerRef.current) containerRef.current.innerHTML = "";
     };
   }, [
-    backgroundImageUrl,
+    fillWidth,
+    hasDimensions,
     width,
     height,
-    hasDimensions,
-    fillWidth,
     region.left,
     region.top,
     region.width,
     region.height,
     scaleX,
     scaleY,
-    positionRegionRect,
     clampObjectToRegion,
     constrainScaleToRegion,
   ]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const anyCanvas = canvas as Canvas & {
+      setWidth?: (value: number) => void;
+      setHeight?: (value: number) => void;
+      lowerCanvasEl?: HTMLCanvasElement;
+    };
+
+    anyCanvas.setWidth?.(width);
+    anyCanvas.setHeight?.(height);
+
+    if (anyCanvas.lowerCanvasEl) {
+      anyCanvas.lowerCanvasEl.width = width;
+      anyCanvas.lowerCanvasEl.height = height;
+    }
+
+    positionRegionRect();
+    canvas.requestRenderAll();
+  }, [width, height, positionRegionRect]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let cancelled = false;
+
+    import("fabric").then(async (fabric) => {
+      const currentCanvas = canvasRef.current;
+      if (cancelled || !currentCanvas) return;
+
+      if (backgroundImageRef.current) {
+        currentCanvas.remove(backgroundImageRef.current);
+        backgroundImageRef.current = null;
+      }
+
+      if (!backgroundImageUrl) {
+        if (regionRectRef.current) {
+          currentCanvas.bringObjectToFront(regionRectRef.current);
+        }
+        currentCanvas.requestRenderAll();
+        return;
+      }
+
+      try {
+        const img = await fabric.FabricImage.fromURL(backgroundImageUrl, {
+          crossOrigin: "anonymous",
+        });
+
+        if (cancelled || !canvasRef.current) return;
+
+        const imgW = img.width ?? 1;
+        const imgH = img.height ?? 1;
+        const scaleBg = Math.min(width / imgW, height / imgH);
+
+        img.set({
+          scaleX: scaleBg,
+          scaleY: scaleBg,
+          originX: "center",
+          originY: "center",
+          left: width / 2,
+          top: height / 2,
+          selectable: false,
+          evented: false,
+          lockScalingX: true,
+          lockScalingY: true,
+          lockRotation: true,
+          hasControls: false,
+          hasBorders: false,
+          data: { __internal: true, kind: "background" },
+        });
+
+        const liveCanvas = canvasRef.current;
+        if (!liveCanvas) return;
+
+        liveCanvas.add(img);
+        liveCanvas.sendObjectToBack(img);
+        backgroundImageRef.current = img;
+
+        if (regionRectRef.current) {
+          liveCanvas.bringObjectToFront(regionRectRef.current);
+        }
+
+        liveCanvas.requestRenderAll();
+      } catch (error) {
+        console.error("Failed to load background image", error);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backgroundImageUrl, width, height, canvasReadyTick]);
 
   useEffect(() => {
     positionRegionRect();
@@ -435,6 +518,83 @@ export default function DesignCanvas({
     height,
     backgroundImageUrl,
   ]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let cancelled = false;
+
+    import("fabric").then(async (fabric) => {
+      const currentCanvas = canvasRef.current;
+      if (cancelled || !currentCanvas) return;
+
+      const regionRect = regionRectRef.current;
+      const bg = backgroundImageRef.current;
+
+      currentCanvas.discardActiveObject();
+
+      currentCanvas.getObjects().forEach((obj) => {
+        if (obj !== regionRect && obj !== bg) {
+          currentCanvas.remove(obj);
+        }
+      });
+
+      const savedObjects =
+        initialCanvasState &&
+        typeof initialCanvasState === "object" &&
+        Array.isArray((initialCanvasState as { objects?: unknown[] }).objects)
+          ? (initialCanvasState as { objects: unknown[] }).objects
+          : [];
+
+      if (savedObjects.length > 0) {
+        const enlivened = await fabric.util.enlivenObjects(savedObjects);
+
+        if (cancelled || !canvasRef.current) return;
+
+        const fabricObjects = enlivened.filter(isFabricCanvasObject);
+
+        fabricObjects.forEach((obj) => {
+          currentCanvas.add(obj);
+
+          if (regionRectRef.current) {
+            const clip = new fabric.Rect({
+              left: regionRectRef.current.left ?? 0,
+              top: regionRectRef.current.top ?? 0,
+              width: regionRectRef.current.width ?? 0,
+              height: regionRectRef.current.height ?? 0,
+              originX: "left",
+              originY: "top",
+              absolutePositioned: true,
+            });
+
+            obj.set({
+              clipPath: clip,
+              selectable: true,
+              evented: true,
+            });
+          }
+
+          obj.setCoords();
+          constrainScaleToRegion(obj);
+          clampObjectToRegion(obj);
+        });
+      }
+
+      if (backgroundImageRef.current) {
+        currentCanvas.sendObjectToBack(backgroundImageRef.current);
+      }
+      if (regionRectRef.current) {
+        currentCanvas.bringObjectToFront(regionRectRef.current);
+      }
+
+      currentCanvas.requestRenderAll();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialCanvasState, constrainScaleToRegion, clampObjectToRegion]);
 
   const setZoomAtPoint = useCallback(
     (canvas: Canvas, point: { x: number; y: number }, z: number) => {
@@ -572,6 +732,7 @@ export default function DesignCanvas({
         clipPath: clipPath ?? undefined,
         lockRotation: false,
         centeredRotation: true,
+        data: { __internal: false, kind: "design" },
       });
 
       canvas.add(text);
@@ -586,53 +747,56 @@ export default function DesignCanvas({
   }, [buildRegionClipPath, clampObjectToRegion, constrainScaleToRegion]);
 
   const handleAddImage = useCallback(
-    (file: File) => {
+    async (file: File) => {
       if (!canvasRef.current || !regionRectRef.current) return;
 
-      const url = URL.createObjectURL(file);
-
-      import("fabric").then(async (fabric) => {
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const fabric = await import("fabric");
         const clipPath = await buildRegionClipPath();
 
-        fabric.FabricImage.fromURL(url).then((img) => {
-          if (!img || !canvasRef.current || !regionRectRef.current) return;
+        const img = await fabric.FabricImage.fromURL(dataUrl);
 
-          const canvas = canvasRef.current!;
-          const rect = regionRectRef.current!;
+        if (!img || !canvasRef.current || !regionRectRef.current) return;
 
-          const centerX = (rect.left ?? 0) + (rect.width ?? 0) / 2;
-          const centerY = (rect.top ?? 0) + (rect.height ?? 0) / 2;
+        const canvas = canvasRef.current;
+        const rect = regionRectRef.current;
 
-          const w = img.width ?? 1;
-          const h = img.height ?? 1;
-          const maxWidth = Math.max(50, (rect.width ?? 0) - 20);
-          const maxHeight = Math.max(50, (rect.height ?? 0) - 20);
-          const imgScale = Math.min(maxWidth / w, maxHeight / h, 1);
+        const centerX = (rect.left ?? 0) + (rect.width ?? 0) / 2;
+        const centerY = (rect.top ?? 0) + (rect.height ?? 0) / 2;
 
-          img.set({
-            left: centerX,
-            top: centerY,
-            scaleX: imgScale,
-            scaleY: imgScale,
-            originX: "center",
-            originY: "center",
-            clipPath: clipPath ?? undefined,
-            lockRotation: false,
-            centeredRotation: true,
-          });
+        const w = img.width ?? 1;
+        const h = img.height ?? 1;
+        const maxWidth = Math.max(50, (rect.width ?? 0) - 20);
+        const maxHeight = Math.max(50, (rect.height ?? 0) - 20);
+        const imgScale = Math.min(maxWidth / w, maxHeight / h, 1);
 
-          canvas.add(img);
-          img.setCoords();
-
-          constrainScaleToRegion(img);
-          clampObjectToRegion(img);
-
-          canvas.setActiveObject(img);
-          canvas.requestRenderAll();
-
-          URL.revokeObjectURL(url);
+        img.set({
+          left: centerX,
+          top: centerY,
+          scaleX: imgScale,
+          scaleY: imgScale,
+          originX: "center",
+          originY: "center",
+          clipPath: clipPath ?? undefined,
+          lockRotation: false,
+          centeredRotation: true,
+          selectable: true,
+          evented: true,
+          data: { __internal: false, kind: "design" },
         });
-      });
+
+        canvas.add(img);
+        img.setCoords();
+
+        constrainScaleToRegion(img);
+        clampObjectToRegion(img);
+
+        canvas.setActiveObject(img);
+        canvas.requestRenderAll();
+      } catch (error) {
+        console.error("Failed to add image", error);
+      }
     },
     [buildRegionClipPath, clampObjectToRegion, constrainScaleToRegion]
   );
@@ -881,7 +1045,21 @@ export default function DesignCanvas({
 
 export function exportCanvasToDataUrl(canvas: Canvas | null): string | null {
   if (!canvas) return null;
-  const el = (canvas as unknown as { lowerCanvasEl?: HTMLCanvasElement }).lowerCanvasEl;
-  if (!el) return null;
-  return el.toDataURL("image/png");
+
+  try {
+    if (typeof (canvas as Canvas & { toDataURL?: (options?: unknown) => string }).toDataURL === "function") {
+      return (canvas as Canvas & { toDataURL: (options?: unknown) => string }).toDataURL({
+        format: "png",
+        multiplier: 1,
+      });
+    }
+
+    const el = (canvas as unknown as { lowerCanvasEl?: HTMLCanvasElement }).lowerCanvasEl;
+    if (!el) return null;
+
+    return el.toDataURL("image/png");
+  } catch (error) {
+    console.error("Canvas export failed. The canvas is likely tainted by a cross-origin image.", error);
+    return null;
+  }
 }

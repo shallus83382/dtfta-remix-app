@@ -1,106 +1,23 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-import { useLoaderData, useSearchParams, useFetcher } from "react-router";
-import {
-  Page,
-  Card,
-  BlockStack,
-  Text,
-  InlineStack,
-  Banner,
-  Button,
-  Badge,
-} from "@shopify/polaris";
-import { useAppBridge } from "@shopify/app-bridge-react";
+import { useLoaderData, useSearchParams } from "react-router";
+import { Page, Card, BlockStack, Banner } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { createExternalApiHeaders } from "../lib/external-api.server";
 import {
   getDtftaBlankByKey,
   normalizeDtftaProduct,
   resolveProductKeyFromApiProduct,
-  type DtftaPrintArea,
-  type DtftaVariant,
 } from "../lib/dtfta-products.server";
-import { buildPrintPlan } from "../lib/dtfta-design";
-import DesignCanvas, {
-  exportCanvasToDataUrl,
-  type DesignableRegion,
-} from "../components/DesignCanvas";
-import type { Canvas } from "fabric";
-import type { Product } from "../types";
-
-type ProductWithApiFields = Product & {
-  productKey?: string;
-  colors?: string[];
-  sizes?: string[];
-  print_areas?: DtftaPrintArea[];
-  variants?: DtftaVariant[];
-  status?: string;
-  description?: string | null;
-  images?: string[];
-  brandCode?: string;
-  style?: string;
-  created_at?: string;
-  updated_at?: string;
-};
-
-const DEFAULT_DESIGN_REGION: DesignableRegion = {
-  left: 125,
-  top: 125,
-  width: 250,
-  height: 250,
-};
-
-function normalizePlacementKey(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function getRegionFromPrintArea(area?: DtftaPrintArea): DesignableRegion {
-  if (!area) return DEFAULT_DESIGN_REGION;
-
-  return {
-    left: Number(area.position_x || 0),
-    top: Number(area.position_y || 0),
-    width: Number(area.area_width || 250),
-    height: Number(area.area_height || 250),
-  };
-}
-
-function normalizeApiVariants(input: unknown): DtftaVariant[] {
-  if (!Array.isArray(input)) return [];
-
-  return input
-    .map((item): DtftaVariant | null => {
-      if (!item || typeof item !== "object") return null;
-
-      const variant = item as Record<string, unknown>;
-
-      const colorCode =
-        typeof variant.colorCode === "string" ? variant.colorCode : "";
-      const colorName =
-        typeof variant.colorName === "string" ? variant.colorName : "";
-      const size = typeof variant.size === "string" ? variant.size : "";
-      const sku = typeof variant.sku === "string" ? variant.sku : "";
-
-      if (!colorCode || !colorName || !size || !sku) return null;
-
-      const normalized: DtftaVariant = {
-        colorCode,
-        colorName,
-        size,
-        sku,
-        is_active:
-          typeof variant.is_active === "boolean" ? variant.is_active : true,
-      };
-
-      if (typeof variant.id === "number") {
-        normalized.id = variant.id;
-      }
-
-      return normalized;
-    })
-    .filter((item): item is DtftaVariant => item !== null);
-}
+import { normalizeApiVariants } from "../lib/product-customize/helpers";
+import type {
+  ProductWithApiFields,
+  PrintableAreaPayload,
+} from "../lib/product-customize/types";
+import { useProductCustomize } from "../lib/product-customize/useProductCustomize";
+import ProductMeta from "../components/product-customize/ProductMeta";
+import PlacementSelector from "../components/product-customize/PlacementSelector";
+import CustomizeCanvasSection from "../components/product-customize/CustomizeCanvasSection";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -145,7 +62,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     apiProduct = null;
   }
 
-  const fallbackBlank = productKeyParam ? getDtftaBlankByKey(productKeyParam) : undefined;
+  const fallbackBlank = productKeyParam
+    ? getDtftaBlankByKey(productKeyParam)
+    : undefined;
 
   const normalizedSource = apiProduct
     ? {
@@ -165,7 +84,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  if (request.method !== "POST") return { ok: false, error: "Method not allowed" };
+  if (request.method !== "POST") {
+    return { ok: false, error: "Method not allowed" };
+  }
 
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
@@ -173,7 +94,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const productKey = formData.get("productKey") as string;
   const title = (formData.get("title") as string) || undefined;
+  const productId = formData.get("productId") as string;
   const printPlan = (formData.get("printPlan") as string) || "";
+  const printableAreasRaw = (formData.get("printableAreas") as string) || "[]";
 
   if (!productKey?.trim()) {
     return { ok: false, error: "Missing product key" };
@@ -189,22 +112,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  let printableAreas: PrintableAreaPayload[] = [];
+
+  try {
+    const parsed = JSON.parse(printableAreasRaw);
+    if (Array.isArray(parsed)) {
+      printableAreas = parsed;
+    }
+  } catch {
+    return { ok: false, error: "Invalid printableAreas payload" };
+  }
+
   const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
   const payload = {
     shop,
     productKey,
+    productId,
     title,
     printPlan,
     artworkUrls,
   };
+
   const headers = createExternalApiHeaders(payload, { "X-Shop": shop });
 
   try {
-    const res = await fetch(`${API_BASE.replace(/\/$/, "")}/products/create-in-shopify-signed`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(
+      `${API_BASE.replace(/\/$/, "")}/products/create-in-shopify-signed`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      }
+    );
 
     const data = await res.json().catch(() => ({}));
 
@@ -214,10 +153,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         error: data.message || data.error || `Request failed: ${res.status}`,
       };
     }
+    
+    //console.log(data.data.shopify.product.id);
 
     return {
       ok: true,
-      productId: data.productId,
+      productId: data.data.shopify.product.id,
       handle: data.handle,
     };
   } catch (e) {
@@ -230,13 +171,6 @@ type LoaderData = Awaited<ReturnType<typeof loader>>;
 export default function ProductCustomize() {
   const loaderData = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
-  const fetcher = useFetcher<{
-    ok: boolean;
-    error?: string;
-    productId?: string;
-    handle?: string;
-  }>();
-  const shopify = useAppBridge();
 
   const productKey =
     loaderData.productKey ||
@@ -255,132 +189,24 @@ export default function ProductCustomize() {
     [product]
   );
 
-  const defaultPlacement = normalizePlacementKey(printAreas[0]?.title ?? "front");
-  const [placement, setPlacement] = useState<string>(defaultPlacement);
-  const [canvases, setCanvases] = useState<Record<string, Canvas | null>>({});
-  const [printSizes, setPrintSizes] = useState<Record<string, { width: number; height: number }>>(
-    {}
-  );
-  const [regions, setRegions] = useState<Record<string, DesignableRegion>>({});
-
-  useEffect(() => {
-    if (!printAreas.length) return;
-
-    const nextPrintSizes: Record<string, { width: number; height: number }> = {};
-    const nextRegions: Record<string, DesignableRegion> = {};
-
-    for (const area of printAreas) {
-      const key = normalizePlacementKey(area.title);
-      nextPrintSizes[key] = {
-        width: Number(area.area_width || 250),
-        height: Number(area.area_height || 250),
-      };
-      nextRegions[key] = getRegionFromPrintArea(area);
-    }
-
-    setPrintSizes(nextPrintSizes);
-    setRegions(nextRegions);
-    setPlacement((prev) => prev || normalizePlacementKey(printAreas[0].title));
-  }, [printAreas]);
-
-  const selectedPrintArea = useMemo(
-    () => printAreas.find((area) => normalizePlacementKey(area.title) === placement),
-    [printAreas, placement]
-  );
-
-  const selectedRegion = selectedPrintArea
-    ? regions[placement] ?? getRegionFromPrintArea(selectedPrintArea)
-    : DEFAULT_DESIGN_REGION;
-
-  const selectedPrintSize = selectedPrintArea
-    ? printSizes[placement] ?? {
-        width: Number(selectedPrintArea.area_width || 250),
-        height: Number(selectedPrintArea.area_height || 250),
-      }
-    : { width: 12, height: 16 };
-
-  const handleCanvasReady = useCallback((placementKey: string, canvas: Canvas) => {
-    setCanvases((prev) => {
-      if (prev[placementKey] === canvas) return prev;
-      return {
-        ...prev,
-        [placementKey]: canvas,
-      };
-    });
-  }, []);
-
-  const handlePrintSizeChange = useCallback((placementKey: string, w: number, h: number) => {
-    setPrintSizes((prev) => {
-      const current = prev[placementKey];
-      if (current && current.width === w && current.height === h) return prev;
-      return {
-        ...prev,
-        [placementKey]: { width: w, height: h },
-      };
-    });
-  }, []);
-
-  const handleRegionChange = useCallback((placementKey: string, region: DesignableRegion) => {
-    setRegions((prev) => {
-      const current = prev[placementKey];
-      if (
-        current &&
-        current.left === region.left &&
-        current.top === region.top &&
-        current.width === region.width &&
-        current.height === region.height
-      ) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        [placementKey]: region,
-      };
-    });
-  }, []);
-
-  const handleAddToStore = useCallback(() => {
-    const printPlan = buildPrintPlan(printSizes);
-
-    const artworkByPlacement = Object.fromEntries(
-      Object.entries(canvases)
-        .map(([key, canvas]) => [key, exportCanvasToDataUrl(canvas)])
-        .filter(([, value]) => Boolean(value))
-    ) as Record<string, string>;
-
-    if (!printPlan && Object.keys(artworkByPlacement).length === 0) {
-      shopify.toast.show("Add at least one placement (print size or artwork).");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.set("productKey", productKey);
-    formData.set("title", `${productName} Custom`);
-    formData.set("printPlan", printPlan);
-
-    for (const [key, value] of Object.entries(artworkByPlacement)) {
-      formData.set(`artwork_${key}`, value);
-    }
-
-    fetcher.submit(formData, { method: "POST" });
-  }, [canvases, printSizes, productKey, productName, fetcher, shopify]);
-
-  const successHandled = useRef(false);
-
-  useEffect(() => {
-    if (fetcher.data?.ok && fetcher.data.productId && !successHandled.current) {
-      successHandled.current = true;
-      shopify.toast.show("Product created");
-      try {
-        shopify.intents.invoke?.("edit:shopify/Product", {
-          value: fetcher.data.productId,
-        });
-      } catch {
-        // ignore
-      }
-    }
-  }, [fetcher.data?.ok, fetcher.data?.productId, shopify]);
+  const {
+    fetcher,
+    placement,
+    selectedPrintArea,
+    selectedRegion,
+    selectedPrintSize,
+    canvasStateByPlacement,
+    handleCanvasReady,
+    handlePrintSizeChange,
+    handleRegionChange,
+    handlePlacementChange,
+    handleAddToStore,
+  } = useProductCustomize({
+    productKey,
+    productName,
+    productId: loaderData.productId,
+    printAreas,
+  });
 
   if (!productKey || !product) {
     return (
@@ -413,77 +239,24 @@ export default function ProductCustomize() {
 
         <Card>
           <BlockStack gap="400">
-            <InlineStack gap="200" blockAlign="center">
-              {product.brand ? <Badge>{product.brand}</Badge> : null}
-              {product.colors?.length ? (
-                <Text as="span" variant="bodyMd">
-                  Colors: {product.colors.join(", ")}
-                </Text>
-              ) : null}
-              {product.sizes?.length ? (
-                <Text as="span" variant="bodyMd">
-                  Sizes: {product.sizes.join(", ")}
-                </Text>
-              ) : null}
-            </InlineStack>
+            <ProductMeta product={product} />
 
-            <Text as="p" variant="bodyMd">
-              Choose a print area below. Each print area uses its own background image from the API.
-            </Text>
+            <PlacementSelector
+              printAreas={printAreas}
+              placement={placement}
+              onChange={handlePlacementChange}
+            />
 
-            <InlineStack gap="200" blockAlign="center">
-              {printAreas.map((area) => {
-                const key = normalizePlacementKey(area.title);
-                return (
-                  <Button
-                    key={area.id}
-                    variant={placement === key ? "primary" : "secondary"}
-                    onClick={() => setPlacement(key)}
-                  >
-                    {area.title}
-                  </Button>
-                );
-              })}
-            </InlineStack>
-
-            {selectedPrintArea ? (
-              <div
-                style={{
-                  width: "100%",
-                  minWidth: 0,
-                  height: "min(75vw, calc(100vh - 220px))",
-                  minHeight: 280,
-                }}
-              >
-                {selectedPrintArea.image ? (
-                  <DesignCanvas
-                    key={placement}
-                    label={selectedPrintArea.title}
-                    fillWidth
-                    onCanvasReady={(canvas) => handleCanvasReady(placement, canvas)}
-                    printWidth={selectedPrintSize.width}
-                    printHeight={selectedPrintSize.height}
-                    onPrintDimensionsChange={(w, h) => handlePrintSizeChange(placement, w, h)}
-                    backgroundImageUrl={selectedPrintArea.image}
-                    designableRegion={selectedRegion}
-                    onDesignableRegionChange={(region) => handleRegionChange(placement, region)}
-                  />
-                ) : (
-                  <Banner tone="warning">
-                    No background image found for the selected print area.
-                  </Banner>
-                )}
-              </div>
-            ) : (
-              <Banner tone="warning">No active print areas found for this product.</Banner>
-            )}
-
-            {selectedPrintArea ? (
-              <Text as="p" variant="bodySm" tone="subdued">
-                Active print area: {selectedPrintArea.title} · {selectedPrintArea.area_width} ×{" "}
-                {selectedPrintArea.area_height} {selectedPrintArea.unit}
-              </Text>
-            ) : null}
+            <CustomizeCanvasSection
+              placement={placement}
+              selectedPrintArea={selectedPrintArea}
+              selectedRegion={selectedRegion}
+              selectedPrintSize={selectedPrintSize}
+              initialCanvasState={canvasStateByPlacement[placement]}
+              onCanvasReady={handleCanvasReady}
+              onPrintSizeChange={handlePrintSizeChange}
+              onRegionChange={handleRegionChange}
+            />
           </BlockStack>
         </Card>
       </BlockStack>
