@@ -19,9 +19,22 @@ api_version = "2026-04"
   topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
 
+  [[webhooks.subscriptions]]
+  topics = [ "orders/create", "orders/updated", "orders/delete" ]
+  uri = "/webhooks/orders"
+
+  [[webhooks.subscriptions]]
+  topics = [ "fulfillments/create", "fulfillments/update" ]
+  uri = "/webhooks/fulfillments"
+
+  [[webhooks.subscriptions]]
+  topics = ["fulfillment_orders/fulfillment_request_submitted", "fulfillment_orders/cancellation_request_submitted" ]
+  uri = "/webhooks/fulfillment-orders"
+
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_orders,write_products,write_fulfillments,read_assigned_fulfillment_orders,write_assigned_fulfillment_orders"
+scopes = "read_locations,read_inventory,read_markets_home,read_orders,write_products,write_fulfillments,read_assigned_fulfillment_orders,write_assigned_fulfillment_orders"
 
 [auth]
 redirect_urls = [
@@ -29,3 +42,8 @@ redirect_urls = [
   "https://phpstack-1180784-6299772.cloudwaysapps.com/auth/callback",
   "https://phpstack-1180784-6299772.cloudwaysapps.com/api/auth"
 ]
+
+[app_proxy]
+url = "https://phpstack-1180784-6299772.cloudwaysapps.com/apps/dtfta-line-item"
+subpath = "dtfta-line-item"
+prefix = "apps"
