@@ -1,0 +1,24 @@
+{% schema %}
+{
+  "name": "DTFTA cart interceptor",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "proxy_path",
+      "label": "App proxy path",
+      "default": "/apps/dtfta/"
+    }
+  ]
+}
+{% endschema %}
+
+<script>
+  window.__DTFTA__ = {
+    enabled: true,
+    proxyPath: {{ block.settings.proxy_path | json }},
+    shop: {{ shop.permanent_domain | json }}
+  };
+</script>
+
+{{ 'dtfta-storefront.js' | asset_url | script_tag }}
