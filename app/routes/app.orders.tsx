@@ -14,13 +14,14 @@ import {
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
 import type { Order, OrderStatus } from '../types';
+import { createExternalApiHeaders } from '../lib/external-api.server';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
   const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
-  const headers = (await import('../lib/external-api.server')).createExternalApiHeaders("", { "X-Shop": shop });
-
+  const headers = createExternalApiHeaders("", { "X-Shop": shop });
+  
   try {
     const res = await fetch(`${API_BASE}/orders?shop=${encodeURIComponent(shop)}`, { headers });
     const orders = res.ok ? await res.json() : [];
