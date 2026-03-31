@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "5c5529c527539349978ae80bcc0fcca9"
-name = "dtfta"
+client_id = "2ef4373b0ca021f0d5f71cd972d2003c"
+name = "DTFTA"
 application_url = "https://phpstack-1180784-6299772.cloudwaysapps.com"
 embedded = true
 
