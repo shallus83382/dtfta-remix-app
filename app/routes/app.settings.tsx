@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LoaderFunctionArgs, ActionFunctionArgs } from 'react-router';
-import { Form, useActionData } from 'react-router';
+import { Form, useActionData, useLoaderData } from 'react-router';
 import {
   Page,
   Card,
@@ -15,84 +15,154 @@ import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 import type { BrandSettings } from '../types';
 
+type LoaderData = {
+  success: boolean;
+  brandSettings: BrandSettings | null;
+  error?: string;
+};
+
+type ActionData = {
+  success: boolean;
+  brandSettings?: BrandSettings;
+  error?: string;
+};
+
+const getInitialFormData = (brandSettings: BrandSettings | null) => ({
+  brandName: brandSettings?.brandName || '',
+  streetAddress: brandSettings?.returnAddress?.street || '',
+  city: brandSettings?.returnAddress?.city || '',
+  state: brandSettings?.returnAddress?.state || '',
+  zipCode: brandSettings?.returnAddress?.zipCode || '',
+  country: brandSettings?.returnAddress?.country || 'US',
+  supportEmail: brandSettings?.supportContact?.email || '',
+  supportPhone: brandSettings?.supportContact?.phone || '',
+});
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-  return null;
+  const { session } = await authenticate.admin(request);
+
+  const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
+
+  try {
+    const res = await fetch(
+      `${API_BASE}/brand-settings?shop=${encodeURIComponent(session.shop)}`,
+      {
+        method: 'GET',
+        headers: createExternalApiHeaders(undefined, { 'X-Shop': session.shop }),
+      },
+    );
+
+    if (res.status === 404) {
+      return {
+        success: true,
+        brandSettings: null,
+      } satisfies LoaderData;
+    }
+
+    if (!res.ok) {
+      return {
+        success: false,
+        brandSettings: null,
+        error: `Laravel API returned ${res.status}`,
+      } satisfies LoaderData;
+    }
+
+    const data = await res.json();
+
+    return {
+      success: true,
+      brandSettings: data ?? null,
+    } satisfies LoaderData;
+  } catch (e) {
+    return {
+      success: false,
+      brandSettings: null,
+      error: String(e),
+    } satisfies LoaderData;
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
-  
-  const brandSettings = {
-    brandName: formData.get('brandName') as string,
+
+  const brandSettings: BrandSettings = {
+    brandName: (formData.get('brandName') as string) || '',
     returnAddress: {
-      street: formData.get('streetAddress') as string,
-      city: formData.get('city') as string,
-      state: formData.get('state') as string,
-      zipCode: formData.get('zipCode') as string,
-      country: formData.get('country') as string,
+      street: (formData.get('streetAddress') as string) || '',
+      city: (formData.get('city') as string) || '',
+      state: (formData.get('state') as string) || '',
+      zipCode: (formData.get('zipCode') as string) || '',
+      country: (formData.get('country') as string) || 'US',
     },
     supportContact: {
-      email: formData.get('supportEmail') as string,
-      phone: formData.get('supportPhone') as string | undefined,
+      email: (formData.get('supportEmail') as string) || '',
+      phone: ((formData.get('supportPhone') as string) || '').trim() || undefined,
     },
   };
 
   const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
-  const headers = createExternalApiHeaders(brandSettings, { "X-Shop": session.shop });
+  const headers = createExternalApiHeaders(brandSettings, { 'X-Shop': session.shop });
 
   try {
-    const res = await fetch(`${API_BASE}/brand-settings?shop=${encodeURIComponent(session.shop)}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(brandSettings),
-    });
+    const res = await fetch(
+      `${API_BASE}/brand-settings?shop=${encodeURIComponent(session.shop)}`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(brandSettings),
+      },
+    );
 
     if (!res.ok) {
-      return { success: false, error: `Laravel API returned ${res.status}` };
+      return {
+        success: false,
+        error: `Laravel API returned ${res.status}`,
+      } satisfies ActionData;
     }
 
     const data = await res.json();
-    return { success: true, brandSettings: data };
+
+    return {
+      success: true,
+      brandSettings: data,
+    } satisfies ActionData;
   } catch (e) {
-    return { success: false, error: String(e) };
+    return {
+      success: false,
+      error: String(e),
+    } satisfies ActionData;
   }
 };
 
 export default function Settings() {
-  const actionData = useActionData<typeof action>();
-  const [brandSettings, setBrandSettings] = useState<BrandSettings | null>(null);
-  const [formData, setFormData] = useState({
-    brandName: '',
-    streetAddress: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: 'US',
-    supportEmail: '',
-    supportPhone: '',
-  });
+  const loaderData = useLoaderData<typeof loader>() as LoaderData;
+  const actionData = useActionData<typeof action>() as ActionData | undefined;
+
+  const latestBrandSettings =
+    actionData?.success && actionData.brandSettings
+      ? actionData.brandSettings
+      : loaderData.brandSettings;
+
+  const [brandSettings, setBrandSettings] = useState<BrandSettings | null>(
+    latestBrandSettings ?? null,
+  );
+
+  const [formData, setFormData] = useState(() =>
+    getInitialFormData(latestBrandSettings ?? null),
+  );
+
   const updateSetupStatus = (_status: Partial<any>) => {
     // placeholder: in the new flow setup status should be handled by your API
   };
 
-  // Update form data when brandSettings change (from action result)
+  useEffect(() => {
+    setBrandSettings(latestBrandSettings ?? null);
+    setFormData(getInitialFormData(latestBrandSettings ?? null));
+  }, [actionData?.success, loaderData.brandSettings]);
+
   useEffect(() => {
     if (actionData?.success && actionData.brandSettings) {
-      const bs = actionData.brandSettings as BrandSettings;
-      setBrandSettings(bs);
-      setFormData({
-        brandName: bs.brandName || '',
-        streetAddress: bs.returnAddress.street || '',
-        city: bs.returnAddress.city || '',
-        state: bs.returnAddress.state || '',
-        zipCode: bs.returnAddress.zipCode || '',
-        country: bs.returnAddress.country || 'US',
-        supportEmail: bs.supportContact.email || '',
-        supportPhone: bs.supportContact.phone || '',
-      });
-      // Mark setup as complete when settings are saved (mock)
       updateSetupStatus({
         fulfillmentServiceConnected: true,
         locationCreated: true,
@@ -113,10 +183,27 @@ export default function Settings() {
               <Text as="h2" variant="headingMd">
                 Welcome to DTFTA - Complete Your Setup
               </Text>
-              
+
+              {!loaderData.success && loaderData.error ? (
+                <Text as="p" tone="critical">
+                  {loaderData.error}
+                </Text>
+              ) : null}
+
+              {actionData?.success ? (
+                <Text as="p" tone="success">
+                  Settings saved successfully.
+                </Text>
+              ) : null}
+
+              {actionData?.success === false && actionData.error ? (
+                <Text as="p" tone="critical">
+                  {actionData.error}
+                </Text>
+              ) : null}
+
               <Form method="post">
                 <BlockStack gap="500">
-                  {/* Brand Information */}
                   <Card>
                     <BlockStack gap="400">
                       <Text as="h3" variant="headingSm">
@@ -138,7 +225,6 @@ export default function Settings() {
                     </BlockStack>
                   </Card>
 
-                  {/* Return Address */}
                   <Card>
                     <BlockStack gap="400">
                       <Text as="h3" variant="headingSm">
@@ -150,7 +236,7 @@ export default function Settings() {
                       <BlockStack gap="400">
                         <TextField
                           name="streetAddress"
-                          label="Street Address"      
+                          label="Street Address"
                           value={formData.streetAddress}
                           onChange={(value) => handleChange('streetAddress', value)}
                           autoComplete="on"
@@ -195,7 +281,6 @@ export default function Settings() {
                     </BlockStack>
                   </Card>
 
-                  {/* Support Contact */}
                   <Card>
                     <BlockStack gap="400">
                       <Text as="h3" variant="headingSm">
@@ -213,7 +298,9 @@ export default function Settings() {
                           autoComplete="on"
                           value={formData.supportEmail}
                           onChange={(value) => handleChange('supportEmail', value)}
-                          error={!formData.supportEmail ? 'Support email is required' : undefined}
+                          error={
+                            !formData.supportEmail ? 'Support email is required' : undefined
+                          }
                         />
                         <TextField
                           name="supportPhone"
@@ -222,7 +309,6 @@ export default function Settings() {
                           autoComplete="on"
                           value={formData.supportPhone}
                           onChange={(value) => handleChange('supportPhone', value)}
-                          error={!formData.supportPhone ? 'Support phone is required' : undefined}
                         />
                       </BlockStack>
                     </BlockStack>

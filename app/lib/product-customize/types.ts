@@ -29,4 +29,25 @@ export type PrintableAreaPayload = {
   designableRegion: DesignableRegion;
   unit?: string | null;
   backgroundImage?: string | null;
+  editorState?: unknown;
 };
+
+export type CustomizeSubmitResult =
+  | {
+      ok: true;
+      productId: string;
+      handle?: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export type PlacementPrintSize = {
+  width: number;
+  height: number;
+};
+
+export type PlacementPrintSizeMap = Record<string, PlacementPrintSize>;
+export type PlacementRegionMap = Record<string, DesignableRegion>;
+export type PlacementCanvasStateMap = Record<string, unknown>;
