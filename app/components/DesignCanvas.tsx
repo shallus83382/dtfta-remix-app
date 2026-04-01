@@ -520,6 +520,8 @@ export default function DesignCanvas({
   ]);
 
   useEffect(() => {
+    if (!canvasReadyTick) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -527,7 +529,7 @@ export default function DesignCanvas({
 
     import("fabric").then(async (fabric) => {
       const currentCanvas = canvasRef.current;
-      if (cancelled || !currentCanvas) return;
+      if (cancelled || !currentCanvas || !regionRectRef.current) return;
 
       const regionRect = regionRectRef.current;
       const bg = backgroundImageRef.current;
@@ -550,30 +552,28 @@ export default function DesignCanvas({
       if (savedObjects.length > 0) {
         const enlivened = await fabric.util.enlivenObjects(savedObjects);
 
-        if (cancelled || !canvasRef.current) return;
+        if (cancelled || !canvasRef.current || !regionRectRef.current) return;
 
         const fabricObjects = enlivened.filter(isFabricCanvasObject);
 
         fabricObjects.forEach((obj) => {
           currentCanvas.add(obj);
 
-          if (regionRectRef.current) {
-            const clip = new fabric.Rect({
-              left: regionRectRef.current.left ?? 0,
-              top: regionRectRef.current.top ?? 0,
-              width: regionRectRef.current.width ?? 0,
-              height: regionRectRef.current.height ?? 0,
-              originX: "left",
-              originY: "top",
-              absolutePositioned: true,
-            });
+          const clip = new fabric.Rect({
+            left: regionRectRef.current!.left ?? 0,
+            top: regionRectRef.current!.top ?? 0,
+            width: regionRectRef.current!.width ?? 0,
+            height: regionRectRef.current!.height ?? 0,
+            originX: "left",
+            originY: "top",
+            absolutePositioned: true,
+          });
 
-            obj.set({
-              clipPath: clip,
-              selectable: true,
-              evented: true,
-            });
-          }
+          obj.set({
+            clipPath: clip,
+            selectable: true,
+            evented: true,
+          });
 
           obj.setCoords();
           constrainScaleToRegion(obj);
@@ -594,7 +594,12 @@ export default function DesignCanvas({
     return () => {
       cancelled = true;
     };
-  }, [initialCanvasState, constrainScaleToRegion, clampObjectToRegion]);
+  }, [
+    initialCanvasState,
+    canvasReadyTick,
+    constrainScaleToRegion,
+    clampObjectToRegion,
+  ]);
 
   const setZoomAtPoint = useCallback(
     (canvas: Canvas, point: { x: number; y: number }, z: number) => {

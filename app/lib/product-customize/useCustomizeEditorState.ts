@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { flushSync } from "react-dom";
 import type { Canvas, FabricObject } from "fabric";
 import type { DesignableRegion } from "../../components/DesignCanvas";
 import type { DtftaPrintArea } from "../dtfta-products.server";
@@ -32,6 +33,14 @@ export function useCustomizeEditorState({
   const [artworkByPlacement, setArtworkByPlacement] = useState<Record<string, string>>(
     {}
   );
+
+  const canvasStateRef = useRef<PlacementCanvasStateMap>({});
+  const artworkRef = useRef<Record<string, string>>({});
+  const placementRef = useRef<string>(defaultPlacement);
+
+  useEffect(() => {
+    placementRef.current = placement;
+  }, [placement]);
 
   useEffect(() => {
     if (!printAreas.length) return;
@@ -110,26 +119,10 @@ export function useCustomizeEditorState({
     []
   );
 
-  const savePlacementArtwork = useCallback(
+  const serializePlacementState = useCallback(
     (placementKey: string) => {
       const canvas = canvases[placementKey];
-      if (!canvas) return;
-
-      const dataUrl = exportCanvasToDataUrl(canvas);
-      if (!dataUrl) return;
-
-      setArtworkByPlacement((prev) => {
-        if (prev[placementKey] === dataUrl) return prev;
-        return { ...prev, [placementKey]: dataUrl };
-      });
-    },
-    [canvases]
-  );
-
-  const savePlacementState = useCallback(
-    (placementKey: string) => {
-      const canvas = canvases[placementKey];
-      if (!canvas) return;
+      if (!canvas) return null;
 
       try {
         const objects = canvas.getObjects();
@@ -148,34 +141,90 @@ export function useCustomizeEditorState({
           )
           .filter(Boolean);
 
-        setCanvasStateByPlacement((prev) => ({
-          ...prev,
-          [placementKey]: { objects: serialized },
-        }));
+        return { objects: serialized };
       } catch (error) {
         console.error("Failed to save canvas objects", error);
+        return null;
       }
     },
     [canvases]
   );
 
+  const exportPlacementArtwork = useCallback(
+    (placementKey: string) => {
+      const canvas = canvases[placementKey];
+      if (!canvas) return "";
+
+      const dataUrl = exportCanvasToDataUrl(canvas);
+      return dataUrl || "";
+    },
+    [canvases]
+  );
+
+  const savePlacementSnapshot = useCallback(
+    (placementKey: string) => {
+      const nextCanvasState = serializePlacementState(placementKey);
+      const nextArtwork = exportPlacementArtwork(placementKey);
+
+      if (nextCanvasState) {
+        const mergedCanvasState = {
+          ...canvasStateRef.current,
+          [placementKey]: nextCanvasState,
+        };
+        canvasStateRef.current = mergedCanvasState;
+        flushSync(() => {
+          setCanvasStateByPlacement(mergedCanvasState);
+        });
+      }
+
+      if (nextArtwork) {
+        const mergedArtwork = {
+          ...artworkRef.current,
+          [placementKey]: nextArtwork,
+        };
+        artworkRef.current = mergedArtwork;
+        flushSync(() => {
+          setArtworkByPlacement(mergedArtwork);
+        });
+      }
+
+      return {
+        editorState: nextCanvasState ?? canvasStateRef.current[placementKey] ?? null,
+        artwork: nextArtwork || artworkRef.current[placementKey] || "",
+      };
+    },
+    [exportPlacementArtwork, serializePlacementState]
+  );
+
+  const saveAllPlacements = useCallback(() => {
+    for (const placementKey of Object.keys(canvases)) {
+      savePlacementSnapshot(placementKey);
+    }
+  }, [canvases, savePlacementSnapshot]);
+
   const handlePlacementChange = useCallback(
     (nextPlacement: string) => {
-      if (nextPlacement === placement) return;
-      savePlacementState(placement);
-      savePlacementArtwork(placement);
+      if (nextPlacement === placementRef.current) return;
+      savePlacementSnapshot(placementRef.current);
       setPlacement(nextPlacement);
     },
-    [placement, savePlacementArtwork, savePlacementState]
+    [savePlacementSnapshot]
+  );
+
+  const getCanvasStateForPlacement = useCallback(
+    (placementKey: string) => canvasStateRef.current[placementKey],
+    []
   );
 
   return {
     placement,
     canvases,
     canvasStateByPlacement,
+    canvasStateRef,
     printSizes,
     regions,
     artworkByPlacement,
+    artworkRef,
     selectedPrintArea,
     selectedRegion,
     selectedPrintSize,
@@ -183,5 +232,8 @@ export function useCustomizeEditorState({
     handlePrintSizeChange,
     handleRegionChange,
     handlePlacementChange,
+    savePlacementSnapshot,
+    saveAllPlacements,
+    getCanvasStateForPlacement,
   };
 }

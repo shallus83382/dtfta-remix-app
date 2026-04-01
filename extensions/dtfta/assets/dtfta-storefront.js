@@ -4,6 +4,27 @@
     function findProductForms() {
       return document.querySelectorAll('form[action*="/cart/add"]');
     }
+
+    function injectTemplateIdIntoForms() {
+      const templateId = window.__DTFTA__?.templateId;
+      if (!templateId) return;
+    
+      findProductForms().forEach((form) => {
+        if (!form.getAttribute("data-dtfta-template-id")) {
+          form.setAttribute("data-dtfta-template-id", String(templateId));
+        }
+    
+        let input = form.querySelector('input[name="properties[dtfta_template_id]"]');
+        if (!input) {
+          input = document.createElement("input");
+          input.type = "hidden";
+          input.name = "properties[dtfta_template_id]";
+          form.appendChild(input);
+        }
+    
+        input.value = String(templateId);
+      });
+    }
   
     function getSelectedOption(form, optionName) {
       const lowered = optionName.toLowerCase();
@@ -121,6 +142,7 @@
     }
   
     function init() {
+      injectTemplateIdIntoForms();
       findProductForms().forEach(bindForm);
     }
   

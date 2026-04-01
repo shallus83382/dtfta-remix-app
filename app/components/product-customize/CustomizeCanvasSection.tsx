@@ -42,6 +42,7 @@ export default function CustomizeCanvasSection({
       >
         {selectedPrintArea.image ? (
           <DesignCanvas
+            key={placement}
             label={selectedPrintArea.title}
             fillWidth
             onCanvasReady={(canvas) => onCanvasReady(placement, canvas)}

@@ -48,7 +48,7 @@ export default function ProductCustomize() {
     selectedPrintArea,
     selectedRegion,
     selectedPrintSize,
-    canvasStateByPlacement,
+    getCanvasStateForPlacement,
     handleCanvasReady,
     handlePrintSizeChange,
     handleRegionChange,
@@ -103,7 +103,7 @@ export default function ProductCustomize() {
               selectedPrintArea={selectedPrintArea}
               selectedRegion={selectedRegion}
               selectedPrintSize={selectedPrintSize}
-              initialCanvasState={canvasStateByPlacement[placement]}
+              initialCanvasState={getCanvasStateForPlacement(placement)}
               onCanvasReady={handleCanvasReady}
               onPrintSizeChange={handlePrintSizeChange}
               onRegionChange={handleRegionChange}

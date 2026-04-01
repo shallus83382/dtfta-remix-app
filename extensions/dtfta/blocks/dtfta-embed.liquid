@@ -17,7 +17,8 @@
   window.__DTFTA__ = {
     enabled: true,
     proxyPath: {{ block.settings.proxy_path | json }},
-    shop: {{ shop.permanent_domain | json }}
+    shop: {{ shop.permanent_domain | json }},
+    templateId: {{ product.metafields.dtfta.template_id.value | default: product.metafields.dtfta.template_id | json }}
   };
 </script>
 

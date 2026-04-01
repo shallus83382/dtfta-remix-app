@@ -20,14 +20,16 @@ export function useProductCustomize({
   const editor = useCustomizeEditorState({ printAreas });
 
   const buildFormData = useCallback(() => {
+    editor.savePlacementSnapshot(editor.placement);
+    editor.saveAllPlacements();
+
     const result = buildCustomizeSubmission({
       productKey,
       productName,
       productId,
-      placement: editor.placement,
       canvases: editor.canvases,
-      canvasStateByPlacement: editor.canvasStateByPlacement,
-      artworkByPlacement: editor.artworkByPlacement,
+      canvasStateByPlacement: editor.canvasStateRef.current,
+      artworkByPlacement: editor.artworkRef.current,
       printAreas,
       printSizes: editor.printSizes,
       regions: editor.regions,
@@ -43,12 +45,7 @@ export function useProductCustomize({
     productName,
     productId,
     printAreas,
-    editor.placement,
-    editor.canvases,
-    editor.canvasStateByPlacement,
-    editor.artworkByPlacement,
-    editor.printSizes,
-    editor.regions,
+    editor,
   ]);
 
   const publish = useCustomizePublish({
@@ -62,6 +59,7 @@ export function useProductCustomize({
     selectedRegion: editor.selectedRegion,
     selectedPrintSize: editor.selectedPrintSize,
     canvasStateByPlacement: editor.canvasStateByPlacement,
+    getCanvasStateForPlacement: editor.getCanvasStateForPlacement,
     handleCanvasReady: editor.handleCanvasReady,
     handlePrintSizeChange: editor.handlePrintSizeChange,
     handleRegionChange: editor.handleRegionChange,

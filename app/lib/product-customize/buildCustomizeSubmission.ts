@@ -14,7 +14,6 @@ type BuildCustomizeSubmissionArgs = {
   productKey: string;
   productName: string;
   productId: string;
-  placement: string;
   canvases: Record<string, Canvas | null>;
   canvasStateByPlacement: PlacementCanvasStateMap;
   artworkByPlacement: Record<string, string>;
@@ -39,7 +38,6 @@ export function buildCustomizeSubmission({
   productKey,
   productName,
   productId,
-  placement,
   canvases,
   canvasStateByPlacement,
   artworkByPlacement,
@@ -47,13 +45,18 @@ export function buildCustomizeSubmission({
   printSizes,
   regions,
 }: BuildCustomizeSubmissionArgs): BuildCustomizeSubmissionResult {
-  const activeCanvas = canvases[placement];
-  const activeArtwork = activeCanvas ? exportCanvasToDataUrl(activeCanvas) : "";
-
   const finalArtworkByPlacement: Record<string, string> = {
     ...artworkByPlacement,
-    ...(activeArtwork ? { [placement]: activeArtwork } : {}),
   };
+
+  for (const [placementKey, canvas] of Object.entries(canvases)) {
+    if (!canvas) continue;
+
+    const exportedArtwork = exportCanvasToDataUrl(canvas);
+    if (exportedArtwork) {
+      finalArtworkByPlacement[placementKey] = exportedArtwork;
+    }
+  }
 
   const printPlan = buildPrintPlan(printSizes);
 
