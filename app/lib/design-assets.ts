@@ -2,6 +2,7 @@
  * Client-safe mapping from productKey to design asset URLs (-front/-back).
  * Used by the customizer; do not use Node/server-only APIs here.
  */
+const APP_ASSET_BASE = "https://phpstack-1180784-6299772.cloudwaysapps.com";
 
 export const PRODUCT_KEY_TO_DESIGN_ASSET_BASE: Record<string, string> = {
   "nl-6210": "unisex-tee",
@@ -40,5 +41,5 @@ export function getDesignAssetUrl(productKey: string, placement: DesignPlacement
 
 export function getProductDesignAssetUrl(assetKey: string): string {
   const base = PRODUCT_KEY_TO_DESIGN_ASSET[assetKey] ;
-  return `/${base}`;
+  return `${APP_ASSET_BASE}/${base}`;
 }
