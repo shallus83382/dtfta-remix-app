@@ -7,14 +7,14 @@
       "type": "text",
       "id": "proxy_path",
       "label": "App proxy path",
-      "default": "/apps/dtfta/"
+      "default": "/apps/dtfta-line-item"
     }
   ]
 }
 {% endschema %}
 
 <script>
-  window.__DTFTA__ = {
+  window.DTFTA = {
     enabled: true,
     proxyPath: {{ block.settings.proxy_path | json }},
     shop: {{ shop.permanent_domain | json }},
