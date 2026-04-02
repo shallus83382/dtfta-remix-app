@@ -9,6 +9,7 @@ import type {
   PrintableAreaPayload,
 } from "./types";
 import { getRegionFromPrintArea, normalizePlacementKey } from "./helpers";
+import {getProductDesignAssetUrl} from "../design-assets";
 
 type BuildCustomizeSubmissionArgs = {
   productKey: string;
@@ -76,7 +77,7 @@ export function buildCustomizeSubmission({
       printSize: size,
       designableRegion: region,
       unit: area.unit ?? null,
-      backgroundImage: area.image ?? null,
+      backgroundImage: getProductDesignAssetUrl(area.image) ?? null,
       editorState: canvasStateByPlacement[key] ?? null,
     };
   });

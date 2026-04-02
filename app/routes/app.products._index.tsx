@@ -21,6 +21,7 @@ import {
 } from "../lib/dtfta-products.server";
 import ProductCard from "../common/ProductCard";
 import type { Product } from "../types";
+import {getProductDesignAssetUrl} from "../lib/design-assets";
 
 export type ProductWithKey = Product & {
   productKey?: string;
@@ -106,7 +107,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return {
         ...p,
         productKey: productKey ?? undefined,
-        image: p.image?.trim() ? p.image : placeholderImage ?? p.image,
+        image: p.image?.trim() ? getProductDesignAssetUrl(p.image) : placeholderImage ?? p.image,
         colors: normalized?.colors ?? (p as ProductWithKey).colors ?? [],
         sizes: normalized?.sizes ?? (p as ProductWithKey).sizes ?? [],
         print_areas: normalized?.print_areas ?? (p as ProductWithKey).print_areas ?? [],

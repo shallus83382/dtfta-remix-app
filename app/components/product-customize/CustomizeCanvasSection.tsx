@@ -4,6 +4,7 @@ import DesignCanvas, {
   type DesignableRegion,
 } from "../DesignCanvas";
 import type { DtftaPrintArea } from "../../lib/dtfta-products.server";
+import {getProductDesignAssetUrl} from "../../lib/design-assets";
 
 type Props = {
   placement: string;
@@ -51,7 +52,7 @@ export default function CustomizeCanvasSection({
             onPrintDimensionsChange={(w, h) =>
               onPrintSizeChange(placement, w, h)
             }
-            backgroundImageUrl={selectedPrintArea.image}
+            backgroundImageUrl={getProductDesignAssetUrl(selectedPrintArea.image)}
             designableRegion={selectedRegion}
             onDesignableRegionChange={(region) =>
               onRegionChange(placement, region)
