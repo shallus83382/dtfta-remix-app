@@ -4,6 +4,8 @@ import { createExternalApiHeaders } from "../lib/external-api.server";
 import type { ActionFunctionArgs } from "react-router";
 
 type TemplateVariant = {
+  id?: string | number;
+  sku?: string;
   shopify_variant_id?: string;
   option_values?: Array<{ optionName?: string; name?: string }>;
 };
@@ -16,32 +18,29 @@ function normalize(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
-function matchVariant(
+function matchVariantBySku(variants: TemplateVariant[], sku: string) {
+  const normalizedSku = normalize(sku);
+  if (!normalizedSku) return null;
+
+  return (
+    variants.find((variant) => normalize(variant.sku) === normalizedSku) || null
+  );
+}
+
+function matchVariantByShopifyVariantId(
   variants: TemplateVariant[],
-  color: string,
-  size: string,
+  ajaxVariantId: string,
 ) {
+  const normalizedVariantId = normalize(ajaxVariantId);
+  if (!normalizedVariantId) return null;
+
   return (
     variants.find((variant) => {
-      const values = variant.option_values || [];
+      const shopifyVariantId = extractNumericVariantId(
+        String(variant.shopify_variant_id || ""),
+      );
 
-      const colorMatch = color
-        ? values.some(
-            (v) =>
-              normalize(v.optionName) === "color" &&
-              normalize(v.name) === normalize(color),
-          )
-        : true;
-
-      const sizeMatch = size
-        ? values.some(
-            (v) =>
-              normalize(v.optionName) === "size" &&
-              normalize(v.name) === normalize(size),
-          )
-        : true;
-
-      return colorMatch && sizeMatch;
+      return normalize(shopifyVariantId) === normalizedVariantId;
     }) || null
   );
 }
@@ -50,11 +49,11 @@ export async function action({ request }: ActionFunctionArgs) {
   await authenticate.public.appProxy(request);
 
   const body = await request.json();
-  const { customProductId, color, size } = body ?? {};
+  const { customProductId, sku, ajaxVariantId } = body ?? {};
 
-  if (!customProductId || !color || !size) {
+  if (!customProductId || !sku) {
     return Response.json(
-      { ok: false, error: "Missing customProductId, color, or size" },
+      { ok: false, error: "Missing customProductId or sku" },
       { status: 400 },
     );
   }
@@ -63,6 +62,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const shop =
     url.searchParams.get("shop") ||
     url.searchParams.get("logged_in_customer_shop_domain") ||
+    body?.shop ||
     "";
 
   if (!shop) {
@@ -87,11 +87,23 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
-  const matchedVariant = matchVariant(template.variants || [], color, size);
+  const variants: TemplateVariant[] = template.variants || [];
+
+  let matchedVariant = matchVariantBySku(variants, String(sku));
+
+  if (!matchedVariant && ajaxVariantId) {
+    matchedVariant = matchVariantByShopifyVariantId(
+      variants,
+      String(ajaxVariantId),
+    );
+  }
 
   if (!matchedVariant?.shopify_variant_id) {
     return Response.json(
-      { ok: false, error: "No matching Shopify variant found" },
+      {
+        ok: false,
+        error: "No matching Shopify variant found for provided SKU",
+      },
       { status: 404 },
     );
   }
@@ -101,9 +113,11 @@ export async function action({ request }: ActionFunctionArgs) {
     productKey: template.product_key || "",
     garmentBrand: template.garment_brand || "",
     garmentStyle: template.garment_style || "",
-    color,
-    size,
+    color: "",
+    size: "",
     printPlan: template.print_plan || "",
+      // 🔥 NEW
+    artworksByPlacement: template.artworks_by_placement || {},
   });
 
   return Response.json({
@@ -111,6 +125,11 @@ export async function action({ request }: ActionFunctionArgs) {
     ajaxVariantId: extractNumericVariantId(
       String(matchedVariant.shopify_variant_id),
     ),
-    properties,
+    matchedVariant,
+    properties: {
+      ...properties,
+      dtfta_template_id: String(template.id || ""),
+      dtfta_sku: String(sku || ""),
+    },
   });
 }

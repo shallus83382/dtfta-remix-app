@@ -41,5 +41,5 @@ export function getDesignAssetUrl(productKey: string, placement: DesignPlacement
 
 export function getProductDesignAssetUrl(assetKey: string): string {
   const base = PRODUCT_KEY_TO_DESIGN_ASSET[assetKey] ;
-  return `${APP_ASSET_BASE}/${base}`;
+  return `/${base}`;
 }

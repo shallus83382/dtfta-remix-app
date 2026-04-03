@@ -9,10 +9,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   switch (topic) {
     case "orders/create":
-      console.log("New order created");
+    case "ORDERS_CREATE":
+        console.log("New order created");
       break;
     case "orders/updated":
-      console.log("Order updated");
+    case "ORDERS_UPDATED":
+          console.log("Order updated");
       break;
     case "orders/delete":
       console.log("Order deleted");

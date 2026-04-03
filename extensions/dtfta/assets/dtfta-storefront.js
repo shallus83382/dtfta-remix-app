@@ -1,6 +1,15 @@
+console.log("[DTFTA] JS file loaded");
+
 (function () {
   const config = window.DTFTA;
-  if (!config?.enabled) return;
+  console.log("[DTFTA] window.DTFTA =", config);
+
+  if (!config?.enabled) {
+    console.log("[DTFTA] exiting: config missing or disabled");
+    return;
+  }
+
+  if (!config?.templateId) return;
 
   function findProductForms() {
     return document.querySelectorAll('form[action*="/cart/add"]');
@@ -8,6 +17,7 @@
 
   function injectTemplateIdIntoForms() {
     const templateId = config?.templateId;
+    console.log("[DTFTA] templateId =", templateId);
     if (!templateId) return;
 
     findProductForms().forEach((form) => {
@@ -27,33 +37,6 @@
     });
   }
 
-  function getSelectedOption(form, optionName) {
-    const lowered = optionName.toLowerCase();
-
-    const fields = form.querySelectorAll("select, input[type='radio']:checked, input[type='hidden']");
-    for (const field of fields) {
-      const name = (field.getAttribute("name") || "").toLowerCase();
-      const value = field.value;
-
-      if (!value) continue;
-      if (
-        name.includes(lowered) ||
-        name.includes(`options[${lowered}]`) ||
-        name.includes(`option-${lowered}`)
-      ) {
-        return value;
-      }
-    }
-
-    const wrapper = form.querySelector(`[data-option-name="${optionName}"]`);
-    if (wrapper) {
-      const input = wrapper.querySelector("select, input:checked");
-      if (input && input.value) return input.value;
-    }
-
-    return "";
-  }
-
   function getTemplateId(form) {
     const hidden =
       form.querySelector('input[name="properties[dtfta_template_id]"]') ||
@@ -69,20 +52,44 @@
     return input ? input.value : "";
   }
 
+  async function fetchVariantSku(variantId) {
+    if (!variantId) return "";
+
+    try {
+      const res = await fetch(`/variants/${variantId}.js`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("Unable to fetch variant data");
+      }
+
+      const variant = await res.json();
+      return String(variant?.sku || "").trim();
+    } catch (error) {
+      console.error("[DTFTA] Failed to fetch variant SKU", error);
+      return "";
+    }
+  }
+
   async function buildPodLineItem(payload) {
     const res = await fetch(config.proxyPath, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json"
+        Accept: "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
       throw new Error(data.error || "Failed to build POD cart data");
     }
+
     return data;
   }
 
@@ -91,25 +98,28 @@
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json"
+        Accept: "application/json",
       },
       body: JSON.stringify({
         id: Number(variantId),
         quantity,
-        properties
-      })
+        properties,
+      }),
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(data.description || "Cart add failed");
     }
+
     return data;
   }
 
   function bindForm(form) {
     if (form.dataset.podBound === "true") return;
     form.dataset.podBound = "true";
+
+    console.log("[DTFTA] bound form", form);
 
     form.addEventListener("submit", async function (event) {
       const templateId = getTemplateId(form);
@@ -118,23 +128,33 @@
       event.preventDefault();
 
       try {
-        const color = getSelectedOption(form, "Color");
-        const size = getSelectedOption(form, "Size");
         const quantityInput = form.querySelector('input[name="quantity"]');
         const quantity = quantityInput ? Number(quantityInput.value || "1") : 1;
         const variantId = getVariantId(form);
 
+        if (!variantId) {
+          throw new Error("Missing selected Shopify variant");
+        }
+
+        const sku = await fetchVariantSku(variantId);
+
+        if (!sku) {
+          throw new Error("Unable to determine SKU for selected variant");
+        }
+
         const result = await buildPodLineItem({
           shop: config.shop,
           customProductId: templateId,
-          color,
-          size,
-          ajaxVariantId: variantId
+          sku,
+          ajaxVariantId: variantId,
         });
 
         await addToCart(result.ajaxVariantId || variantId, quantity, result.properties);
 
-        document.dispatchEvent(new CustomEvent("dtfta:cart-added", { detail: result }));
+        document.dispatchEvent(
+          new CustomEvent("dtfta:cart-added", { detail: result })
+        );
+
         window.location.href = "/cart";
       } catch (err) {
         console.error(err);
@@ -144,6 +164,7 @@
   }
 
   function init() {
+    console.log("[DTFTA] init running");
     injectTemplateIdIntoForms();
     findProductForms().forEach(bindForm);
   }
