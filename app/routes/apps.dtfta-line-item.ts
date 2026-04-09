@@ -3,11 +3,27 @@ import { buildDtftaLineItem } from "../lib/build-dtfta-line-item";
 import { createExternalApiHeaders } from "../lib/external-api.server";
 import type { ActionFunctionArgs } from "react-router";
 
+type VariantOption = {
+  optionName?: string;
+  name?: string;
+};
+
+type VariantDtfta = {
+  templateId?: string;
+  productKey?: string;
+  garmentBrand?: string;
+  garmentStyle?: string;
+  color?: string;
+  size?: string;
+  printPlan?: string;
+};
+
 type TemplateVariant = {
   id?: string | number;
   sku?: string;
   shopify_variant_id?: string;
-  option_values?: Array<{ optionName?: string; name?: string }>;
+  option_values?: VariantOption[];
+  dtfta?: VariantDtfta;
 };
 
 function extractNumericVariantId(id: string) {
@@ -22,9 +38,7 @@ function matchVariantBySku(variants: TemplateVariant[], sku: string) {
   const normalizedSku = normalize(sku);
   if (!normalizedSku) return null;
 
-  return (
-    variants.find((variant) => normalize(variant.sku) === normalizedSku) || null
-  );
+  return variants.find((variant) => normalize(variant.sku) === normalizedSku) || null;
 }
 
 function matchVariantByShopifyVariantId(
@@ -45,10 +59,21 @@ function matchVariantByShopifyVariantId(
   );
 }
 
+function getOptionValue(
+  optionValues: VariantOption[] | undefined,
+  optionName: string,
+) {
+  return (
+    optionValues?.find(
+      (option) => normalize(option.optionName) === normalize(optionName),
+    )?.name || ""
+  );
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   await authenticate.public.appProxy(request);
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const { customProductId, sku, ajaxVariantId } = body ?? {};
 
   if (!customProductId || !sku) {
@@ -73,7 +98,9 @@ export async function action({ request }: ActionFunctionArgs) {
   const headers = createExternalApiHeaders("", { "X-Shop": shop });
 
   const res = await fetch(
-    `${API_BASE}/custom-products/${encodeURIComponent(String(customProductId))}?shop=${encodeURIComponent(shop)}`,
+    `${API_BASE}/custom-products/${encodeURIComponent(
+      String(customProductId),
+    )}?shop=${encodeURIComponent(shop)}`,
     { headers },
   );
 
@@ -87,7 +114,9 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
-  const variants: TemplateVariant[] = template.variants || [];
+  const variants: TemplateVariant[] = Array.isArray(template.variants)
+    ? template.variants
+    : [];
 
   let matchedVariant = matchVariantBySku(variants, String(sku));
 
@@ -108,15 +137,23 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
+  const variantDtfta = matchedVariant.dtfta || {};
+  const optionValues = matchedVariant.option_values || [];
+
+  const color =
+    variantDtfta.color || getOptionValue(optionValues, "Color");
+
+  const size =
+    variantDtfta.size || getOptionValue(optionValues, "Size");
+
   const properties = buildDtftaLineItem({
-    templateId: template.id,
-    productKey: template.product_key || "",
-    garmentBrand: template.garment_brand || "",
-    garmentStyle: template.garment_style || "",
-    color: "",
-    size: "",
-    printPlan: template.print_plan || "",
-      // 🔥 NEW
+    templateId: variantDtfta.templateId || String(template.id || ""),
+    productKey: variantDtfta.productKey || template.product_key || "",
+    garmentBrand: variantDtfta.garmentBrand || template.garment_brand || "",
+    garmentStyle: variantDtfta.garmentStyle || template.garment_style || "",
+    color,
+    size,
+    printPlan: variantDtfta.printPlan || template.print_plan || "",
     artworksByPlacement: template.artworks_by_placement || {},
   });
 
@@ -128,8 +165,8 @@ export async function action({ request }: ActionFunctionArgs) {
     matchedVariant,
     properties: {
       ...properties,
-      dtfta_template_id: String(template.id || ""),
-      dtfta_sku: String(sku || ""),
+  //    dtfta_template_id: String(variantDtfta.templateId || template.id || ""),
+  //    dtfta_sku: String(matchedVariant.sku || sku || ""),
     },
   });
 }

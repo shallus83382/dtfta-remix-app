@@ -79,29 +79,38 @@ export async function syncInstallToLaravel(
     extraHeaders?: Record<string, string>;
   }
 ) {
-  try {
-    const shopPayload = await getShopData(session);
+  if (!session.shop) throw new Error("Missing session.shop");
+  if (!session.accessToken) throw new Error("Missing session.accessToken");
 
-    const payload = {
-      shop_domain: session.shop || shopPayload?.shop?.myshopify_domain || null,
-      shopify_access_token: session.accessToken || null,
-      shop_name: shopPayload?.shop?.name || null,
-      shop_email: shopPayload?.shop?.email || null,
-      shop_owner: shopPayload?.shop?.shop_owner || null,
-      ...options?.extraPayload,
-    };
+  const shopPayload = await getShopData(session);
+  const fetchedDomain = shopPayload?.shop?.myshopify_domain ?? null;
 
-    return await sendWebhookToLaravel({
-      endpoint: options?.endpoint,
-      topic: "app/installed",
-      shop: session.shop,
-      payload,
-      extraHeaders: options?.extraHeaders,
-    });
-  } catch (err) {
-    console.error("Failed to sync install to Laravel:", err);
-    throw err;
+  if (!fetchedDomain) {
+    throw new Error("Failed to validate Shopify session via /shop.json");
   }
+
+  if (fetchedDomain !== session.shop) {
+    throw new Error(
+      `Shop mismatch: session.shop=${session.shop}, fetched=${fetchedDomain}`,
+    );
+  }
+
+  const payload = {
+    shop_domain: fetchedDomain,
+    shopify_access_token: session.accessToken,
+    shop_name: shopPayload?.shop?.name || null,
+    shop_email: shopPayload?.shop?.email || null,
+    shop_owner: shopPayload?.shop?.shop_owner || null,
+    ...options?.extraPayload,
+  };
+
+  return sendWebhookToLaravel({
+    endpoint: options?.endpoint,
+    topic: "app/installed",
+    shop: fetchedDomain,
+    payload,
+    extraHeaders: options?.extraHeaders,
+  });
 }
 
 export async function syncUninstallToLaravel(

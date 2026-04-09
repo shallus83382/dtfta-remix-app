@@ -29,9 +29,13 @@ const shopify = shopifyApp({
       } catch (err) {
         console.error("Failed to register webhooks:", err);
       }
-
+  
       try {
-        await syncInstallToLaravel(session);
+        const { session: offlineSession } = await shopify.unauthenticated.admin(
+          session.shop,
+        );
+  
+        await syncInstallToLaravel(offlineSession);
       } catch (err) {
         console.error("Failed to sync shop to Laravel:", err);
       }

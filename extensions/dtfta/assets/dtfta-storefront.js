@@ -48,7 +48,7 @@ console.log("[DTFTA] JS file loaded");
   }
 
   function getVariantId(form) {
-    const input = form.querySelector('input[name="id"]');
+    const input = form.querySelector('[name="id"]');
     return input ? input.value : "";
   }
 
@@ -103,7 +103,7 @@ console.log("[DTFTA] JS file loaded");
       body: JSON.stringify({
         id: Number(variantId),
         quantity,
-        properties,
+        properties: properties || {},
       }),
     });
 
@@ -125,7 +125,22 @@ console.log("[DTFTA] JS file loaded");
       const templateId = getTemplateId(form);
       if (!templateId) return;
 
+      // Stop native/theme/app cart submission
       event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      // Prevent double submit
+      if (form.dataset.dtftaSubmitting === "true") {
+        return;
+      }
+      form.dataset.dtftaSubmitting = "true";
+
+      const submitButton =
+        form.querySelector('[type="submit"]') ||
+        form.querySelector('button[name="add"]');
+
+      if (submitButton) submitButton.disabled = true;
 
       try {
         const quantityInput = form.querySelector('input[name="quantity"]');
@@ -159,8 +174,11 @@ console.log("[DTFTA] JS file loaded");
       } catch (err) {
         console.error(err);
         alert(err instanceof Error ? err.message : "Unable to add product to cart");
+      } finally {
+        form.dataset.dtftaSubmitting = "false";
+        if (submitButton) submitButton.disabled = false;
       }
-    });
+    }, true); // use capture phase to intercept earlier
   }
 
   function init() {
