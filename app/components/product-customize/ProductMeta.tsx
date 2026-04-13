@@ -6,15 +6,20 @@ type Props = {
     colors?: string[];
     sizes?: string[];
   };
+  selectedColorName?: string;
 };
 
-export default function ProductMeta({ product }: Props) {
+export default function ProductMeta({ product, selectedColorName }: Props) {
   return (
     <>
       <InlineStack gap="200" blockAlign="center">
         {product.brand ? <Badge>{product.brand}</Badge> : null}
 
-        {product.colors?.length ? (
+        {selectedColorName ? (
+          <Text as="span" variant="bodyMd">
+            Selected color: {selectedColorName}
+          </Text>
+        ) : product.colors?.length ? (
           <Text as="span" variant="bodyMd">
             Colors: {product.colors.join(", ")}
           </Text>
@@ -28,7 +33,7 @@ export default function ProductMeta({ product }: Props) {
       </InlineStack>
 
       <Text as="p" variant="bodyMd">
-        Choose a print area below. Each print area uses its own background image
+        Choose a color and print area below. Each print area uses its own background image
         from the API.
       </Text>
     </>

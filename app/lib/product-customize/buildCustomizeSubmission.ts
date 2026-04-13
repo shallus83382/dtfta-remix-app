@@ -21,6 +21,10 @@ type BuildCustomizeSubmissionArgs = {
   printAreas: DtftaPrintArea[];
   printSizes: PlacementPrintSizeMap;
   regions: PlacementRegionMap;
+  selectedColor: string;
+  selectedColorName?: string;
+  selectedVariantId?: string;
+  selectedVariantSku?: string;
 };
 
 type BuildCustomizeSubmissionResult =
@@ -35,17 +39,21 @@ type BuildCustomizeSubmissionResult =
       error: string;
     };
 
-export function buildCustomizeSubmission({
-  productKey,
-  productName,
-  productId,
-  canvases,
-  canvasStateByPlacement,
-  artworkByPlacement,
-  printAreas,
-  printSizes,
-  regions,
-}: BuildCustomizeSubmissionArgs): BuildCustomizeSubmissionResult {
+  export function buildCustomizeSubmission({
+    productKey,
+    productName,
+    productId,
+    canvases,
+    canvasStateByPlacement,
+    artworkByPlacement,
+    printAreas,
+    printSizes,
+    regions,
+    selectedColor,
+    selectedColorName,
+    selectedVariantId,
+    selectedVariantSku,
+  }: BuildCustomizeSubmissionArgs): BuildCustomizeSubmissionResult {
   const finalArtworkByPlacement: Record<string, string> = {
     ...artworkByPlacement,
   };
@@ -93,10 +101,14 @@ export function buildCustomizeSubmission({
 
   const formData = new FormData();
   formData.set("productKey", productKey);
-  formData.set("title", `${productName} Custom`);
+  formData.set("title", `${productName}`);
   formData.set("productId", productId);
   formData.set("printPlan", printPlan);
   formData.set("printableAreas", JSON.stringify(printableAreas));
+  formData.set("selectedColor", selectedColor || "");
+  formData.set("selectedColorName", selectedColorName || "");
+  formData.set("selectedVariantId", selectedVariantId || "");
+  formData.set("selectedVariantSku", selectedVariantSku || "");
 
   for (const [key, value] of Object.entries(finalArtworkByPlacement)) {
     if (value) {

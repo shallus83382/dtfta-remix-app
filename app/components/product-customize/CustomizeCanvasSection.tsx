@@ -4,10 +4,11 @@ import DesignCanvas, {
   type DesignableRegion,
 } from "../DesignCanvas";
 import type { DtftaPrintArea } from "../../lib/dtfta-products.server";
-import {getProductDesignAssetUrl} from "../../lib/design-assets";
+import { getProductDesignAssetUrl } from "../../lib/design-assets";
 
 type Props = {
   placement: string;
+  selectedColor?: string;
   selectedPrintArea?: DtftaPrintArea;
   selectedRegion: DesignableRegion;
   selectedPrintSize: { width: number; height: number };
@@ -19,6 +20,7 @@ type Props = {
 
 export default function CustomizeCanvasSection({
   placement,
+  selectedColor,
   selectedPrintArea,
   selectedRegion,
   selectedPrintSize,
@@ -31,6 +33,10 @@ export default function CustomizeCanvasSection({
     return <Banner tone="warning">No active print areas found for this product.</Banner>;
   }
 
+  const backgroundImageUrl = selectedPrintArea.image
+    ? getProductDesignAssetUrl(selectedPrintArea.image, selectedColor)
+    : "";
+
   return (
     <>
       <div
@@ -41,9 +47,9 @@ export default function CustomizeCanvasSection({
           minHeight: 280,
         }}
       >
-        {selectedPrintArea.image ? (
+        {backgroundImageUrl ? (
           <DesignCanvas
-            key={placement}
+            key={`${placement}-${selectedColor ?? "default"}`}
             label={selectedPrintArea.title}
             fillWidth
             onCanvasReady={(canvas) => onCanvasReady(placement, canvas)}
@@ -52,7 +58,7 @@ export default function CustomizeCanvasSection({
             onPrintDimensionsChange={(w, h) =>
               onPrintSizeChange(placement, w, h)
             }
-            backgroundImageUrl={getProductDesignAssetUrl(selectedPrintArea.image)}
+            backgroundImageUrl={backgroundImageUrl}
             designableRegion={selectedRegion}
             onDesignableRegionChange={(region) =>
               onRegionChange(placement, region)

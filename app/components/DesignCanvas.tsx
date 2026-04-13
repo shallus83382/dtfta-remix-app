@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from "react";
+import { Select, InlineStack } from "@shopify/polaris";
 import type { Canvas, FabricObject, Rect } from "fabric";
 
 const CANVAS_SIZE = 500;
@@ -7,6 +8,30 @@ const MIN_CANVAS_HEIGHT = 280;
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 2;
 const ZOOM_STEP = 0.15;
+
+const DEFAULT_TEXT_COLOR = "#111111";
+const DEFAULT_FONT_FAMILY = "Arial";
+
+const TEXT_COLOR_OPTIONS = [
+  { label: "Black", value: "#111111" },
+  { label: "White", value: "#ffffff" },
+  { label: "Red", value: "#ef4444" },
+  { label: "Green", value: "#22c55e" },
+  { label: "Blue", value: "#3b82f6" },
+  { label: "Yellow", value: "#eab308" },
+  { label: "Purple", value: "#a855f7" },
+];
+
+const FONT_FAMILY_OPTIONS = [
+  { label: "Arial", value: "Arial" },
+  { label: "Helvetica", value: "Helvetica" },
+  { label: "Times New Roman", value: "Times New Roman" },
+  { label: "Georgia", value: "Georgia" },
+  { label: "Verdana", value: "Verdana" },
+  { label: "Courier New", value: "Courier New" },
+  { label: "Trebuchet MS", value: "Trebuchet MS" },
+  { label: "Impact", value: "Impact" },
+];
 
 export interface DesignableRegion {
   left: number;
@@ -97,6 +122,8 @@ export default function DesignCanvas({
   );
   const [zoom, setZoom] = useState(1);
   const [canvasReadyTick, setCanvasReadyTick] = useState(0);
+  const [textColor, setTextColor] = useState(DEFAULT_TEXT_COLOR);
+  const [fontFamily, setFontFamily] = useState(DEFAULT_FONT_FAMILY);
 
   const region = designableRegion ?? DEFAULT_REGION;
 
@@ -601,6 +628,107 @@ export default function DesignCanvas({
     clampObjectToRegion,
   ]);
 
+  const getActiveTextObject = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+
+    const activeObject = canvas.getActiveObject();
+    if (!activeObject) return null;
+
+    const maybeText = activeObject as FabricObject & {
+      type?: string;
+      fill?: string;
+      fontFamily?: string;
+      set?: (props: Record<string, unknown>) => void;
+      setCoords?: () => void;
+    };
+
+    const isTextLike =
+      maybeText.type === "textbox" ||
+      maybeText.type === "text" ||
+      maybeText.type === "i-text";
+
+    return isTextLike ? maybeText : null;
+  }, []);
+
+  const applyTextColorToSelection = useCallback(
+    (color: string) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const activeText = getActiveTextObject();
+      if (!activeText || typeof activeText.set !== "function") return;
+
+      activeText.set({ fill: color });
+      activeText.setCoords?.();
+      canvas.requestRenderAll();
+    },
+    [getActiveTextObject]
+  );
+
+  const applyFontFamilyToSelection = useCallback(
+    (nextFontFamily: string) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const activeText = getActiveTextObject();
+      if (!activeText || typeof activeText.set !== "function") return;
+
+      activeText.set({ fontFamily: nextFontFamily });
+      activeText.setCoords?.();
+      canvas.requestRenderAll();
+    },
+    [getActiveTextObject]
+  );
+
+  const handleTextColorChange = useCallback(
+    (color: string) => {
+      setTextColor(color);
+      applyTextColorToSelection(color);
+    },
+    [applyTextColorToSelection]
+  );
+
+  const handleFontFamilyChange = useCallback(
+    (nextFontFamily: string) => {
+      setFontFamily(nextFontFamily);
+      applyFontFamilyToSelection(nextFontFamily);
+    },
+    [applyFontFamilyToSelection]
+  );
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const syncSelectedTextStyle = () => {
+      const activeText = getActiveTextObject();
+
+      const fill =
+        activeText && typeof activeText.fill === "string"
+          ? activeText.fill
+          : DEFAULT_TEXT_COLOR;
+
+      const nextFontFamily =
+        activeText && typeof activeText.fontFamily === "string"
+          ? activeText.fontFamily
+          : DEFAULT_FONT_FAMILY;
+
+      setTextColor(fill);
+      setFontFamily(nextFontFamily);
+    };
+
+    canvas.on("selection:created", syncSelectedTextStyle);
+    canvas.on("selection:updated", syncSelectedTextStyle);
+    canvas.on("selection:cleared", syncSelectedTextStyle);
+
+    return () => {
+      canvas.off("selection:created", syncSelectedTextStyle);
+      canvas.off("selection:updated", syncSelectedTextStyle);
+      canvas.off("selection:cleared", syncSelectedTextStyle);
+    };
+  }, [canvasReadyTick, getActiveTextObject]);
+
   const setZoomAtPoint = useCallback(
     (canvas: Canvas, point: { x: number; y: number }, z: number) => {
       const e = point.x * (1 - z);
@@ -729,11 +857,13 @@ export default function DesignCanvas({
       const text = new fabric.Textbox("Your text", {
         width: maxWidth,
         fontSize: 24,
+        fontFamily,
         left: centerX,
         top: centerY,
         originX: "center",
         originY: "center",
         textAlign: "center",
+        fill: textColor,
         clipPath: clipPath ?? undefined,
         lockRotation: false,
         centeredRotation: true,
@@ -749,7 +879,7 @@ export default function DesignCanvas({
       canvas.setActiveObject(text);
       canvas.requestRenderAll();
     });
-  }, [buildRegionClipPath, clampObjectToRegion, constrainScaleToRegion]);
+  }, [buildRegionClipPath, clampObjectToRegion, constrainScaleToRegion, textColor, fontFamily]);
 
   const handleAddImage = useCallback(
     async (file: File) => {
@@ -875,6 +1005,46 @@ export default function DesignCanvas({
         >
           +
         </button>
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <InlineStack gap="300" blockAlign="center">
+          <div style={{ minWidth: 220 }}>
+            <Select
+              label="Font family"
+              labelInline
+              options={FONT_FAMILY_OPTIONS}
+              value={fontFamily}
+              onChange={handleFontFamilyChange}
+            />
+          </div>
+
+          <div style={{ minWidth: 220 }}>
+            <Select
+              label="Text color"
+              labelInline
+              options={TEXT_COLOR_OPTIONS}
+              value={textColor}
+              onChange={handleTextColorChange}
+            />
+          </div>
+
+          <input
+            type="color"
+            value={textColor}
+            onChange={(e) => handleTextColorChange(e.target.value)}
+            aria-label="Pick custom text color"
+            style={{
+              width: 36,
+              height: 36,
+              border: "1px solid #d1d5db",
+              borderRadius: 6,
+              padding: 2,
+              background: "#fff",
+              cursor: "pointer",
+            }}
+          />
+        </InlineStack>
       </div>
 
       <div

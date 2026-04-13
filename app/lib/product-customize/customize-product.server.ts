@@ -118,6 +118,11 @@ export async function publishCustomizeProduct({
   const printPlan = String(formData.get("printPlan") || "");
   const printableAreasRaw = String(formData.get("printableAreas") || "[]");
 
+  const selectedColor = String(formData.get("selectedColor") || "");
+  const selectedColorName = String(formData.get("selectedColorName") || "");
+  const selectedVariantId = String(formData.get("selectedVariantId") || "");
+  const selectedVariantSku = String(formData.get("selectedVariantSku") || "");
+
   if (!productKey.trim()) {
     return { ok: false, error: "Missing product key" };
   }
@@ -143,6 +148,10 @@ export async function publishCustomizeProduct({
     printPlan,
     artworkUrls,
     printableAreas,
+    selectedColor,
+    selectedColorName,
+    selectedVariantId,
+    selectedVariantSku,
   };
 
   const headers = createExternalApiHeaders(payload, { "X-Shop": shop });

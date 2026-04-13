@@ -5,6 +5,7 @@ import { Page, Card, BlockStack, Banner } from "@shopify/polaris";
 import ProductMeta from "../components/product-customize/ProductMeta";
 import PlacementSelector from "../components/product-customize/PlacementSelector";
 import CustomizeCanvasSection from "../components/product-customize/CustomizeCanvasSection";
+import ColorSelector from "../components/product-customize/ColorSelector";
 import { useProductCustomize } from "../lib/product-customize/useProductCustomize";
 import {
   loadCustomizeProduct,
@@ -45,6 +46,8 @@ export default function ProductCustomize() {
   const {
     fetcher,
     placement,
+    selectedColor,
+    availableColors,
     selectedPrintArea,
     selectedRegion,
     selectedPrintSize,
@@ -53,12 +56,15 @@ export default function ProductCustomize() {
     handlePrintSizeChange,
     handleRegionChange,
     handlePlacementChange,
+    handleColorChange,
     handleAddToStore,
   } = useProductCustomize({
     productKey,
     productName,
     productId: loaderData.productId,
     printAreas,
+    variants: product?.variants ?? [],
+    defaultColor: product?.variants?.[0]?.colorCode ?? "",
   });
 
   if (!productKey || !product) {
@@ -92,6 +98,12 @@ export default function ProductCustomize() {
           <BlockStack gap="400">
             <ProductMeta product={product} />
 
+            <ColorSelector
+              colors={availableColors}
+              selectedColor={selectedColor}
+              onChange={handleColorChange}
+            />
+
             <PlacementSelector
               printAreas={printAreas}
               placement={placement}
@@ -100,6 +112,7 @@ export default function ProductCustomize() {
 
             <CustomizeCanvasSection
               placement={placement}
+              selectedColor={selectedColor}
               selectedPrintArea={selectedPrintArea}
               selectedRegion={selectedRegion}
               selectedPrintSize={selectedPrintSize}
