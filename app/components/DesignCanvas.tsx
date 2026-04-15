@@ -970,6 +970,7 @@ export default function DesignCanvas({
       <div style={{ marginBottom: 8, fontWeight: 600 }}>{label}</div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+        <InlineStack gap="300" blockAlign="center">
         <span style={{ fontSize: 12, fontWeight: 600 }}>Zoom:</span>
 
         <button
@@ -1005,10 +1006,8 @@ export default function DesignCanvas({
         >
           +
         </button>
-      </div>
 
-      <div style={{ marginBottom: 8 }}>
-        <InlineStack gap="300" blockAlign="center">
+
           <div style={{ minWidth: 220 }}>
             <Select
               label="Font family"
@@ -1060,7 +1059,7 @@ export default function DesignCanvas({
           ref={containerRef}
           style={{
             width: 500,
-            height: 500,
+            height: 600,
           }}
         />
       </div>
@@ -1093,7 +1092,7 @@ export default function DesignCanvas({
         </button>
       </div>
 
-      <div style={{ marginTop: 12 }}>
+      {/* <div style={{ marginTop: 12 }}>
         <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 12 }}>Design area position (px)</div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -1193,7 +1192,7 @@ export default function DesignCanvas({
           }
           style={{ width: 56 }}
         />
-      </div>
+      </div> */}
     </>
   );
 
