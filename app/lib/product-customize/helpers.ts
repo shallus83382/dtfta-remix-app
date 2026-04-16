@@ -12,6 +12,19 @@ export function normalizePlacementKey(value: string): string {
   return value.trim().toLowerCase();
 }
 
+export function buildColorPlacementKey(colorCode: string, placement: string): string {
+  return `${String(colorCode || "").trim().toUpperCase()}__${normalizePlacementKey(placement)}`;
+}
+
+export function parseColorPlacementKey(value: string): { colorCode: string; placement: string } {
+  const [colorCode = "", placement = "front"] = String(value || "").split("__");
+
+  return {
+    colorCode: colorCode.trim().toUpperCase(),
+    placement: normalizePlacementKey(placement),
+  };
+}
+
 export function getRegionFromPrintArea(area?: DtftaPrintArea): DesignableRegion {
   if (!area) return DEFAULT_DESIGN_REGION;
 

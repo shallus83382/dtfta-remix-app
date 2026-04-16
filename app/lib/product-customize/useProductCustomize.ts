@@ -21,8 +21,12 @@ export function useProductCustomize({
   variants,
   defaultColor = "",
 }: UseProductCustomizeArgs) {
-  const editor = useCustomizeEditorState({ printAreas });
   const [selectedColor, setSelectedColor] = useState(defaultColor);
+
+  const editor = useCustomizeEditorState({
+    printAreas,
+    selectedColor,
+  });
 
   const availableColors = useMemo(() => {
     const map = new Map<string, { colorCode: string; colorName: string }>();
@@ -45,18 +49,19 @@ export function useProductCustomize({
       variants.find(
         (variant) =>
           variant.is_active &&
-          variant.colorCode === selectedColor
+          variant.colorCode == selectedColor
       ) ?? null
     );
   }, [variants, selectedColor]);
 
   const handleColorChange = useCallback((colorCode: string) => {
+    editor.savePlacementSnapshot(editor.placement, selectedColor);
     setSelectedColor(colorCode);
-  }, []);
+  }, [editor, selectedColor]);
 
   const buildFormData = useCallback(() => {
-    editor.savePlacementSnapshot(editor.placement);
-    editor.saveAllPlacements();
+    editor.savePlacementSnapshot(editor.placement, selectedColor);
+    editor.saveAllPlacements(selectedColor);
 
     const result = buildCustomizeSubmission({
       productKey,
