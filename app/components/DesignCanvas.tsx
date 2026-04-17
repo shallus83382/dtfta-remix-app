@@ -5,6 +5,7 @@ import type { Canvas, FabricObject, Rect } from "fabric";
 const CANVAS_SIZE = 500;
 const MIN_CANVAS_SIZE = 280;
 const MIN_CANVAS_HEIGHT = 280;
+const CANVAS_ASPECT_RATIO = 0.72;
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 2;
 const ZOOM_STEP = 0.15;
@@ -147,11 +148,13 @@ export default function DesignCanvas({
 
     const updateSize = () => {
       const w = el.clientWidth;
-      const h = el.clientHeight;
       if (w <= 0) return;
 
       const cw = Math.max(MIN_CANVAS_SIZE, w);
-      const ch = Math.max(MIN_CANVAS_HEIGHT, Math.min(h > 0 ? h : cw, cw));
+      const ch = Math.max(
+        MIN_CANVAS_HEIGHT,
+        Math.min(Math.round(cw * CANVAS_ASPECT_RATIO), Math.round(cw * 0.9))
+      );
 
       setCanvasDimensions({ w: cw, h: ch });
     };
@@ -965,11 +968,60 @@ export default function DesignCanvas({
   const maxWidthVal = CANVAS_SIZE;
   const maxHeightVal = CANVAS_SIZE;
 
+  const chipButtonStyle = {
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    height: 32,
+    padding: "0 10px",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    background: "#f8fafc",
+    color: "#0f172a",
+  } as const;
+
+  const actionButtonStyle = {
+    borderRadius: 10,
+    border: "1px solid #cbd5e1",
+    height: 34,
+    padding: "0 12px",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    background: "#ffffff",
+    color: "#0f172a",
+  } as const;
+
   const content = (
     <>
-      <div style={{ marginBottom: 8, fontWeight: 600 }}>{label}</div>
+      <div
+        style={{
+          marginBottom: 10,
+          borderRadius: 10,
+          border: "1px solid #dbe7ff",
+          background:
+            "linear-gradient(135deg, rgba(239,246,255,0.9) 0%, rgba(255,255,255,1) 100%)",
+          padding: "8px 10px",
+          fontWeight: 600,
+          color: "#0f172a",
+        }}
+      >
+        {label}
+      </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 10,
+          flexWrap: "wrap",
+          borderRadius: 10,
+          border: "1px solid #e2e8f0",
+          background: "#fcfdff",
+          padding: 10,
+        }}
+      >
         <InlineStack gap="300" blockAlign="center">
         <span style={{ fontSize: 12, fontWeight: 600 }}>Zoom:</span>
 
@@ -978,10 +1030,10 @@ export default function DesignCanvas({
           onClick={handleZoomOut}
           disabled={zoom <= ZOOM_MIN}
           style={{
-            padding: "4px 10px",
+            ...chipButtonStyle,
             cursor: zoom <= ZOOM_MIN ? "not-allowed" : "pointer",
-            fontWeight: 600,
-            minWidth: 32,
+            minWidth: 30,
+            opacity: zoom <= ZOOM_MIN ? 0.55 : 1,
           }}
           aria-label="Zoom out"
         >
@@ -997,10 +1049,10 @@ export default function DesignCanvas({
           onClick={handleZoomIn}
           disabled={zoom >= ZOOM_MAX}
           style={{
-            padding: "4px 10px",
+            ...chipButtonStyle,
             cursor: zoom >= ZOOM_MAX ? "not-allowed" : "pointer",
-            fontWeight: 600,
-            minWidth: 32,
+            minWidth: 30,
+            opacity: zoom >= ZOOM_MAX ? 0.55 : 1,
           }}
           aria-label="Zoom in"
         >
@@ -1036,8 +1088,8 @@ export default function DesignCanvas({
             style={{
               width: 36,
               height: 36,
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
+              border: "1px solid #cbd5e1",
+              borderRadius: 8,
               padding: 2,
               background: "#fff",
               cursor: "pointer",
@@ -1049,7 +1101,8 @@ export default function DesignCanvas({
       <div
         ref={zoomContainerRef}
         style={{
-          border: "1px solid #d1d5db",
+          border: "1px solid #e5eaf1",
+          borderRadius: 10,
           background: "#fff",
           overflow: "hidden",
           cursor: "crosshair",
@@ -1058,18 +1111,26 @@ export default function DesignCanvas({
         <div
           ref={containerRef}
           style={{
-            width: 500,
-            height: 600,
+            width: fillWidth ? width : 500,
+            height: fillWidth ? height : 600,
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         />
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-        <button type="button" onClick={handleAddText} style={{ padding: "6px 12px", cursor: "pointer" }}>
+        <button type="button" onClick={handleAddText} style={actionButtonStyle}>
           Add text
         </button>
 
-        <label style={{ padding: "6px 12px", cursor: "pointer", background: "#f3f4f6", borderRadius: 4 }}>
+        <label
+          style={{
+            ...actionButtonStyle,
+            display: "inline-flex",
+            alignItems: "center",
+          }}
+        >
           Add image
           <input
             type="file"
@@ -1083,11 +1144,11 @@ export default function DesignCanvas({
           />
         </label>
 
-        <button type="button" onClick={handleDeleteSelected} style={{ padding: "6px 12px", cursor: "pointer" }}>
+        <button type="button" onClick={handleDeleteSelected} style={actionButtonStyle}>
           Delete selected
         </button>
 
-        <button type="button" onClick={handleClear} style={{ padding: "6px 12px", cursor: "pointer" }}>
+        <button type="button" onClick={handleClear} style={actionButtonStyle}>
           Clear
         </button>
       </div>
@@ -1199,15 +1260,15 @@ export default function DesignCanvas({
   return (
     <div
       style={{
-        border: "1px solid #e5e7eb",
-        borderRadius: 8,
-        padding: 12,
-        background: "#fafafa",
+        border: "1px solid #e8edf3",
+        borderRadius: 12,
+        padding: 10,
+        background: "#ffffff",
         ...(fillWidth ? { width: "100%", minWidth: 0, boxSizing: "border-box" } : {}),
       }}
     >
       {fillWidth ? (
-        <div ref={wrapperRef} style={{ width: "100%", minWidth: 0, height: "100%", minHeight: 0 }}>
+        <div ref={wrapperRef} style={{ width: "100%", minWidth: 0 }}>
           {content}
         </div>
       ) : (

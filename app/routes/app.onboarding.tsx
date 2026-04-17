@@ -12,10 +12,10 @@ import {
   Card,
   BlockStack,
   InlineStack,
+  InlineGrid,
   Text,
-  TextField,
   List,
-  Banner,
+  Badge,
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
@@ -147,223 +147,297 @@ export default function Onboarding() {
 
   const isSubmitting = navigation.state === 'submitting';
   const hasExistingBranding = Boolean(brandSettings);
+  const completedItems = [
+    Boolean(formData.brandName.trim()),
+    Boolean(formData.streetAddress.trim() && formData.city.trim() && formData.state.trim()),
+    Boolean(formData.zipCode.trim() && formData.country.trim()),
+    Boolean(formData.supportEmail.trim()),
+  ].filter(Boolean).length;
+  const completionPercent = Math.round((completedItems / 4) * 100);
+
+  const panelStyle = {
+    borderRadius: 14,
+    border: '1px solid #eef2f7',
+    background: '#fcfdff',
+    padding: 14,
+    boxShadow: '0 4px 12px rgba(15,23,42,0.03)',
+  } as const;
+
+  const fieldLabelStyle = {
+    display: 'block',
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#334155',
+    marginBottom: 6,
+  } as const;
+
+  const fieldInputStyle = {
+    width: '100%',
+    height: 42,
+    borderRadius: 10,
+    border: '1px solid #d6deea',
+    backgroundColor: '#ffffff',
+    padding: '0 12px',
+    fontSize: 14,
+    color: '#0f172a',
+    outline: 'none',
+    boxSizing: 'border-box' as const,
+  };
+
+  const submitButtonStyle = {
+    borderRadius: 10,
+    border: '1px solid transparent',
+    height: 40,
+    padding: '0 16px',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 180ms ease',
+    background: !isFormValid || isSubmitting
+      ? '#cbd5e1'
+      : 'linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)',
+    color: '#ffffff',
+    boxShadow: !isFormValid || isSubmitting
+      ? 'none'
+      : '0 8px 18px rgba(29,78,216,0.28)',
+    width: 'fit-content',
+  } as const;
 
   return (
     <Page title="Welcome to DTFTA" fullWidth>
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <BlockStack gap="500">
-          {actionData?.error ? (
-            <Banner tone="critical">
-              <p>{actionData.error}</p>
-            </Banner>
-          ) : null}
-
-          {actionData?.success ? (
-            <Banner tone="success">
-              <p>Setup completed successfully. Redirecting to dashboard...</p>
-            </Banner>
-          ) : null}
-
-          {hasExistingBranding ? (
-            <Banner tone="info">
-              <p>We found your existing branding settings. You can review and update them below.</p>
-            </Banner>
-          ) : null}
-
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                Welcome to DTFTA - Your Print-on-Demand Fulfillment Partner
-              </Text>
-              <Text as="p" variant="bodyMd">
-                DTF Transfer Authority (DTFTA) is your white-label fulfillment partner for
-                print-on-demand apparel. We handle printing, packaging, and shipping so you can
-                focus on growing your business.
-              </Text>
-
-              <Text as="p" variant="bodyMd" fontWeight="semibold">
-                How it works:
-              </Text>
-              <List type="bullet">
-                <List.Item>Add DTFTA products to your Shopify store</List.Item>
-                <List.Item>Customize products with your designs</List.Item>
-                <List.Item>When customers order, we print and ship automatically</List.Item>
-                <List.Item>
-                  All packages use your branding - customers never see DTFTA
-                </List.Item>
-              </List>
-            </BlockStack>
-          </Card>
-
-          <Card>
-            <BlockStack gap="500">
-              <Text as="h2" variant="headingMd">
-                Complete Your Setup
-              </Text>
-              <Text as="p" variant="bodyMd">
-                To get started, please provide your brand information. This will be used for
-                white-label packing slips and shipping labels. Your customers will never see
-                DTFTA branding.
-              </Text>
-
-              <Form method="post">
-                <BlockStack gap="500">
-                  <Card>
-                    <BlockStack gap="400">
-                      <Text as="h3" variant="headingSm">
-                        Brand Information
-                      </Text>
-                      <TextField
-                        name="brandName"
-                        label="Brand Name *"
-                        value={formData.brandName}
-                        onChange={(value) => handleChange('brandName', value)}
-                        placeholder="Your Brand Name"
-                        autoComplete="off"
-                      />
-                    </BlockStack>
-                  </Card>
-
-                  <Card>
-                    <BlockStack gap="400">
-                      <Text as="h3" variant="headingSm">
-                        Return Address
-                      </Text>
-                      <Text as="p" variant="bodyMd">
-                        This address will appear on packing slips and return labels.
-                      </Text>
-                      <BlockStack gap="400">
-                        <TextField
-                          name="streetAddress"
-                          label="Street Address"
-                          value={formData.streetAddress}
-                          onChange={(value) => handleChange('streetAddress', value)}
-                          placeholder="123 Main Street"
-                          autoComplete="off"
-                        />
-                        <InlineStack gap="400">
-                          <div style={{ flex: 1 }}>
-                            <TextField
-                              name="city"
-                              label="City"
-                              value={formData.city}
-                              onChange={(value) => handleChange('city', value)}
-                              placeholder="New York"
-                              autoComplete="off"
-                            />
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <TextField
-                              name="state"
-                              label="State"
-                              value={formData.state}
-                              onChange={(value) => handleChange('state', value)}
-                              placeholder="NY"
-                              autoComplete="off"
-                            />
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <TextField
-                              name="zipCode"
-                              label="ZIP Code"
-                              value={formData.zipCode}
-                              onChange={(value) => handleChange('zipCode', value)}
-                              placeholder="10001"
-                              autoComplete="off"
-                            />
-                          </div>
-                        </InlineStack>
-                        <TextField
-                          name="country"
-                          label="Country"
-                          value={formData.country}
-                          onChange={(value) => handleChange('country', value)}
-                          autoComplete="country-name"
-                        />
-                      </BlockStack>
-                    </BlockStack>
-                  </Card>
-
-                  <Card>
-                    <BlockStack gap="400">
-                      <Text as="h3" variant="headingSm">
-                        Support Contact
-                      </Text>
-                      <Text as="p" variant="bodyMd">
-                        Customer support contact information that will appear on packing slips.
-                      </Text>
-                      <BlockStack gap="400">
-                        <TextField
-                          name="supportEmail"
-                          label="Support Email"
-                          type="email"
-                          value={formData.supportEmail}
-                          onChange={(value) => handleChange('supportEmail', value)}
-                          placeholder="support@yourbrand.com"
-                          autoComplete="off"
-                        />
-                        <TextField
-                          autoComplete="off"
-                          name="supportPhone"
-                          label="Support Phone (Optional)"
-                          type="tel"
-                          value={formData.supportPhone}
-                          onChange={(value) => handleChange('supportPhone', value)}
-                          placeholder="+1 (555) 123-4567"
-                        />
-                      </BlockStack>
-                    </BlockStack>
-                  </Card>
-
-                  <div>
-                    <button
-                      type="submit"
-                      disabled={!isFormValid || isSubmitting}
-                      style={{
-                        background: !isFormValid || isSubmitting ? '#c9cccf' : '#000',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '10px 16px',
-                        cursor: !isFormValid || isSubmitting ? 'not-allowed' : 'pointer',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {isSubmitting
-                        ? 'Submitting...'
-                        : hasExistingBranding
-                          ? 'Update Setup'
-                          : 'Complete Setup'}
-                    </button>
-                  </div>
+      <BlockStack gap="500">
+        <Card>
+          <div
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(30,41,59,0.96) 0%, rgba(37,99,235,0.9) 55%, rgba(14,116,144,0.88) 100%)',
+              borderRadius: 12,
+              padding: 24,
+              color: '#ffffff',
+            }}
+          >
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="start">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingLg" tone="text-inverse">
+                    Welcome to DTFTA Onboarding
+                  </Text>
+                  <Text as="p" tone="text-inverse">
+                    Set up your white-label profile so orders can be fulfilled with your brand
+                    identity from day one.
+                  </Text>
                 </BlockStack>
-              </Form>
-            </BlockStack>
-          </Card>
+                <Badge tone="info">New Setup</Badge>
+              </InlineStack>
 
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                Why we need this
-              </Text>
-              <Text as="p" variant="bodyMd">
-                DTFTA operates as a white-label fulfillment partner. The information you provide
-                will be used to:
-              </Text>
-              <List type="bullet">
-                <List.Item>Generate packing slips with your brand name</List.Item>
-                <List.Item>Create return labels with your return address</List.Item>
-                <List.Item>Display your support contact information to customers</List.Item>
-              </List>
-              <Text as="p" variant="bodyMd" fontWeight="semibold">
-                Your customers will never see DTFTA branding - everything will appear as if it
-                comes directly from your brand.
-              </Text>
+              <InlineStack gap="200">
+                <Badge tone={completionPercent === 100 ? 'success' : 'warning'}>
+                  {completionPercent}% Complete
+                </Badge>
+                {hasExistingBranding ? <Badge tone="info">Existing profile detected</Badge> : null}
+              </InlineStack>
             </BlockStack>
+          </div>
+        </Card>
+
+        {actionData?.error ? (
+          <Card>
+            <div style={{ borderRadius: 10, border: '1px solid #fecaca', backgroundColor: '#fff1f2', padding: 12 }}>
+              <Text as="p" tone="critical">{actionData.error}</Text>
+            </div>
           </Card>
-        </BlockStack>
-      </div>
+        ) : null}
+
+        <InlineStack align="start" gap="500" blockAlign="start">
+          <div style={{ flex: '1', minWidth: 0, maxWidth: 980 }}>
+            <Card>
+              <BlockStack gap="500">
+                <InlineStack align="space-between" blockAlign="center">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      Complete Your Setup
+                    </Text>
+                    <Badge tone="info">Profile</Badge>
+                  </InlineStack>
+                </InlineStack>
+
+                <Form method="post">
+                  <BlockStack gap="500">
+                    <Card>
+                      <div style={panelStyle}>
+                        <BlockStack gap="400">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="h3" variant="headingSm">Brand Information</Text>
+                            <Badge tone="info">Required</Badge>
+                          </InlineStack>
+                          <div>
+                            <label style={fieldLabelStyle} htmlFor="brandName">Brand Name *</label>
+                            <input
+                              id="brandName"
+                              name="brandName"
+                              value={formData.brandName}
+                              onChange={(e) => handleChange('brandName', e.target.value)}
+                              autoComplete="organization"
+                              placeholder="Your Brand Name"
+                              style={fieldInputStyle}
+                            />
+                          </div>
+                        </BlockStack>
+                      </div>
+                    </Card>
+
+                    <Card>
+                      <div style={panelStyle}>
+                        <BlockStack gap="400">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="h3" variant="headingSm">Return Address</Text>
+                            <Badge tone="warning">Operations</Badge>
+                          </InlineStack>
+                          <div>
+                            <label style={fieldLabelStyle} htmlFor="streetAddress">Street Address</label>
+                            <input
+                              id="streetAddress"
+                              name="streetAddress"
+                              value={formData.streetAddress}
+                              onChange={(e) => handleChange('streetAddress', e.target.value)}
+                              autoComplete="street-address"
+                              style={fieldInputStyle}
+                            />
+                          </div>
+                          <InlineGrid columns={{ xs: 1, sm: 3 }} gap="300">
+                            <div>
+                              <label style={fieldLabelStyle} htmlFor="city">City</label>
+                              <input
+                                id="city"
+                                name="city"
+                                value={formData.city}
+                                onChange={(e) => handleChange('city', e.target.value)}
+                                autoComplete="address-level2"
+                                style={fieldInputStyle}
+                              />
+                            </div>
+                            <div>
+                              <label style={fieldLabelStyle} htmlFor="state">State</label>
+                              <input
+                                id="state"
+                                name="state"
+                                value={formData.state}
+                                onChange={(e) => handleChange('state', e.target.value)}
+                                autoComplete="address-level1"
+                                style={fieldInputStyle}
+                              />
+                            </div>
+                            <div>
+                              <label style={fieldLabelStyle} htmlFor="zipCode">ZIP Code</label>
+                              <input
+                                id="zipCode"
+                                name="zipCode"
+                                value={formData.zipCode}
+                                onChange={(e) => handleChange('zipCode', e.target.value)}
+                                autoComplete="postal-code"
+                                style={fieldInputStyle}
+                              />
+                            </div>
+                          </InlineGrid>
+                          <div>
+                            <label style={fieldLabelStyle} htmlFor="country">Country</label>
+                            <input
+                              id="country"
+                              name="country"
+                              value={formData.country}
+                              onChange={(e) => handleChange('country', e.target.value)}
+                              autoComplete="country-name"
+                              style={fieldInputStyle}
+                            />
+                          </div>
+                        </BlockStack>
+                      </div>
+                    </Card>
+
+                    <Card>
+                      <div style={panelStyle}>
+                        <BlockStack gap="400">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text as="h3" variant="headingSm">Support Contact</Text>
+                            <Badge tone="success">Customer-facing</Badge>
+                          </InlineStack>
+                          <InlineGrid columns={{ xs: 1, sm: 2 }} gap="300">
+                            <div>
+                              <label style={fieldLabelStyle} htmlFor="supportEmail">Support Email</label>
+                              <input
+                                id="supportEmail"
+                                name="supportEmail"
+                                type="email"
+                                value={formData.supportEmail}
+                                onChange={(e) => handleChange('supportEmail', e.target.value)}
+                                autoComplete="email"
+                                style={{
+                                  ...fieldInputStyle,
+                                  borderColor: !formData.supportEmail ? '#fca5a5' : '#d6deea',
+                                  backgroundColor: !formData.supportEmail ? '#fff7f7' : '#ffffff',
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={fieldLabelStyle} htmlFor="supportPhone">Support Phone (Optional)</label>
+                              <input
+                                id="supportPhone"
+                                name="supportPhone"
+                                type="tel"
+                                value={formData.supportPhone}
+                                onChange={(e) => handleChange('supportPhone', e.target.value)}
+                                autoComplete="tel"
+                                style={fieldInputStyle}
+                              />
+                            </div>
+                          </InlineGrid>
+                        </BlockStack>
+                      </div>
+                    </Card>
+
+                    <div style={{ paddingBottom: 24 }}>
+                      <button
+                        type="submit"
+                        disabled={!isFormValid || isSubmitting}
+                        style={submitButtonStyle}
+                      >
+                        {isSubmitting
+                          ? 'Submitting...'
+                          : hasExistingBranding
+                            ? 'Update Setup'
+                            : 'Complete Setup'}
+                      </button>
+                    </div>
+                  </BlockStack>
+                </Form>
+              </BlockStack>
+            </Card>
+          </div>
+
+          <div style={{ minWidth: '320px', maxWidth: '360px', flexShrink: 0 }}>
+            <Card>
+              <div style={panelStyle}>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">How it works</Text>
+                    <Badge tone="info">Overview</Badge>
+                  </InlineStack>
+                  <Text as="p" variant="bodyMd">
+                    DTFTA handles production and shipping while your customer sees only your brand.
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>Add DTFTA products to your Shopify store</List.Item>
+                    <List.Item>Customize products with your designs</List.Item>
+                    <List.Item>Orders are printed and shipped automatically</List.Item>
+                    <List.Item>Packaging remains fully white-label</List.Item>
+                  </List>
+                </BlockStack>
+              </div>
+            </Card>
+          </div>
+        </InlineStack>
+        <div style={{ marginBottom: 32 }} />
+      </BlockStack>
     </Page>
   );
 }

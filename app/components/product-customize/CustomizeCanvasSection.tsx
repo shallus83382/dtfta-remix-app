@@ -1,4 +1,4 @@
-import { Banner, Text } from "@shopify/polaris";
+import { Text } from "@shopify/polaris";
 import type { Canvas } from "fabric";
 import DesignCanvas, {
   type DesignableRegion,
@@ -30,7 +30,20 @@ export default function CustomizeCanvasSection({
   onRegionChange,
 }: Props) {
   if (!selectedPrintArea) {
-    return <Banner tone="warning">No active print areas found for this product.</Banner>;
+    return (
+      <div
+        style={{
+          borderRadius: 12,
+          border: "1px solid #fde68a",
+          backgroundColor: "#fffbeb",
+          padding: 12,
+        }}
+      >
+        <Text as="p" tone="warning">
+          No active print areas found for this product.
+        </Text>
+      </div>
+    );
   }
 
   const backgroundImageUrl = selectedPrintArea.image
@@ -41,41 +54,59 @@ export default function CustomizeCanvasSection({
     <>
       <div
         style={{
-          width: "100%",
-          minWidth: 0,
-          height: "min(75vw, calc(100vh - 220px))",
-          minHeight: 280,
+          borderRadius: 12,
+          border: "1px solid #e8edf3",
+          background: "#fcfdff",
+          padding: 10,
         }}
       >
-        {backgroundImageUrl ? (
-          <DesignCanvas
-            key={`${placement}-${selectedColor ?? "default"}`}
-            label={selectedPrintArea.title}
-            fillWidth
-            onCanvasReady={(canvas) => onCanvasReady(placement, canvas)}
-            printWidth={selectedPrintSize.width}
-            printHeight={selectedPrintSize.height}
-            onPrintDimensionsChange={(w, h) =>
-              onPrintSizeChange(placement, w, h)
-            }
-            backgroundImageUrl={backgroundImageUrl}
-            designableRegion={selectedRegion}
-            onDesignableRegionChange={(region) =>
-              onRegionChange(placement, region)
-            }
-            initialCanvasState={initialCanvasState}
-          />
-        ) : (
-          <Banner tone="warning">
-            No background image found for the selected print area.
-          </Banner>
-        )}
+        <div
+          style={{
+            width: "100%",
+            minWidth: 0,
+            height: "auto",
+          }}
+        >
+          {backgroundImageUrl ? (
+            <DesignCanvas
+              key={`${placement}-${selectedColor ?? "default"}`}
+              label={selectedPrintArea.title}
+              fillWidth
+              onCanvasReady={(canvas) => onCanvasReady(placement, canvas)}
+              printWidth={selectedPrintSize.width}
+              printHeight={selectedPrintSize.height}
+              onPrintDimensionsChange={(w, h) =>
+                onPrintSizeChange(placement, w, h)
+              }
+              backgroundImageUrl={backgroundImageUrl}
+              designableRegion={selectedRegion}
+              onDesignableRegionChange={(region) =>
+                onRegionChange(placement, region)
+              }
+              initialCanvasState={initialCanvasState}
+            />
+          ) : (
+            <div
+              style={{
+                borderRadius: 12,
+                border: "1px solid #fde68a",
+                backgroundColor: "#fffbeb",
+                padding: 12,
+              }}
+            >
+              <Text as="p" tone="warning">
+                No background image found for the selected print area.
+              </Text>
+            </div>
+          )}
+        </div>
       </div>
 
       <Text as="p" variant="bodySm" tone="subdued">
         Active print area: {selectedPrintArea.title} · {selectedPrintArea.area_width} ×{" "}
         {selectedPrintArea.area_height} {selectedPrintArea.unit}
       </Text>
+      <div style={{ marginBottom: 24 }} />
     </>
   );
 }

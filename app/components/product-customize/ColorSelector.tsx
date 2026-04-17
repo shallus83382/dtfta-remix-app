@@ -1,4 +1,4 @@
-import { InlineStack, Button } from "@shopify/polaris";
+import { InlineStack } from "@shopify/polaris";
 
 type ColorOption = {
   colorCode: string;
@@ -21,13 +21,35 @@ export default function ColorSelector({
   return (
     <InlineStack gap="200" blockAlign="center">
       {colors.map((color) => (
-        <Button
+        <button
+          type="button"
           key={color.colorCode}
-          variant={selectedColor === color.colorCode ? "primary" : "secondary"}
           onClick={() => onChange(color.colorCode)}
+          style={{
+            borderRadius: 10,
+            border:
+              selectedColor === color.colorCode
+                ? "1px solid transparent"
+                : "1px solid #cbd5e1",
+            height: 34,
+            padding: "0 12px",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            transition: "all 180ms ease",
+            background:
+              selectedColor === color.colorCode
+                ? "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)"
+                : "#f8fafc",
+            color: selectedColor === color.colorCode ? "#ffffff" : "#0f172a",
+            boxShadow:
+              selectedColor === color.colorCode
+                ? "0 8px 18px rgba(29,78,216,0.28)"
+                : "none",
+          }}
         >
           {color.colorName}
-        </Button>
+        </button>
       ))}
     </InlineStack>
   );

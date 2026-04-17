@@ -1,4 +1,4 @@
-import { InlineStack, Button } from "@shopify/polaris";
+import { InlineStack } from "@shopify/polaris";
 import type { DtftaPrintArea } from "../../lib/dtfta-products.server";
 import { normalizePlacementKey } from "../../lib/product-customize/helpers";
 
@@ -19,13 +19,32 @@ export default function PlacementSelector({
         const key = normalizePlacementKey(area.title);
 
         return (
-          <Button
+          <button
+            type="button"
             key={area.id}
-            variant={placement === key ? "primary" : "secondary"}
             onClick={() => onChange(key)}
+            style={{
+              borderRadius: 10,
+              border: placement === key ? "1px solid transparent" : "1px solid #cbd5e1",
+              height: 34,
+              padding: "0 12px",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 180ms ease",
+              background:
+                placement === key
+                  ? "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)"
+                  : "#f8fafc",
+              color: placement === key ? "#ffffff" : "#0f172a",
+              boxShadow:
+                placement === key
+                  ? "0 8px 18px rgba(29,78,216,0.28)"
+                  : "none",
+            }}
           >
             {area.title}
-          </Button>
+          </button>
         );
       })}
     </InlineStack>

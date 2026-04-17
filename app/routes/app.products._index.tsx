@@ -9,7 +9,7 @@ import {
   InlineGrid,
   List,
   InlineStack,
-  Button,
+  Badge,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { createExternalApiHeaders } from "../lib/external-api.server";
@@ -129,90 +129,271 @@ export default function ProductsIndex() {
   const selectedProductData = selectedProduct
     ? products.find((p) => String(p.id) === selectedProduct)
     : null;
+  const hasProducts = products.length > 0;
+  const fillerTileCount = Math.max(0, 4 - products.length);
+
+  const surfaceStyle = {
+    borderRadius: 14,
+    border: "1px solid #d7e0ea",
+    background: "linear-gradient(180deg, rgba(248,250,252,0.92) 0%, #ffffff 100%)",
+    padding: 16,
+    boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
+  };
+
+  const primaryButtonStyle = {
+    borderRadius: 10,
+    border: "1px solid transparent",
+    height: 38,
+    width: "100%",
+    padding: "0 14px",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all 180ms ease",
+    background: "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)",
+    color: "#ffffff",
+    boxShadow: "0 8px 18px rgba(29,78,216,0.28)",
+  } as const;
+
+  const secondaryButtonStyle = {
+    borderRadius: 10,
+    border: "1px solid #cbd5e1",
+    height: 36,
+    padding: "0 14px",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all 180ms ease",
+    backgroundColor: "#f8fafc",
+    color: "#0f172a",
+  } as const;
 
   return (
     <Page title="DTFTA Products" fullWidth>
-      <InlineStack align="start" gap="500" blockAlign="start">
+      <BlockStack gap="500">
+        <Card>
+          <div
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(17,24,39,1) 0%, rgba(30,58,138,0.96) 58%, rgba(14,116,144,0.92) 100%)",
+              borderRadius: 12,
+              padding: 24,
+              color: "#ffffff",
+            }}
+          >
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="start">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingLg" tone="text-inverse">
+                    DTFTA Product Catalog
+                  </Text>
+                  <Text as="p" tone="text-inverse">
+                    Browse, shortlist, and customize top print-on-demand products with a clean
+                    production-ready workflow.
+                  </Text>
+                </BlockStack>
+                <Badge tone="info">Advanced Catalog</Badge>
+              </InlineStack>
+
+              <InlineStack gap="200">
+                <button type="button" style={secondaryButtonStyle}>
+                  Available: {products.length}
+                </button>
+                <button type="button" style={secondaryButtonStyle}>
+                  Favorites: {products.filter((p) => p.isFavorite).length}
+                </button>
+              </InlineStack>
+            </BlockStack>
+          </div>
+        </Card>
+
+        <InlineStack align="start" gap="500" blockAlign="start">
         <div style={{ flex: "1", minWidth: 0 }}>
           <Card>
             <BlockStack gap="500">
-              <Text as="h2" variant="headingMd">
-                Available Products
-              </Text>
-              <Text as="p" variant="bodyMd">
-                Browse our catalog of print-on-demand products. Click on any product to
-                customize and add it to your store.
-              </Text>
+              <InlineStack align="space-between" blockAlign="center">
+                <BlockStack gap="100">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      Available Products
+                    </Text>
+                    <Badge tone="info">Curated</Badge>
+                  </InlineStack>
+                  <Text as="p" variant="bodyMd" tone="subdued">
+                    Click any card to preview details and quickly begin customization.
+                  </Text>
+                </BlockStack>
+              </InlineStack>
 
-              <InlineGrid columns={{ xs: 1, sm: 4 }} gap="400">
-                {products.map((product) => (
-                  <ProductCard
-                    key={String(product.id)}
-                    product={product}
-                    onToggleFavorite={(pid) => {
-                      setProducts((prev) =>
-                        prev.map((p) =>
-                          String(p.id) === String(pid)
-                            ? { ...p, isFavorite: !p.isFavorite }
-                            : p
-                        )
-                      );
-                    }}
-                    onClick={(productId) => setSelectedProduct(String(productId))}
-                    isSelected={selectedProduct === String(product.id)}
-                    showFavorite={true}
-                    variant="default"
-                  />
-                ))}
-              </InlineGrid>
+              {hasProducts ? (
+                <div style={surfaceStyle}>
+                  {selectedProductData ? (
+                    <div
+                      style={{
+                        borderRadius: 12,
+                        border: "1px solid #dbe7ff",
+                        background:
+                          "linear-gradient(135deg, rgba(239,246,255,0.9) 0%, rgba(255,255,255,1) 100%)",
+                        padding: 12,
+                        marginBottom: 16,
+                      }}
+                    >
+                      <InlineStack align="space-between" blockAlign="center">
+                        <BlockStack gap="050">
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            Selected Product
+                          </Text>
+                          <Text as="p" fontWeight="semibold">
+                            {selectedProductData.name}
+                          </Text>
+                        </BlockStack>
+                        <Badge tone="info">Ready to customize</Badge>
+                      </InlineStack>
+                    </div>
+                  ) : null}
+
+                  <InlineGrid columns={{ xs: 1, sm: 2, md: 3, lg: 4 }} gap="400">
+                    {products.map((product) => (
+                      <ProductCard
+                        key={String(product.id)}
+                        product={product}
+                        onToggleFavorite={(pid) => {
+                          setProducts((prev) =>
+                            prev.map((p) =>
+                              String(p.id) === String(pid)
+                                ? { ...p, isFavorite: !p.isFavorite }
+                                : p
+                            )
+                          );
+                        }}
+                        onClick={(productId) => setSelectedProduct(String(productId))}
+                        isSelected={selectedProduct === String(product.id)}
+                        showFavorite={true}
+                        variant="default"
+                      />
+                    ))}
+
+                    {Array.from({ length: fillerTileCount }).map((_, index) => (
+                      <div
+                        key={`filler-${index}`}
+                        style={{
+                          borderRadius: 12,
+                          border: "1px dashed #cbd5e1",
+                          backgroundColor: "#f8fafc",
+                          minHeight: 220,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: 16,
+                        }}
+                      >
+                        <BlockStack gap="100" inlineAlign="center">
+                          <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+                            More styles coming soon
+                          </Text>
+                          <Badge tone="attention">Catalog expanding</Badge>
+                        </BlockStack>
+                      </div>
+                    ))}
+                  </InlineGrid>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    borderRadius: 12,
+                    border: "1px dashed #cbd5e1",
+                    backgroundColor: "#f8fafc",
+                    padding: 22,
+                  }}
+                >
+                  <BlockStack gap="100" align="center">
+                    <Text as="p" variant="bodyMd" alignment="center">
+                      No products available at the moment.
+                    </Text>
+                    <Text as="p" tone="subdued" alignment="center">
+                      Products will appear here after catalog sync completes.
+                    </Text>
+                  </BlockStack>
+                </div>
+              )}
             </BlockStack>
           </Card>
         </div>
 
         <div style={{ minWidth: "280px", maxWidth: "320px", flexShrink: 0 }}>
           <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                Product Information
-              </Text>
-              <Text as="p" variant="bodyMd">
-                All products are print-on-demand, meaning they are created only after
-                an order is placed. No inventory management required.
-              </Text>
+            <div style={surfaceStyle}>
+              <BlockStack gap="400">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h2" variant="headingMd">
+                    Product Information
+                  </Text>
+                  <Badge tone="success">On-demand</Badge>
+                </InlineStack>
 
-              <List type="bullet">
-                <List.Item>Full customization support</List.Item>
-                <List.Item>White-label fulfillment</List.Item>
-                <List.Item>US-based shipping</List.Item>
-                <List.Item>Quality guaranteed</List.Item>
-              </List>
+                <Text as="p" variant="bodyMd">
+                  Products are made-to-order after purchase, so there is no inventory overhead.
+                </Text>
 
-              <Text as="p" variant="bodyMd">
-                Click on any product card to start customizing and add it to your store.
-              </Text>
+                <List type="bullet">
+                  <List.Item>Full customization support</List.Item>
+                  <List.Item>White-label fulfillment</List.Item>
+                  <List.Item>US-based shipping</List.Item>
+                  <List.Item>Quality guaranteed</List.Item>
+                </List>
 
-              {selectedProductData && (
-                <Button
-                  variant="primary"
-                  fullWidth
-                  onClick={() => {
-                    const productKey =
-                      selectedProductData.productKey ?? String(selectedProductData.id);
+                {selectedProductData ? (
+                  <div
+                    style={{
+                      borderRadius: 10,
+                      border: "1px solid #dbe7ff",
+                      background:
+                        "linear-gradient(135deg, rgba(239,246,255,0.95) 0%, rgba(255,255,255,1) 100%)",
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Selected product
+                    </Text>
+                    <Text as="p" fontWeight="semibold">
+                      {selectedProductData.name}
+                    </Text>
+                  </div>
+                ) : (
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Select a product card to enable quick customization.
+                  </Text>
+                )}
 
-                    navigate(
-                      `/app/products/customize?productId=${encodeURIComponent(
-                        String(selectedProductData.id)
-                      )}&productKey=${encodeURIComponent(productKey)}`
-                    );
-                  }}
-                >
-                  Customize and add to store
-                </Button>
-              )}
-            </BlockStack>
+                {selectedProductData ? (
+                  <button
+                    type="button"
+                    style={primaryButtonStyle}
+                    onClick={() => {
+                      const productKey =
+                        selectedProductData.productKey ?? String(selectedProductData.id);
+
+                      navigate(
+                        `/app/products/customize?productId=${encodeURIComponent(
+                          String(selectedProductData.id)
+                        )}&productKey=${encodeURIComponent(productKey)}`
+                      );
+                    }}
+                  >
+                    Customize and Add to Store
+                  </button>
+                ) : (
+                  <button type="button" style={secondaryButtonStyle} disabled>
+                    Choose a Product to Continue
+                  </button>
+                )}
+              </BlockStack>
+            </div>
           </Card>
         </div>
-      </InlineStack>
+        </InlineStack>
+        <div style={{ marginBottom: 32 }} />
+      </BlockStack>
     </Page>
   );
 }

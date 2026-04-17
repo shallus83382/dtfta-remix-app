@@ -11,9 +11,18 @@ type Props = {
 
 export default function ProductMeta({ product, selectedColorName }: Props) {
   return (
-    <>
+    <div
+      style={{
+        borderRadius: 12,
+        border: "1px solid #dbe7ff",
+        background:
+          "linear-gradient(135deg, rgba(239,246,255,0.92) 0%, rgba(255,255,255,1) 100%)",
+        padding: 12,
+      }}
+    >
       <InlineStack gap="200" blockAlign="center">
         {product.brand ? <Badge>{product.brand}</Badge> : null}
+        <Badge tone="info">Customizer</Badge>
 
         {selectedColorName ? (
           <Text as="span" variant="bodyMd">
@@ -32,10 +41,12 @@ export default function ProductMeta({ product, selectedColorName }: Props) {
         ) : null}
       </InlineStack>
 
-      <Text as="p" variant="bodyMd">
-        Choose a color and print area below. Each print area uses its own background image
-        from the API.
-      </Text>
-    </>
+      <div style={{ marginTop: 8 }}>
+        <Text as="p" variant="bodyMd">
+          Choose color and placement to customize. Each placement loads its own base image from
+          the API for accurate print positioning.
+        </Text>
+      </div>
+    </div>
   );
 }

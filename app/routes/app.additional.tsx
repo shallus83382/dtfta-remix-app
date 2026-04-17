@@ -1,37 +1,33 @@
+import { Badge, BlockStack, Card, Page, Text } from "@shopify/polaris";
+
 export default function AdditionalPage() {
   return (
-    <s-page heading="Additional page">
-      <s-section heading="Multiple pages">
-        <s-paragraph>
-          The app template comes with an additional page which demonstrates how
-          to create multiple pages within app navigation using{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
+    <Page title="Additional" fullWidth>
+      <BlockStack gap="500">
+        <Card>
+          <div
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(30,41,59,0.96) 0%, rgba(37,99,235,0.9) 55%, rgba(14,116,144,0.88) 100%)",
+              borderRadius: 12,
+              padding: 24,
+              color: "#ffffff",
+            }}
           >
-            App Bridge
-          </s-link>
-          .
-        </s-paragraph>
-        <s-paragraph>
-          To create your own page and have it show up in the app navigation, add
-          a page inside <code>app/routes</code>, and a link to it in the{" "}
-          <code>&lt;ui-nav-menu&gt;</code> component found in{" "}
-          <code>app/routes/app.jsx</code>.
-        </s-paragraph>
-      </s-section>
-      <s-section slot="aside" heading="Resources">
-        <s-unordered-list>
-          <s-list-item>
-            <s-link
-              href="https://shopify.dev/docs/apps/design-guidelines/navigation#app-nav"
-              target="_blank"
-            >
-              App nav best practices
-            </s-link>
-          </s-list-item>
-        </s-unordered-list>
-      </s-section>
-    </s-page>
+            <BlockStack gap="200">
+              <Text as="h2" variant="headingLg" tone="text-inverse">
+                Additional Page
+              </Text>
+              <Text as="p" tone="text-inverse">
+                This page is now aligned with the new DTFTA professional UI system.
+              </Text>
+              <div>
+                <Badge tone="info">Design Updated</Badge>
+              </div>
+            </BlockStack>
+          </div>
+        </Card>
+      </BlockStack>
+    </Page>
   );
 }
