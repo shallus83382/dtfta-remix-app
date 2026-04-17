@@ -20,14 +20,14 @@ type BuildDtftaLineItemArgs = {
 
 export function buildDtftaLineItem(input: BuildDtftaLineItemArgs) {
   const base = {
-    dtfta_type: "APPAREL_POD",
-    dtfta_template_id: String(input.templateId),
-    dtfta_product_key: input.productKey,
-    dtfta_garment_brand: input.garmentBrand,
-    dtfta_garment_style: input.garmentStyle,
-    dtfta_garment_color: input.color,
-    dtfta_garment_size: input.size,
-    dtfta_print_plan: input.printPlan || "",
+    _dtfta_type: "APPAREL_POD",
+   // _dtfta_template_id: String(input.templateId),
+    _dtfta_product_key: input.productKey,
+    _dtfta_garment_brand: input.garmentBrand,
+    _dtfta_garment_style: input.garmentStyle,
+    _dtfta_garment_color: input.color,
+    _dtfta_garment_size: input.size,
+    _dtfta_print_plan: input.printPlan || "",
   };
 
   const artworkProps = Object.entries(input.artworksByPlacement || {}).reduce(
@@ -47,7 +47,7 @@ export function buildDtftaLineItem(input: BuildDtftaLineItemArgs) {
       // }
 
       if (artwork.artwork_url) {
-        acc[`dtfta_artwork_${safePlacement}_url`] = String(artwork.artwork_url);
+        acc[`_dtfta_artwork_${safePlacement}_url`] = String(artwork.artwork_url);
       }
 
       // if (artwork.title) {

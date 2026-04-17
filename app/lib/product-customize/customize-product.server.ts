@@ -11,6 +11,7 @@ import type {
   CustomizeSubmitResult,
   PrintableAreaPayload,
   ProductWithApiFields,
+  VariantArtworkPayload,
 } from "./types";
 
 export async function loadCustomizeProduct({ request }: LoaderFunctionArgs) {
@@ -101,6 +102,41 @@ function parsePrintableAreas(raw: string): PrintableAreaPayload[] {
   return parsed;
 }
 
+function parseVariantArtworkPayload(raw: string): VariantArtworkPayload[] {
+  const parsed = JSON.parse(raw);
+
+  if (!Array.isArray(parsed)) {
+    throw new Error("Invalid variantArtworkPayload payload");
+  }
+
+  return parsed;
+}
+
+function attachArtworkToPrintableAreas({
+  printableAreas,
+  artworkUrls,
+  selectedColor,
+}: {
+  printableAreas: PrintableAreaPayload[];
+  artworkUrls: Record<string, string>;
+  selectedColor: string;
+}): PrintableAreaPayload[] {
+  return printableAreas.map((area) => {
+    const colorPlacementKey = `${selectedColor}_${area.placement}`;
+    const fallbackPlacementKey = area.placement;
+    const artwork =
+      artworkUrls[colorPlacementKey] ??
+      artworkUrls[fallbackPlacementKey] ??
+      area.artwork ??
+      "";
+
+    return {
+      ...area,
+      artwork,
+    };
+  });
+}
+
 export async function publishCustomizeProduct({
   request,
 }: ActionFunctionArgs): Promise<CustomizeSubmitResult> {
@@ -117,11 +153,9 @@ export async function publishCustomizeProduct({
   const productId = String(formData.get("productId") || "");
   const printPlan = String(formData.get("printPlan") || "");
   const printableAreasRaw = String(formData.get("printableAreas") || "[]");
+  const variantArtworkPayloadRaw = String(formData.get("variantArtworkPayload") || "[]");
 
   const selectedColor = String(formData.get("selectedColor") || "");
-  const selectedColorName = String(formData.get("selectedColorName") || "");
-  const selectedVariantId = String(formData.get("selectedVariantId") || "");
-  const selectedVariantSku = String(formData.get("selectedVariantSku") || "");
 
   if (!productKey.trim()) {
     return { ok: false, error: "Missing product key" };
@@ -130,14 +164,24 @@ export async function publishCustomizeProduct({
   const artworkUrls = collectArtworkUrls(formData);
 
   let printableAreas: PrintableAreaPayload[] = [];
+  let variantArtworkPayload: VariantArtworkPayload[] = [];
   try {
     printableAreas = parsePrintableAreas(printableAreasRaw);
+    variantArtworkPayload = parseVariantArtworkPayload(variantArtworkPayloadRaw);
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : "Invalid printableAreas payload",
+      error: error instanceof Error ? error.message : "Invalid customize payload",
     };
   }
+
+  const selectedVariant =
+    variantArtworkPayload.find((variant) => variant.colorCode === selectedColor) ?? null;
+  const printableAreasWithArtwork = attachArtworkToPrintableAreas({
+    printableAreas,
+    artworkUrls,
+    selectedColor,
+  });
 
   const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
   const payload = {
@@ -147,11 +191,11 @@ export async function publishCustomizeProduct({
     title,
     printPlan,
     artworkUrls,
-    printableAreas,
+    printableAreas: printableAreasWithArtwork,
     selectedColor,
-    selectedColorName,
-    selectedVariantId,
-    selectedVariantSku,
+    selectedColorName: selectedVariant?.colorName || "",
+    selectedVariantId: selectedVariant?.variantId || "",
+    selectedVariantSku: selectedVariant?.variantSku || "",
   };
 
   const headers = createExternalApiHeaders(payload, { "X-Shop": shop });

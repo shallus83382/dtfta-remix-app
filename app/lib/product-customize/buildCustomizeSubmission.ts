@@ -1,12 +1,13 @@
 import type { Canvas } from "fabric";
 import { buildPrintPlan } from "../dtfta-design";
 import { exportCanvasToDataUrl } from "../../components/DesignCanvas";
-import type { DtftaPrintArea } from "../dtfta-products.server";
+import type { DtftaPrintArea, DtftaVariant } from "../dtfta-products.server";
 import type {
   PlacementCanvasStateMap,
   PlacementPrintSizeMap,
   PlacementRegionMap,
   PrintableAreaPayload,
+  VariantArtworkPayload,
 } from "./types";
 import {
   getRegionFromPrintArea,
@@ -26,9 +27,7 @@ type BuildCustomizeSubmissionArgs = {
   printSizes: PlacementPrintSizeMap;
   regions: PlacementRegionMap;
   selectedColor: string;
-  selectedColorName?: string;
-  selectedVariantId?: string;
-  selectedVariantSku?: string;
+  variants: DtftaVariant[];
 };
 
 type BuildCustomizeSubmissionResult =
@@ -37,57 +36,31 @@ type BuildCustomizeSubmissionResult =
       formData: FormData;
       printableAreas: PrintableAreaPayload[];
       printPlan: string;
+      variantArtworkPayload: VariantArtworkPayload[];
     }
   | {
       ok: false;
       error: string;
     };
 
-export function buildCustomizeSubmission({
-  productKey,
-  productName,
-  productId,
-  canvases,
-  canvasStateByPlacement,
-  artworkByPlacement,
+function buildPrintableAreasForColor({
+  colorCode,
   printAreas,
   printSizes,
   regions,
-  selectedColor,
-  selectedColorName,
-  selectedVariantId,
-  selectedVariantSku,
-}: BuildCustomizeSubmissionArgs): BuildCustomizeSubmissionResult {
-  const finalArtworkByPlacement: Record<string, string> = {
-    ...artworkByPlacement,
-  };
-
-  for (const [storageKey, canvas] of Object.entries(canvases)) {
-    if (!canvas) continue;
-
-    const exportedArtwork = exportCanvasToDataUrl(canvas);
-    if (exportedArtwork) {
-      finalArtworkByPlacement[storageKey] = exportedArtwork;
-    }
-  }
-
-  const selectedPrintSizes: PlacementPrintSizeMap = {};
-
-  for (const area of printAreas) {
+  finalArtworkByPlacement,
+  canvasStateByPlacement,
+}: {
+  colorCode: string;
+  printAreas: DtftaPrintArea[];
+  printSizes: PlacementPrintSizeMap;
+  regions: PlacementRegionMap;
+  finalArtworkByPlacement: Record<string, string>;
+  canvasStateByPlacement: PlacementCanvasStateMap;
+}): PrintableAreaPayload[] {
+  return printAreas.map((area) => {
     const placementKey = normalizePlacementKey(area.title);
-    const storageKey = buildColorPlacementKey(selectedColor, placementKey);
-    const size = printSizes[storageKey];
-
-    if (size) {
-      selectedPrintSizes[placementKey] = size;
-    }
-  }
-
-  const printPlan = buildPrintPlan(selectedPrintSizes);
-
-  const printableAreas: PrintableAreaPayload[] = printAreas.map((area) => {
-    const placementKey = normalizePlacementKey(area.title);
-    const storageKey = buildColorPlacementKey(selectedColor, placementKey);
+    const storageKey = buildColorPlacementKey(colorCode, placementKey);
     const region = regions[storageKey] ?? getRegionFromPrintArea(area);
     const size = printSizes[storageKey] ?? {
       width: Number(area.area_width || 250),
@@ -102,14 +75,102 @@ export function buildCustomizeSubmission({
       printSize: size,
       designableRegion: region,
       unit: area.unit ?? null,
-      backgroundImage: getProductDesignAssetUrl(area.image, selectedColor) ?? null,
+      backgroundImage: getProductDesignAssetUrl(area.image, colorCode) ?? null,
       editorState: canvasStateByPlacement[storageKey] ?? null,
     };
   });
+}
 
-  const hasArtwork = printableAreas.some((item) => Boolean(item.artwork));
+function buildPrintPlanForColor({
+  colorCode,
+  printAreas,
+  printSizes,
+}: {
+  colorCode: string;
+  printAreas: DtftaPrintArea[];
+  printSizes: PlacementPrintSizeMap;
+}) {
+  const selectedPrintSizes: PlacementPrintSizeMap = {};
 
-  if (!printPlan && !hasArtwork) {
+  for (const area of printAreas) {
+    const placementKey = normalizePlacementKey(area.title);
+    const storageKey = buildColorPlacementKey(colorCode, placementKey);
+    const size = printSizes[storageKey];
+
+    if (size) {
+      selectedPrintSizes[placementKey] = size;
+    }
+  }
+
+  return buildPrintPlan(selectedPrintSizes);
+}
+
+export function buildCustomizeSubmission({
+  productKey,
+  productName,
+  productId,
+  canvases,
+  canvasStateByPlacement,
+  artworkByPlacement,
+  printAreas,
+  printSizes,
+  regions,
+  selectedColor,
+  variants,
+}: BuildCustomizeSubmissionArgs): BuildCustomizeSubmissionResult {
+  const finalArtworkByPlacement: Record<string, string> = {
+    ...artworkByPlacement,
+  };
+
+  for (const [storageKey, canvas] of Object.entries(canvases)) {
+    if (!canvas) continue;
+
+    const exportedArtwork = exportCanvasToDataUrl(canvas);
+    if (exportedArtwork) {
+      finalArtworkByPlacement[storageKey] = exportedArtwork;
+    }
+  }
+
+  const printableAreas = buildPrintableAreasForColor({
+    colorCode: selectedColor,
+    printAreas,
+    printSizes,
+    regions,
+    finalArtworkByPlacement,
+    canvasStateByPlacement,
+  });
+
+  const printPlan = buildPrintPlanForColor({
+    colorCode: selectedColor,
+    printAreas,
+    printSizes,
+  });
+
+  const activeVariants = variants.filter(
+    (variant) => variant.is_active && variant.id != null
+  );
+
+  const variantArtworkPayload: VariantArtworkPayload[] = activeVariants.map((variant) => {
+    const variantPrintPlan = buildPrintPlanForColor({
+      colorCode: variant.colorCode,
+      printAreas,
+      printSizes,
+    });
+
+    return {
+      variantId: String(variant.id),
+      variantSku: variant.sku ?? "",
+      colorCode: variant.colorCode,
+      colorName: variant.colorName,
+      printPlan: variantPrintPlan,
+    };
+  });
+
+  const hasArtwork = Object.values(finalArtworkByPlacement).some((artwork) => Boolean(artwork));
+
+  const hasPrintPlan = Boolean(printPlan) || variantArtworkPayload.some((variant) => Boolean(variant.printPlan));
+
+  if (!hasPrintPlan && !hasArtwork) {
     return {
       ok: false,
       error: "Add at least one placement with artwork or print-size changes.",
@@ -121,11 +182,18 @@ export function buildCustomizeSubmission({
   formData.set("title", `${productName}`);
   formData.set("productId", productId);
   formData.set("printPlan", printPlan);
-  formData.set("printableAreas", JSON.stringify(printableAreas));
+  const printableAreasPayload = printableAreas.map((area) => ({
+    id: area.id,
+    title: area.title,
+    placement: area.placement,
+    artwork: "",
+    printSize: area.printSize,
+    designableRegion: area.designableRegion,
+    unit: area.unit,
+  }));
+  formData.set("printableAreas", JSON.stringify(printableAreasPayload));
   formData.set("selectedColor", selectedColor || "");
-  formData.set("selectedColorName", selectedColorName || "");
-  formData.set("selectedVariantId", selectedVariantId || "");
-  formData.set("selectedVariantSku", selectedVariantSku || "");
+  formData.set("variantArtworkPayload", JSON.stringify(variantArtworkPayload));
 
   for (const [key, value] of Object.entries(finalArtworkByPlacement)) {
     if (value) {
@@ -138,5 +206,6 @@ export function buildCustomizeSubmission({
     formData,
     printableAreas,
     printPlan,
+    variantArtworkPayload,
   };
 }

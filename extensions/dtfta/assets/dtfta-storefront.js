@@ -25,11 +25,11 @@ console.log("[DTFTA] JS file loaded");
         form.setAttribute("data-dtfta-template-id", String(templateId));
       }
 
-      let input = form.querySelector('input[name="properties[dtfta_template_id]"]');
+      let input = form.querySelector('input[name="properties[_dtfta_template_id]"]');
       if (!input) {
         input = document.createElement("input");
         input.type = "hidden";
-        input.name = "properties[dtfta_template_id]";
+        input.name = "properties[_dtfta_template_id]";
         form.appendChild(input);
       }
 
@@ -39,8 +39,8 @@ console.log("[DTFTA] JS file loaded");
 
   function getTemplateId(form) {
     const hidden =
-      form.querySelector('input[name="properties[dtfta_template_id]"]') ||
-      form.querySelector('input[name="dtfta_template_id"]');
+      form.querySelector('input[name="properties[_dtfta_template_id]"]') ||
+      form.querySelector('input[name="_dtfta_template_id"]');
 
     if (hidden && hidden.value) return hidden.value;
 

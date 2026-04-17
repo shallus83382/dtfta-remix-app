@@ -74,9 +74,7 @@ export function useProductCustomize({
       printSizes: editor.printSizes,
       regions: editor.regions,
       selectedColor,
-      selectedColorName: selectedVariant?.colorName ?? "",
-      selectedVariantId: selectedVariant?.id != null ? String(selectedVariant.id) : "",
-      selectedVariantSku: selectedVariant?.sku ?? "",
+      variants,
     });
 
     if (!result.ok) {
@@ -90,7 +88,7 @@ export function useProductCustomize({
     productId,
     printAreas,
     selectedColor,
-    selectedVariant,
+    variants,
     editor,
   ]);
 
