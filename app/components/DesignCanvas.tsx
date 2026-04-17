@@ -6,6 +6,8 @@ const CANVAS_SIZE = 500;
 const MIN_CANVAS_SIZE = 280;
 const MIN_CANVAS_HEIGHT = 280;
 const CANVAS_ASPECT_RATIO = 0.72;
+const MAX_CANVAS_WIDTH = 860;
+const MAX_CANVAS_HEIGHT = 520;
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 2;
 const ZOOM_STEP = 0.15;
@@ -150,10 +152,13 @@ export default function DesignCanvas({
       const w = el.clientWidth;
       if (w <= 0) return;
 
-      const cw = Math.max(MIN_CANVAS_SIZE, w);
+      const cw = Math.min(MAX_CANVAS_WIDTH, Math.max(MIN_CANVAS_SIZE, w));
       const ch = Math.max(
         MIN_CANVAS_HEIGHT,
-        Math.min(Math.round(cw * CANVAS_ASPECT_RATIO), Math.round(cw * 0.9))
+        Math.min(
+          MAX_CANVAS_HEIGHT,
+          Math.min(Math.round(cw * CANVAS_ASPECT_RATIO), Math.round(cw * 0.9))
+        )
       );
 
       setCanvasDimensions({ w: cw, h: ch });
@@ -754,19 +759,11 @@ export default function DesignCanvas({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const c = canvas as Canvas & {
-        zoomToPoint?: (pt: { x: number; y: number }, z: number) => void;
-      };
-
       const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newZoom));
       const pt = point ?? { x: width / 2, y: height / 2 };
 
-      if (c.zoomToPoint) {
-        c.zoomToPoint(pt, z);
-      } else {
-        setZoomAtPoint(canvas, pt, z);
-      }
-
+      // Always re-center zoom around the intended point to prevent drift.
+      setZoomAtPoint(canvas, pt, z);
       canvas.requestRenderAll();
       setZoom(z);
     },
@@ -782,16 +779,7 @@ export default function DesignCanvas({
 
     const z = zoomRef.current;
     const pt = { x: width / 2, y: height / 2 };
-
-    const c = canvas as Canvas & {
-      zoomToPoint?: (p: { x: number; y: number }, zoomVal: number) => void;
-    };
-
-    if (c.zoomToPoint) {
-      c.zoomToPoint(pt, z);
-    } else {
-      setZoomAtPoint(canvas, pt, z);
-    }
+    setZoomAtPoint(canvas, pt, z);
 
     canvas.requestRenderAll();
   }, [zoom, width, height, setZoomAtPoint]);
@@ -799,33 +787,15 @@ export default function DesignCanvas({
   const handleWheel = useCallback(
     (e: WheelEvent) => {
       const canvas = canvasRef.current;
-      const container = zoomContainerRef.current;
-      if (!canvas || !container) return;
-
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      if (!canvas) return;
       const delta = -Math.sign(e.deltaY) * 0.1;
 
-      setZoom((prev) => {
-        const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, prev * (1 + delta)));
-        const c = canvas as Canvas & {
-          zoomToPoint?: (pt: { x: number; y: number }, z: number) => void;
-        };
-
-        if (c.zoomToPoint) {
-          c.zoomToPoint({ x, y }, newZoom);
-        } else {
-          setZoomAtPoint(canvas, { x, y }, newZoom);
-        }
-
-        canvas.requestRenderAll();
-        return newZoom;
-      });
+      const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomRef.current * (1 + delta)));
+      applyZoom(newZoom);
 
       e.preventDefault();
     },
-    [setZoomAtPoint]
+    [applyZoom]
   );
 
   useEffect(() => {
