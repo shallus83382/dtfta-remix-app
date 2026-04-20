@@ -16,6 +16,12 @@ type Props = {
   onCanvasReady: (placement: string, canvas: Canvas) => void;
   onPrintSizeChange: (placement: string, width: number, height: number) => void;
   onRegionChange: (placement: string, region: DesignableRegion) => void;
+  onRegisterActions?: (actions: {
+    addText: () => void;
+    addImage: (file: File) => Promise<void>;
+    deleteSelected: () => void;
+    clear: () => void;
+  } | null) => void;
 };
 
 export default function CustomizeCanvasSection({
@@ -28,6 +34,7 @@ export default function CustomizeCanvasSection({
   onCanvasReady,
   onPrintSizeChange,
   onRegionChange,
+  onRegisterActions,
 }: Props) {
   if (!selectedPrintArea) {
     return (
@@ -54,10 +61,9 @@ export default function CustomizeCanvasSection({
     <>
       <div
         style={{
-          borderRadius: 12,
-          border: "1px solid #e8edf3",
-          background: "#fcfdff",
-          padding: 10,
+          borderRadius: 10,
+          background: "#ffffff",
+          padding: 0,
         }}
       >
         <div
@@ -72,6 +78,8 @@ export default function CustomizeCanvasSection({
               key={`${placement}-${selectedColor ?? "default"}`}
               label={selectedPrintArea.title}
               fillWidth
+              showInlineActions={false}
+              onRegisterActions={onRegisterActions}
               onCanvasReady={(canvas) => onCanvasReady(placement, canvas)}
               printWidth={selectedPrintSize.width}
               printHeight={selectedPrintSize.height}

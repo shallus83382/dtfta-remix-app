@@ -1,16 +1,24 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { useLoaderData, useSearchParams } from "react-router";
-import { Page, Card, BlockStack, Badge, InlineStack, InlineGrid, Text } from "@shopify/polaris";
-import ProductMeta from "../components/product-customize/ProductMeta";
-import PlacementSelector from "../components/product-customize/PlacementSelector";
+import {
+  Page,
+  Card,
+  BlockStack,
+  Badge,
+  InlineStack,
+  List,
+  Text,
+} from "@shopify/polaris";
 import CustomizeCanvasSection from "../components/product-customize/CustomizeCanvasSection";
 import ColorSelector from "../components/product-customize/ColorSelector";
+import ProductMeta from "../components/product-customize/ProductMeta";
 import { useProductCustomize } from "../lib/product-customize/useProductCustomize";
 import {
   loadCustomizeProduct,
   publishCustomizeProduct,
 } from "../lib/product-customize/customize-product.server";
+import { normalizePlacementKey } from "../lib/product-customize/helpers";
 
 export const loader = async (args: LoaderFunctionArgs) => {
   return loadCustomizeProduct(args);
@@ -23,6 +31,13 @@ export const action = async (args: ActionFunctionArgs) => {
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 export default function ProductCustomize() {
+  const [canvasActions, setCanvasActions] = useState<{
+    addText: () => void;
+    addImage: (file: File) => Promise<void>;
+    deleteSelected: () => void;
+    clear: () => void;
+  } | null>(null);
+
   const loaderData = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
 
@@ -131,30 +146,7 @@ export default function ProductCustomize() {
                 <Text as="h2" variant="headingMd" tone="text-inverse">
                   Product Customizer Studio
                 </Text>
-                <InlineStack gap="200" blockAlign="center">
-                  <Badge tone="info">Advanced Editor</Badge>
-                  <button
-                    type="button"
-                    onClick={handleAddToStore}
-                    disabled={fetcher.state !== "idle"}
-                    style={{
-                      borderRadius: 10,
-                      border: "1px solid rgba(255,255,255,0.28)",
-                      height: 34,
-                      padding: "0 12px",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: fetcher.state !== "idle" ? "not-allowed" : "pointer",
-                      transition: "all 180ms ease",
-                      backgroundColor: "rgba(255,255,255,0.12)",
-                      color: "#ffffff",
-                      opacity: fetcher.state !== "idle" ? 0.7 : 1,
-                      backdropFilter: "blur(2px)",
-                    }}
-                  >
-                    {fetcher.state !== "idle" ? "Adding..." : "Add to Store"}
-                  </button>
-                </InlineStack>
+                <Badge tone="info">Advanced Editor</Badge>
               </InlineStack>
               <Text as="p" tone="text-inverse">
                 Fine-tune print placement, color variants, and composition before publishing to
@@ -164,54 +156,40 @@ export default function ProductCustomize() {
           </div>
         </Card>
 
-        <Card>
-          <BlockStack gap="400">
-            <ProductMeta product={product} />
+        <InlineStack align="start" gap="400" blockAlign="start">
+          <div style={{ minWidth: 260, maxWidth: 300, flexShrink: 0 }}>
+            <div
+              style={{
+                borderRadius: 10,
+                backgroundColor: "#ffffff",
+                padding: 12,
+              }}
+            >
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h3" variant="headingSm">
+                    Important product info
+                  </Text>
+                  <Badge tone="info">Details</Badge>
+                </InlineStack>
 
-            <InlineGrid columns={{ xs: 1, md: 2 }} gap="300">
-              <div
-                style={{
-                  borderRadius: 12,
-                  border: "1px solid #e2e8f0",
-                  backgroundColor: "#fcfdff",
-                  padding: 12,
-                }}
-              >
-                <BlockStack gap="200">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text as="p" fontWeight="semibold">Choose Color</Text>
-                    <Badge tone="info">Step 1</Badge>
-                  </InlineStack>
-                  <ColorSelector
-                    colors={availableColors}
-                    selectedColor={selectedColor}
-                    onChange={handleColorChange}
-                  />
-                </BlockStack>
-              </div>
+                <Text as="p" fontWeight="semibold">
+                  {productName}
+                </Text>
+                <Text as="p" tone="subdued">
+                  {product.brand} {product.model ? `・${product.model}` : ""}
+                </Text>
 
-              <div
-                style={{
-                  borderRadius: 12,
-                  border: "1px solid #e2e8f0",
-                  backgroundColor: "#fcfdff",
-                  padding: 12,
-                }}
-              >
-                <BlockStack gap="200">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text as="p" fontWeight="semibold">Choose Placement</Text>
-                    <Badge tone="warning">Step 2</Badge>
-                  </InlineStack>
-                  <PlacementSelector
-                    printAreas={printAreas}
-                    placement={placement}
-                    onChange={handlePlacementChange}
-                  />
-                </BlockStack>
-              </div>
-            </InlineGrid>
+                <List type="bullet">
+                  <List.Item>{availableColors.length} colors available</List.Item>
+                  <List.Item>{printAreas.length} print placements</List.Item>
+                  <List.Item>Use right panel to configure variants</List.Item>
+                </List>
+              </BlockStack>
+            </div>
+          </div>
 
+          <div style={{ flex: 1, minWidth: 0 }}>
             <CustomizeCanvasSection
               placement={placement}
               selectedColor={selectedColor}
@@ -222,9 +200,207 @@ export default function ProductCustomize() {
               onCanvasReady={handleCanvasReady}
               onPrintSizeChange={handlePrintSizeChange}
               onRegionChange={handleRegionChange}
+              onRegisterActions={setCanvasActions}
             />
-          </BlockStack>
-        </Card>
+            <div style={{ marginTop: 10 }}>
+              <InlineStack align="center" gap="200" blockAlign="center">
+                {printAreas.map((area) => {
+                  const key = normalizePlacementKey(area.title);
+                  const isActive = placement === key;
+                  return (
+                    <button
+                      key={area.id}
+                      type="button"
+                      onClick={() => handlePlacementChange(key)}
+                      style={{
+                        borderRadius: 999,
+                        border: isActive ? "1px solid transparent" : "1px solid #cbd5e1",
+                        height: 32,
+                        padding: "0 14px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        background: isActive
+                          ? "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)"
+                          : "#f8fafc",
+                        color: isActive ? "#ffffff" : "#0f172a",
+                        boxShadow: isActive ? "0 8px 18px rgba(29,78,216,0.28)" : "none",
+                        transition: "all 150ms ease",
+                      }}
+                    >
+                      {area.title}
+                    </button>
+                  );
+                })}
+              </InlineStack>
+            </div>
+          </div>
+
+          <div style={{ minWidth: 300, maxWidth: 340, flexShrink: 0 }}>
+              <div
+                style={{
+                  borderRadius: 10,
+                  backgroundColor: "#ffffff",
+                  padding: 12,
+                }}
+              >
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h3" variant="headingSm">
+                      Variants & options
+                    </Text>
+                    <Badge tone="success">Step Flow</Badge>
+                  </InlineStack>
+                  <Text as="p" tone="subdued">
+                    {product.brand} {product.model ? `・${product.model}` : ""}
+                  </Text>
+
+                  <ProductMeta product={product} />
+
+                  <div>
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="p" fontWeight="semibold">Choose Color</Text>
+                      <Badge tone="info">Step 1</Badge>
+                    </InlineStack>
+                    <div style={{ marginTop: 8 }}>
+                      <ColorSelector
+                        colors={availableColors}
+                        selectedColor={selectedColor}
+                        onChange={handleColorChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Text as="p" fontWeight="semibold">
+                      Canvas Actions
+                    </Text>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        onClick={() => canvasActions?.addText()}
+                        disabled={!canvasActions}
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid #cbd5e1",
+                          height: 34,
+                          padding: "0 12px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: !canvasActions ? "not-allowed" : "pointer",
+                          background: "#ffffff",
+                          color: "#0f172a",
+                          opacity: !canvasActions ? 0.6 : 1,
+                        }}
+                      >
+                        Add text
+                      </button>
+
+                      <label
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid #cbd5e1",
+                          height: 34,
+                          padding: "0 12px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: !canvasActions ? "not-allowed" : "pointer",
+                          background: "#ffffff",
+                          color: "#0f172a",
+                          opacity: !canvasActions ? 0.6 : 1,
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        Add image
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={!canvasActions}
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              void canvasActions?.addImage(f);
+                            }
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => canvasActions?.deleteSelected()}
+                        disabled={!canvasActions}
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid #cbd5e1",
+                          height: 34,
+                          padding: "0 12px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: !canvasActions ? "not-allowed" : "pointer",
+                          background: "#ffffff",
+                          color: "#0f172a",
+                          opacity: !canvasActions ? 0.6 : 1,
+                        }}
+                      >
+                        Delete selected
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => canvasActions?.clear()}
+                        disabled={!canvasActions}
+                        style={{
+                          borderRadius: 10,
+                          border: "1px solid #cbd5e1",
+                          height: 34,
+                          padding: "0 12px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: !canvasActions ? "not-allowed" : "pointer",
+                          background: "#ffffff",
+                          color: "#0f172a",
+                          opacity: !canvasActions ? 0.6 : 1,
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddToStore}
+                    disabled={fetcher.state !== "idle"}
+                    style={{
+                      borderRadius: 10,
+                      border: "1px solid transparent",
+                      height: 38,
+                      width: "100%",
+                      padding: "0 14px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: fetcher.state !== "idle" ? "not-allowed" : "pointer",
+                      transition: "all 180ms ease",
+                      background:
+                        fetcher.state !== "idle"
+                          ? "#cbd5e1"
+                          : "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)",
+                      color: "#ffffff",
+                      boxShadow:
+                        fetcher.state !== "idle"
+                          ? "none"
+                          : "0 8px 18px rgba(29,78,216,0.28)",
+                    }}
+                  >
+                    {fetcher.state !== "idle" ? "Adding..." : "Add to Store"}
+                  </button>
+                </BlockStack>
+              </div>
+          </div>
+        </InlineStack>
         <div style={{ marginBottom: 36 }} />
       </BlockStack>
     </Page>

@@ -8,8 +8,6 @@ import {
   InlineStack,
   InlineGrid,
   Text,
-  Badge,
-  List,
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
@@ -183,19 +181,19 @@ export default function Settings() {
   const completionPercent = Math.round((completedItems / 4) * 100);
 
   const panelStyle = {
-    borderRadius: 14,
-    border: '1px solid #eef2f7',
-    background: '#fcfdff',
-    padding: 14,
-    boxShadow: '0 4px 12px rgba(15,23,42,0.03)',
+    borderRadius: 0,
+    border: 'none',
+    backgroundColor: 'transparent',
+    padding: 0,
+    boxShadow: 'none',
   } as const;
 
   const submitButtonStyle = {
-    borderRadius: 10,
+    borderRadius: 8,
     border: '1px solid transparent',
-    height: 40,
-    padding: '0 16px',
-    fontSize: 13,
+    height: 42,
+    padding: '0 18px',
+    fontSize: 14,
     fontWeight: 600,
     cursor: 'pointer',
     transition: 'all 180ms ease',
@@ -205,26 +203,21 @@ export default function Settings() {
     width: 'fit-content',
   } as const;
 
-  const fieldShellStyle = {
-    borderRadius: 10,
-    border: '1px solid transparent',
-    backgroundColor: 'transparent',
-    padding: 0,
-  } as const;
-
   const fieldLabelStyle = {
     display: 'block',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 600,
-    color: '#334155',
+    color: '#475569',
     marginBottom: 6,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.02em',
   } as const;
 
   const fieldInputStyle = {
     width: '100%',
-    height: 42,
-    borderRadius: 10,
-    border: '1px solid #d6deea',
+    height: 40,
+    borderRadius: 8,
+    border: '1px solid #d1d5db',
     backgroundColor: '#ffffff',
     padding: '0 12px',
     fontSize: 14,
@@ -240,49 +233,31 @@ export default function Settings() {
         <Card>
           <div
             style={{
+              borderRadius: 12,
               background:
                 'linear-gradient(135deg, rgba(30,41,59,0.96) 0%, rgba(37,99,235,0.9) 55%, rgba(14,116,144,0.88) 100%)',
-              borderRadius: 12,
-              padding: 24,
-              color: '#ffffff',
+              border: '1px solid rgba(148,163,184,0.28)',
+              padding: 22,
             }}
           >
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="start">
-                <BlockStack gap="100">
-                  <Text as="h2" variant="headingLg" tone="text-inverse">
-                    Brand & Fulfillment Settings
-                  </Text>
-                  <Text as="p" tone="text-inverse">
-                    Configure white-label profile details used for packing slips, return labels,
-                    and support communication.
-                  </Text>
-                </BlockStack>
-                <Badge tone="info">Advanced Setup</Badge>
-              </InlineStack>
-
-              <InlineStack gap="200">
-                <Badge tone={completionPercent === 100 ? 'success' : 'warning'}>
-                  {completionPercent}% Complete
-                </Badge>
-                <Badge tone="info">Shop profile active</Badge>
-              </InlineStack>
+            <BlockStack gap="100">
+              <Text as="h2" variant="headingLg" tone="text-inverse">
+                Brand & Fulfillment Settings
+              </Text>
+              <Text as="p" tone="text-inverse">
+                Configure your brand details for packing slips, return labels, and support contact.
+              </Text>
             </BlockStack>
           </div>
         </Card>
 
-      <InlineStack align="start" gap="500" blockAlign="start">
+      <InlineStack align="start" gap="400" blockAlign="start">
         <div style={{ flex: '1', minWidth: 0, maxWidth: 980 }}>
           <Card>
             <BlockStack gap="500">
-              <InlineStack align="space-between" blockAlign="center">
-                <InlineStack gap="200" blockAlign="center">
-                  <Text as="h2" variant="headingMd">
-                    Complete Your Setup
-                  </Text>
-                  <Badge tone="info">Profile</Badge>
-                </InlineStack>
-              </InlineStack>
+              <Text as="h2" variant="headingMd">
+                Complete your profile
+              </Text>
 
               {!loaderData.success && loaderData.error ? (
                 <div
@@ -334,29 +309,24 @@ export default function Settings() {
                   <Card>
                     <div style={panelStyle}>
                       <BlockStack gap="400">
-                        <InlineStack align="space-between" blockAlign="center">
-                          <Text as="h3" variant="headingSm">
-                            Brand Information
-                          </Text>
-                          <Badge tone="info">Required</Badge>
-                        </InlineStack>
+                        <Text as="h3" variant="headingSm">
+                          Brand Information
+                        </Text>
                         <Text as="p" variant="bodyMd">
                           This information appears on white-label packing slips and shipping labels.
                         </Text>
-                        <div style={fieldShellStyle}>
-                          <label style={fieldLabelStyle} htmlFor="brandName">
-                            Brand Name *
-                          </label>
-                          <input
-                            id="brandName"
-                            name="brandName"
-                            value={formData.brandName}
-                            onChange={(e) => handleChange('brandName', e.target.value)}
-                            placeholder="Your Brand Name"
-                            autoComplete="organization"
-                            style={fieldInputStyle}
-                          />
-                        </div>
+                        <label style={fieldLabelStyle} htmlFor="brandName">
+                          Brand Name *
+                        </label>
+                        <input
+                          id="brandName"
+                          name="brandName"
+                          value={formData.brandName}
+                          onChange={(e) => handleChange('brandName', e.target.value)}
+                          placeholder="Your Brand Name"
+                          autoComplete="organization"
+                          style={fieldInputStyle}
+                        />
                       </BlockStack>
                     </div>
                   </Card>
@@ -364,17 +334,14 @@ export default function Settings() {
                   <Card>
                     <div style={panelStyle}>
                       <BlockStack gap="400">
-                        <InlineStack align="space-between" blockAlign="center">
-                          <Text as="h3" variant="headingSm">
-                            Return Address
-                          </Text>
-                          <Badge tone="warning">Operations</Badge>
-                        </InlineStack>
+                        <Text as="h3" variant="headingSm">
+                          Return Address
+                        </Text>
                         <Text as="p" variant="bodyMd">
                           Used on return labels and fulfillment documents.
                         </Text>
                         <BlockStack gap="400">
-                          <div style={fieldShellStyle}>
+                          <div>
                             <label style={fieldLabelStyle} htmlFor="streetAddress">
                               Street Address
                             </label>
@@ -388,7 +355,7 @@ export default function Settings() {
                             />
                           </div>
                           <InlineGrid columns={{ xs: 1, sm: 3 }} gap="300">
-                            <div style={fieldShellStyle}>
+                            <div>
                               <label style={fieldLabelStyle} htmlFor="city">
                                 City
                               </label>
@@ -401,7 +368,7 @@ export default function Settings() {
                                 style={fieldInputStyle}
                               />
                             </div>
-                            <div style={fieldShellStyle}>
+                            <div>
                               <label style={fieldLabelStyle} htmlFor="state">
                                 State
                               </label>
@@ -414,7 +381,7 @@ export default function Settings() {
                                 style={fieldInputStyle}
                               />
                             </div>
-                            <div style={fieldShellStyle}>
+                            <div>
                               <label style={fieldLabelStyle} htmlFor="zipCode">
                                 ZIP Code
                               </label>
@@ -428,7 +395,7 @@ export default function Settings() {
                               />
                             </div>
                           </InlineGrid>
-                          <div style={fieldShellStyle}>
+                          <div>
                             <label style={fieldLabelStyle} htmlFor="country">
                               Country
                             </label>
@@ -449,17 +416,14 @@ export default function Settings() {
                   <Card>
                     <div style={panelStyle}>
                       <BlockStack gap="400">
-                        <InlineStack align="space-between" blockAlign="center">
-                          <Text as="h3" variant="headingSm">
-                            Support Contact
-                          </Text>
-                          <Badge tone="success">Customer-facing</Badge>
-                        </InlineStack>
+                        <Text as="h3" variant="headingSm">
+                          Support Contact
+                        </Text>
                         <Text as="p" variant="bodyMd">
                           Displayed on packing slips so customers can contact your brand directly.
                         </Text>
                         <InlineGrid columns={{ xs: 1, sm: 2 }} gap="300">
-                          <div style={fieldShellStyle}>
+                          <div>
                             <label style={fieldLabelStyle} htmlFor="supportEmail">
                               Support Email
                             </label>
@@ -482,7 +446,7 @@ export default function Settings() {
                               </Text>
                             ) : null}
                           </div>
-                          <div style={fieldShellStyle}>
+                          <div>
                             <label style={fieldLabelStyle} htmlFor="supportPhone">
                               Support Phone (Optional)
                             </label>
@@ -516,24 +480,56 @@ export default function Settings() {
           <Card>
             <div style={panelStyle}>
               <BlockStack gap="400">
-                <InlineStack align="space-between" blockAlign="center">
+                <InlineStack align="space-between" blockAlign="start">
                   <Text as="h2" variant="headingMd">
-                    Why this matters
+                    Profile status
                   </Text>
-                  <Badge tone="info">White-label</Badge>
+                  <Text
+                    as="p"
+                    variant="bodySm"
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: 999,
+                      backgroundColor: completionPercent === 100 ? '#dcfce7' : '#fef3c7',
+                      color: completionPercent === 100 ? '#166534' : '#92400e',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {completionPercent}% complete
+                  </Text>
                 </InlineStack>
 
-                <Text as="p" variant="bodyMd">
-                  DTFTA acts as your fulfillment partner behind the scenes. These settings ensure
-                  every customer touchpoint reflects your brand identity.
-                </Text>
-                <List type="bullet">
-                  <List.Item>Generate packing slips with your brand name</List.Item>
-                  <List.Item>Create return labels with your return address</List.Item>
-                  <List.Item>Display your support contact information to customers</List.Item>
-                </List>
-                <Text as="p" variant="bodyMd">
-                  Customers only see your brand, while DTFTA handles operational fulfillment.
+                <div
+                  style={{
+                    borderRadius: 10,
+                    border: 'none',
+                    backgroundColor: '#f8fafc',
+                    padding: 12,
+                  }}
+                >
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodySm">
+                      Brand name: {formData.brandName.trim() ? 'Done' : 'Missing'}
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      Return address:{' '}
+                      {formData.streetAddress.trim() && formData.city.trim() && formData.state.trim()
+                        ? 'Done'
+                        : 'Missing'}
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      Postal details:{' '}
+                      {formData.zipCode.trim() && formData.country.trim() ? 'Done' : 'Missing'}
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      Support email: {formData.supportEmail.trim() ? 'Done' : 'Missing'}
+                    </Text>
+                  </BlockStack>
+                </div>
+
+                <Text as="p" tone="subdued">
+                  Keep this information accurate so packing slips and return labels always match
+                  your brand.
                 </Text>
               </BlockStack>
             </div>

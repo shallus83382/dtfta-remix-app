@@ -61,6 +61,13 @@ interface DesignCanvasProps {
   designableRegion: DesignableRegion;
   onDesignableRegionChange?: (region: DesignableRegion) => void;
   initialCanvasState?: unknown;
+  showInlineActions?: boolean;
+  onRegisterActions?: (actions: {
+    addText: () => void;
+    addImage: (file: File) => Promise<void>;
+    deleteSelected: () => void;
+    clear: () => void;
+  } | null) => void;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -95,6 +102,8 @@ export default function DesignCanvas({
   designableRegion,
   onDesignableRegionChange,
   initialCanvasState,
+  showInlineActions = true,
+  onRegisterActions,
 }: DesignCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -933,6 +942,19 @@ export default function DesignCanvas({
     }
   }, []);
 
+  useEffect(() => {
+    onRegisterActions?.({
+      addText: handleAddText,
+      addImage: handleAddImage,
+      deleteSelected: handleDeleteSelected,
+      clear: handleClear,
+    });
+
+    return () => {
+      onRegisterActions?.(null);
+    };
+  }, [handleAddImage, handleAddText, handleClear, handleDeleteSelected, onRegisterActions]);
+
   const maxLeft = CANVAS_SIZE - 1;
   const maxTop = CANVAS_SIZE - 1;
   const maxWidthVal = CANVAS_SIZE;
@@ -967,11 +989,9 @@ export default function DesignCanvas({
       <div
         style={{
           marginBottom: 10,
-          borderRadius: 10,
-          border: "1px solid #dbe7ff",
-          background:
-            "linear-gradient(135deg, rgba(239,246,255,0.9) 0%, rgba(255,255,255,1) 100%)",
-          padding: "8px 10px",
+          borderRadius: 8,
+          background: "#f8fafc",
+          padding: "6px 10px",
           fontWeight: 600,
           color: "#0f172a",
         }}
@@ -986,10 +1006,9 @@ export default function DesignCanvas({
           gap: 8,
           marginBottom: 10,
           flexWrap: "wrap",
-          borderRadius: 10,
-          border: "1px solid #e2e8f0",
-          background: "#fcfdff",
-          padding: 10,
+          borderRadius: 8,
+          background: "#f8fafc",
+          padding: 8,
         }}
       >
         <InlineStack gap="300" blockAlign="center">
@@ -1071,8 +1090,8 @@ export default function DesignCanvas({
       <div
         ref={zoomContainerRef}
         style={{
-          border: "1px solid #e5eaf1",
-          borderRadius: 10,
+          border: "none",
+          borderRadius: 12,
           background: "#fff",
           overflow: "hidden",
           cursor: "crosshair",
@@ -1089,39 +1108,41 @@ export default function DesignCanvas({
         />
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-        <button type="button" onClick={handleAddText} style={actionButtonStyle}>
-          Add text
-        </button>
+      {showInlineActions ? (
+        <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+          <button type="button" onClick={handleAddText} style={actionButtonStyle}>
+            Add text
+          </button>
 
-        <label
-          style={{
-            ...actionButtonStyle,
-            display: "inline-flex",
-            alignItems: "center",
-          }}
-        >
-          Add image
-          <input
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleAddImage(f);
-              e.target.value = "";
+          <label
+            style={{
+              ...actionButtonStyle,
+              display: "inline-flex",
+              alignItems: "center",
             }}
-          />
-        </label>
+          >
+            Add image
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleAddImage(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
 
-        <button type="button" onClick={handleDeleteSelected} style={actionButtonStyle}>
-          Delete selected
-        </button>
+          <button type="button" onClick={handleDeleteSelected} style={actionButtonStyle}>
+            Delete selected
+          </button>
 
-        <button type="button" onClick={handleClear} style={actionButtonStyle}>
-          Clear
-        </button>
-      </div>
+          <button type="button" onClick={handleClear} style={actionButtonStyle}>
+            Clear
+          </button>
+        </div>
+      ) : null}
 
       {/* <div style={{ marginTop: 12 }}>
         <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 12 }}>Design area position (px)</div>
@@ -1230,9 +1251,9 @@ export default function DesignCanvas({
   return (
     <div
       style={{
-        border: "1px solid #e8edf3",
-        borderRadius: 12,
-        padding: 10,
+        border: "none",
+        borderRadius: 0,
+        padding: 12,
         background: "#ffffff",
         ...(fillWidth ? { width: "100%", minWidth: 0, boxSizing: "border-box" } : {}),
       }}

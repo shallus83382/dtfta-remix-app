@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  Card,
   BlockStack,
   Text,
-  Badge,
 } from "@shopify/polaris";
 import type { Product } from "../types";
 
@@ -44,6 +42,8 @@ export default function ProductCard({
     }
   };
 
+  const isActiveVisual = isHovered || isSelected;
+
   return (
     <div
       onClick={handleClick}
@@ -59,164 +59,138 @@ export default function ProductCard({
       tabIndex={0}
       style={{
         cursor: "pointer",
-        border: isSelected ? "2px solid #1d4ed8" : "1px solid transparent",
-        borderRadius: 12,
-        backgroundColor: "transparent",
-        boxShadow: isHovered
-          ? "0 12px 24px rgba(15,23,42,0.10)"
-          : "0 4px 10px rgba(15,23,42,0.04)",
-        transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+        border: "none",
+        borderRadius: 0,
+        backgroundColor: isActiveVisual ? "#0f172a" : "transparent",
+        boxShadow: isActiveVisual
+          ? "0 8px 16px rgba(15,23,42,0.08)"
+          : "none",
+        transform: isActiveVisual ? "translateY(-2px)" : "translateY(0)",
         transition: "all 180ms ease",
+        padding: 0,
       }}
     >
-      <Card>
-        <div style={{ position: "relative" }}>
-          <div
-            style={{
-              position: "relative",
-              width: "100%",
-              aspectRatio: "1",
-              overflow: "hidden",
-              borderRadius: "10px",
-              background:
-                "radial-gradient(circle at top, #ffffff 0%, #f8fafc 48%, #eef2f7 100%)",
-              marginBottom: "0.875rem",
-              border: "1px solid #edf2f7",
-            }}
-          >
-            <img
-              src={product.image}
-              alt={product.name}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                display: "block",
-                padding: "14px",
-                transform: isHovered ? "scale(1.02)" : "scale(1)",
-                transition: "transform 200ms ease",
-              }}
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
-
-            {product.isBestseller && (
-              <div style={{ position: "absolute", bottom: "8px", left: "8px" }}>
-                <Badge tone="warning">Bestseller</Badge>
-              </div>
-            )}
-
-            {showFavorite && onToggleFavorite && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "10px",
-                  right: "10px",
-                  cursor: "pointer",
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #dbe2ea",
-                  borderRadius: "50%",
-                  width: "34px",
-                  height: "34px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 4px 10px rgba(15,23,42,0.12)",
-                }}
-                onClick={handleFavoriteClick}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill={product.isFavorite ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ color: product.isFavorite ? "#dc2626" : "#0f172a" }}
-                >
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-              </div>
-            )}
-          </div>
-        </div>
-
+      <div style={{ position: "relative" }}>
         <div
           style={{
-            borderTop: "1px solid #edf2f7",
-            paddingTop: 12,
+            position: "relative",
+            width: "100%",
+            aspectRatio: "1",
+            overflow: "hidden",
+            borderRadius: "0px",
+            backgroundColor: "#efefea",
+            marginBottom: "0.8rem",
           }}
         >
-          <BlockStack gap="200">
-            <BlockStack gap="050">
-              <Text
-                as="p"
-                variant={variant === "compact" ? "bodySm" : "headingSm"}
-                fontWeight="semibold"
-                tone="base"
-                truncate
-              >
-                {product.name}
-              </Text>
-              <Text as="p" variant="bodySm" tone="subdued" truncate>
-                {product.brand} / {product.model}
-              </Text>
-            </BlockStack>
+          <img
+            src={product.image}
+            alt={product.name}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+              transform: isHovered ? "scale(1.015)" : "scale(1)",
+              transition: "transform 200ms ease",
+            }}
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
 
-            <InlineMetaTag text={product.category || "Apparel"} />
-
+          {product.isBestseller && (
             <div
               style={{
-                borderRadius: 10,
-                border: "1px solid #dbe7ff",
-                background:
-                  "linear-gradient(135deg, rgba(239,246,255,0.95) 0%, rgba(255,255,255,1) 100%)",
-                padding: "8px 10px",
+                position: "absolute",
+                bottom: "10px",
+                left: "10px",
+                backgroundColor: "#d9be7e",
+                color: "#4b3a13",
+                borderRadius: 2,
+                padding: "2px 6px",
+                fontSize: 12,
+                fontWeight: 600,
               }}
             >
-              <Text
-                as="p"
-                variant="bodySm"
-                tone="subdued"
-                style={{ textTransform: "uppercase", letterSpacing: "0.04em" }}
-              >
-                Starting at
-              </Text>
-              <Text
-                as="p"
-                variant={variant === "compact" ? "bodyLg" : "headingMd"}
-                fontWeight="semibold"
-                tone="base"
-              >
-                {product?.currency} {product?.price?.toFixed(2)}
-              </Text>
+              Bestseller
             </div>
+          )}
+
+          {showFavorite && onToggleFavorite && (
+            <div
+              style={{
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                cursor: "pointer",
+                backgroundColor: "#ffffff",
+                borderRadius: 2,
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onClick={handleFavoriteClick}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill={product.isFavorite ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ color: product.isFavorite ? "#dc2626" : "#0f172a" }}
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: "0 10px 10px" }}>
+          <BlockStack gap="100">
+            <Text
+              as="p"
+              variant={variant === "compact" ? "bodySm" : "headingSm"}
+              fontWeight="semibold"
+              tone={isActiveVisual ? "text-inverse" : "base"}
+              style={{ color: isActiveVisual ? "#ffffff" : undefined }}
+              truncate
+            >
+              {product.name}
+            </Text>
+            <Text
+              as="p"
+              variant="bodySm"
+              tone={isActiveVisual ? "text-inverse" : "subdued"}
+              style={{ color: isActiveVisual ? "#cbd5e1" : undefined }}
+              truncate
+            >
+              By {product.brand} {product.model ? `・${product.model}` : ""}
+            </Text>
+            <Text
+              as="p"
+              variant={variant === "compact" ? "bodyMd" : "headingSm"}
+              fontWeight="semibold"
+              tone={isActiveVisual ? "text-inverse" : "base"}
+              style={{ color: isActiveVisual ? "#ffffff" : undefined }}
+            >
+              From {product?.currency} {product?.price?.toFixed(2)}
+            </Text>
+            <Text
+              as="p"
+              variant="bodySm"
+              tone={isActiveVisual ? "text-inverse" : "subdued"}
+              style={{ color: isActiveVisual ? "#cbd5e1" : undefined }}
+            >
+              {product.colors?.length ?? 0} colors · {product.sizes?.length ?? 0} sizes
+            </Text>
           </BlockStack>
         </div>
-      </Card>
-    </div>
-  );
-}
-
-function InlineMetaTag({ text }: { text: string }) {
-  return (
-    <div
-      style={{
-        display: "inline-flex",
-        width: "fit-content",
-        maxWidth: "100%",
-        borderRadius: 999,
-        border: "1px solid #dbe2ea",
-        backgroundColor: "#f8fafc",
-        padding: "3px 10px",
-      }}
-    >
-      <Text as="p" variant="bodySm" tone="subdued" truncate>
-        {text}
-      </Text>
+      </div>
     </div>
   );
 }
