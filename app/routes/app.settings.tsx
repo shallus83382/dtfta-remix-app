@@ -527,7 +527,7 @@ export default function Settings() {
                   </BlockStack>
                 </div>
 
-                <Text as="p" tone="subdued">
+                <Text as="p" tone="subdued" style={{ marginTop: 8 }}>
                   Keep this information accurate so packing slips and return labels always match
                   your brand.
                 </Text>

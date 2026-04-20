@@ -110,10 +110,12 @@ export default function CustomizeCanvasSection({
         </div>
       </div>
 
-      <Text as="p" variant="bodySm" tone="subdued">
-        Active print area: {selectedPrintArea.title} · {selectedPrintArea.area_width} ×{" "}
-        {selectedPrintArea.area_height} {selectedPrintArea.unit}
-      </Text>
+      <div style={{ marginTop: 14 }}>
+        <Text as="p" variant="bodySm" tone="subdued">
+          Active print area: {selectedPrintArea.title} · {selectedPrintArea.area_width} ×{" "}
+          {selectedPrintArea.area_height} {selectedPrintArea.unit}
+        </Text>
+      </div>
       <div style={{ marginBottom: 24 }} />
     </>
   );
