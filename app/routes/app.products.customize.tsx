@@ -44,13 +44,11 @@ export default function ProductCustomize() {
     clear: () => void;
   } | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [uploadedAssets, setUploadedAssets] = useState<
-    Array<{ id: string; name: string; url: string; file: File }>
-  >([]);
   const [apiArtworkAssets, setApiArtworkAssets] = useState<
     Array<{ id: string; name: string; url: string; createdAt?: string; source?: string }>
   >([]);
   const [isLoadingArtwork, setIsLoadingArtwork] = useState(false);
+  const [isUploadingArtwork, setIsUploadingArtwork] = useState(false);
   const [artworkLoadError, setArtworkLoadError] = useState<string | null>(null);
   const [artworkCursor, setArtworkCursor] = useState("");
   const [hasMoreArtwork, setHasMoreArtwork] = useState(false);
@@ -69,25 +67,12 @@ export default function ProductCustomize() {
 
   const product = loaderData.product;
   const productName = loaderData.productName;
-  const listingImages = useMemo(() => {
-    const raw = Array.isArray(product?.images) ? product.images : [];
-    const unique = Array.from(new Set(raw.filter((image) => typeof image === "string" && image.trim())));
-    return unique.map((url, index) => ({
-      id: `listing-${index}`,
-      name: `Listing image ${index + 1}`,
-      url,
-    }));
-  }, [product]);
+  const listingImages: Array<{ id: string; name: string; url: string }> = [];
 
   const imageLibrary = useMemo(() => {
     const combined = [
-      ...uploadedAssets,
-      ...apiArtworkAssets.filter(
-        (asset) => !uploadedAssets.some((uploadedAsset) => uploadedAsset.url === asset.url)
-      ),
-      ...listingImages.filter(
-        (listingImage) => !uploadedAssets.some((asset) => asset.url === listingImage.url)
-      ),
+      ...apiArtworkAssets,
+      ...listingImages.filter((listingImage) => !apiArtworkAssets.some((asset) => asset.url === listingImage.url)),
     ];
 
     const isSvg = (url: string, name: string) => {
@@ -115,13 +100,7 @@ export default function ProductCustomize() {
     });
 
     return sorted;
-  }, [apiArtworkAssets, artworkSearch, artworkSort, artworkType, listingImages, uploadedAssets]);
-
-  const isUploadedArtworkAsset = (
-    image: { id: string; name: string; url: string } | { id: string; name: string; url: string; file: File }
-  ): image is { id: string; name: string; url: string; file: File } => {
-    return "file" in image;
-  };
+  }, [apiArtworkAssets, artworkSearch, artworkSort, artworkType, listingImages]);
 
   const printAreas = useMemo(
     () =>
@@ -226,6 +205,55 @@ export default function ProductCustomize() {
       setIsLoadingArtwork(false);
     }
   }, [artworkSearch, artworkSort, artworkType, placement, productKey, selectedColor]);
+
+  const uploadArtwork = useCallback(
+    async (file: File) => {
+      setIsUploadingArtwork(true);
+      setArtworkLoadError(null);
+
+      try {
+        const uploadForm = new FormData();
+        uploadForm.set("file", file);
+        uploadForm.set("productKey", productKey);
+        uploadForm.set("placement", placement);
+        uploadForm.set("colorCode", selectedColor || "");
+
+        const response = await fetch("/app/api/artworks-upload", {
+          method: "POST",
+          body: uploadForm,
+        });
+
+        const payload = (await response.json()) as {
+          ok?: boolean;
+          error?: string;
+          item?: { id?: string; name?: string; url?: string; createdAt?: string; source?: string } | null;
+        };
+
+        if (!response.ok || !payload?.ok || !payload?.item?.url) {
+          throw new Error(payload?.error || "Artwork upload failed");
+        }
+
+        setApiArtworkAssets((prev) => {
+          const nextItem = {
+            id: String(payload.item?.id ?? `uploaded-${Date.now()}`),
+            name: String(payload.item?.name ?? file.name),
+            url: String(payload.item?.url ?? ""),
+            createdAt: typeof payload.item?.createdAt === "string" ? payload.item.createdAt : new Date().toISOString(),
+            source: typeof payload.item?.source === "string" ? payload.item.source : "upload",
+          };
+          const merged = [nextItem, ...prev];
+          const deduped = new Map<string, (typeof merged)[number]>();
+          merged.forEach((item) => deduped.set(item.id, item));
+          return Array.from(deduped.values());
+        });
+      } catch (error) {
+        setArtworkLoadError(error instanceof Error ? error.message : "Failed to upload artwork");
+      } finally {
+        setIsUploadingArtwork(false);
+      }
+    },
+    [placement, productKey, selectedColor]
+  );
 
   useEffect(() => {
     if (!isImageModalOpen) return;
@@ -561,17 +589,16 @@ export default function ProductCustomize() {
               onDrop={(_dropFiles, acceptedFiles) => {
                 const nextFile = acceptedFiles[0];
                 if (!nextFile) return;
-                const nextAsset = {
-                  id: `upload-${Date.now()}-${nextFile.name}`,
-                  name: nextFile.name,
-                  url: URL.createObjectURL(nextFile),
-                  file: nextFile,
-                };
-                setUploadedAssets((prev) => [nextAsset, ...prev]);
+                void uploadArtwork(nextFile);
               }}
             >
               <DropZone.FileUpload actionHint="Accepts SVG, PNG, JPG, GIF, WEBP, AVIF and more" />
             </DropZone>
+            {isUploadingArtwork ? (
+              <Text as="p" tone="subdued">
+                Uploading artwork...
+              </Text>
+            ) : null}
 
             <Text as="h4" variant="headingSm">
               Image library
@@ -686,11 +713,7 @@ export default function ProductCustomize() {
                     type="button"
                     onClick={async () => {
                       if (!canvasActions) return;
-                      if (isUploadedArtworkAsset(image)) {
-                        await canvasActions.addImage(image.file);
-                      } else {
-                        await canvasActions.addImageFromUrl(image.url);
-                      }
+                      await canvasActions.addImageFromUrl(image.url);
                       setIsImageModalOpen(false);
                     }}
                     style={{
