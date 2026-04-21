@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { useLoaderData, useSearchParams } from "react-router";
 import {
@@ -9,6 +9,10 @@ import {
   InlineStack,
   List,
   Text,
+  Modal,
+  DropZone,
+  Thumbnail,
+  Scrollable,
 } from "@shopify/polaris";
 import CustomizeCanvasSection from "../components/product-customize/CustomizeCanvasSection";
 import ColorSelector from "../components/product-customize/ColorSelector";
@@ -31,12 +35,28 @@ export const action = async (args: ActionFunctionArgs) => {
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 export default function ProductCustomize() {
+  const acceptedArtworkMimeTypes = "image/svg+xml,image/png,image/jpeg,image/jpg,image/gif,image/webp,image/avif,image/bmp,image/tiff";
   const [canvasActions, setCanvasActions] = useState<{
     addText: () => void;
     addImage: (file: File) => Promise<void>;
+    addImageFromUrl: (url: string) => Promise<void>;
     deleteSelected: () => void;
     clear: () => void;
   } | null>(null);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [uploadedAssets, setUploadedAssets] = useState<
+    Array<{ id: string; name: string; url: string; file: File }>
+  >([]);
+  const [apiArtworkAssets, setApiArtworkAssets] = useState<
+    Array<{ id: string; name: string; url: string; createdAt?: string; source?: string }>
+  >([]);
+  const [isLoadingArtwork, setIsLoadingArtwork] = useState(false);
+  const [artworkLoadError, setArtworkLoadError] = useState<string | null>(null);
+  const [artworkCursor, setArtworkCursor] = useState("");
+  const [hasMoreArtwork, setHasMoreArtwork] = useState(false);
+  const [artworkType, setArtworkType] = useState<"all" | "svg" | "raster">("all");
+  const [artworkSort, setArtworkSort] = useState<"recent" | "name_asc" | "name_desc">("recent");
+  const [artworkSearch, setArtworkSearch] = useState("");
 
   const loaderData = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
@@ -49,6 +69,59 @@ export default function ProductCustomize() {
 
   const product = loaderData.product;
   const productName = loaderData.productName;
+  const listingImages = useMemo(() => {
+    const raw = Array.isArray(product?.images) ? product.images : [];
+    const unique = Array.from(new Set(raw.filter((image) => typeof image === "string" && image.trim())));
+    return unique.map((url, index) => ({
+      id: `listing-${index}`,
+      name: `Listing image ${index + 1}`,
+      url,
+    }));
+  }, [product]);
+
+  const imageLibrary = useMemo(() => {
+    const combined = [
+      ...uploadedAssets,
+      ...apiArtworkAssets.filter(
+        (asset) => !uploadedAssets.some((uploadedAsset) => uploadedAsset.url === asset.url)
+      ),
+      ...listingImages.filter(
+        (listingImage) => !uploadedAssets.some((asset) => asset.url === listingImage.url)
+      ),
+    ];
+
+    const isSvg = (url: string, name: string) => {
+      const clean = url.split("?")[0]?.split("#")[0] ?? "";
+      return clean.toLowerCase().endsWith(".svg") || name.toLowerCase().endsWith(".svg");
+    };
+
+    const typeFiltered = combined.filter((item) => {
+      if (artworkType === "all") return true;
+      const svg = isSvg(item.url, item.name);
+      return artworkType === "svg" ? svg : !svg;
+    });
+
+    const searchTerm = artworkSearch.trim().toLowerCase();
+    const searched = searchTerm
+      ? typeFiltered.filter((item) => item.name.toLowerCase().includes(searchTerm))
+      : typeFiltered;
+
+    const sorted = [...searched].sort((a, b) => {
+      if (artworkSort === "name_asc") return a.name.localeCompare(b.name);
+      if (artworkSort === "name_desc") return b.name.localeCompare(a.name);
+      const aTime = "createdAt" in a && typeof a.createdAt === "string" ? Date.parse(a.createdAt) : 0;
+      const bTime = "createdAt" in b && typeof b.createdAt === "string" ? Date.parse(b.createdAt) : 0;
+      return bTime - aTime;
+    });
+
+    return sorted;
+  }, [apiArtworkAssets, artworkSearch, artworkSort, artworkType, listingImages, uploadedAssets]);
+
+  const isUploadedArtworkAsset = (
+    image: { id: string; name: string; url: string } | { id: string; name: string; url: string; file: File }
+  ): image is { id: string; name: string; url: string; file: File } => {
+    return "file" in image;
+  };
 
   const printAreas = useMemo(
     () =>
@@ -81,6 +154,83 @@ export default function ProductCustomize() {
     variants: product?.variants ?? [],
     defaultColor: product?.variants?.[0]?.colorCode ?? "",
   });
+
+  const loadArtworkLibrary = useCallback(async (opts?: { append?: boolean; cursor?: string }) => {
+    if (!productKey) return;
+
+    setIsLoadingArtwork(true);
+    setArtworkLoadError(null);
+
+    try {
+      const append = Boolean(opts?.append);
+      const nextCursor = opts?.cursor ?? "";
+      const params = new URLSearchParams({
+        productKey,
+        placement,
+        colorCode: selectedColor || "",
+        limit: "60",
+        cursor: nextCursor,
+        search: artworkSearch.trim(),
+        type: artworkType,
+        sort: artworkSort,
+      });
+
+      const response = await fetch(`/app/api/artworks?${params.toString()}`);
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        nextCursor?: string;
+        items?: Array<{
+          id?: string;
+          name?: string;
+          url?: string;
+          createdAt?: string;
+          source?: string;
+        }>;
+      };
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Unable to load artwork library");
+      }
+
+      const rows = Array.isArray(payload.items) ? payload.items : [];
+
+      const normalized = rows
+        .filter((row) => typeof row?.id === "string" && typeof row?.url === "string")
+        .map((row) => ({
+          id: row.id as string,
+          name: typeof row.name === "string" && row.name.trim() ? row.name : "Artwork",
+          url: row.url as string,
+          createdAt: typeof row.createdAt === "string" ? row.createdAt : undefined,
+          source: typeof row.source === "string" ? row.source : undefined,
+        }));
+
+      setApiArtworkAssets((prev) => {
+        if (!append) return normalized;
+        const merged = [...prev, ...normalized];
+        const deduped = new Map<string, (typeof merged)[number]>();
+        merged.forEach((item) => deduped.set(item.id, item));
+        return Array.from(deduped.values());
+      });
+      const next = typeof payload.nextCursor === "string" ? payload.nextCursor : "";
+      setArtworkCursor(next);
+      setHasMoreArtwork(Boolean(next));
+    } catch (error) {
+      setArtworkLoadError(error instanceof Error ? error.message : "Failed to load artwork");
+      if (!opts?.append) {
+        setApiArtworkAssets([]);
+      }
+      setArtworkCursor("");
+      setHasMoreArtwork(false);
+    } finally {
+      setIsLoadingArtwork(false);
+    }
+  }, [artworkSearch, artworkSort, artworkType, placement, productKey, selectedColor]);
+
+  useEffect(() => {
+    if (!isImageModalOpen) return;
+    void loadArtworkLibrary({ append: false, cursor: "" });
+  }, [isImageModalOpen, loadArtworkLibrary]);
 
   if (!productKey || !product) {
     return (
@@ -296,7 +446,10 @@ export default function ProductCustomize() {
                         Add text
                       </button>
 
-                      <label
+                      <button
+                        type="button"
+                        onClick={() => setIsImageModalOpen(true)}
+                        disabled={!canvasActions}
                         style={{
                           borderRadius: 10,
                           border: "1px solid #cbd5e1",
@@ -308,25 +461,10 @@ export default function ProductCustomize() {
                           background: "#ffffff",
                           color: "#0f172a",
                           opacity: !canvasActions ? 0.6 : 1,
-                          display: "inline-flex",
-                          alignItems: "center",
                         }}
                       >
                         Add image
-                        <input
-                          type="file"
-                          accept="image/*"
-                          disabled={!canvasActions}
-                          style={{ display: "none" }}
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) {
-                              void canvasActions?.addImage(f);
-                            }
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
+                      </button>
 
                       <button
                         type="button"
@@ -403,6 +541,207 @@ export default function ProductCustomize() {
         </InlineStack>
         <div style={{ marginBottom: 36 }} />
       </BlockStack>
+      <Modal
+        open={isImageModalOpen}
+        onClose={() => setIsImageModalOpen(false)}
+        title="Add image to customizer"
+        primaryAction={{
+          content: "Close",
+          onAction: () => setIsImageModalOpen(false),
+        }}
+      >
+        <Modal.Section>
+          <BlockStack gap="300">
+            <Text as="p" tone="subdued">
+              Drag and drop new artwork, or choose an image from this listing library.
+            </Text>
+            <DropZone
+              allowMultiple={false}
+              accept={acceptedArtworkMimeTypes}
+              onDrop={(_dropFiles, acceptedFiles) => {
+                const nextFile = acceptedFiles[0];
+                if (!nextFile) return;
+                const nextAsset = {
+                  id: `upload-${Date.now()}-${nextFile.name}`,
+                  name: nextFile.name,
+                  url: URL.createObjectURL(nextFile),
+                  file: nextFile,
+                };
+                setUploadedAssets((prev) => [nextAsset, ...prev]);
+              }}
+            >
+              <DropZone.FileUpload actionHint="Accepts SVG, PNG, JPG, GIF, WEBP, AVIF and more" />
+            </DropZone>
+
+            <Text as="h4" variant="headingSm">
+              Image library
+            </Text>
+            <InlineStack gap="200" blockAlign="center">
+              <input
+                type="text"
+                value={artworkSearch}
+                onChange={(event) => setArtworkSearch(event.target.value)}
+                placeholder="Search artworks..."
+                style={{
+                  flex: 1,
+                  minWidth: 160,
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                  height: 32,
+                  padding: "0 10px",
+                  fontSize: 12,
+                }}
+              />
+              <select
+                value={artworkType}
+                onChange={(event) => setArtworkType(event.target.value as "all" | "svg" | "raster")}
+                style={{
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                  height: 32,
+                  padding: "0 8px",
+                  fontSize: 12,
+                }}
+              >
+                <option value="all">All types</option>
+                <option value="svg">SVG only</option>
+                <option value="raster">Raster only</option>
+              </select>
+              <select
+                value={artworkSort}
+                onChange={(event) =>
+                  setArtworkSort(event.target.value as "recent" | "name_asc" | "name_desc")
+                }
+                style={{
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                  height: 32,
+                  padding: "0 8px",
+                  fontSize: 12,
+                }}
+              >
+                <option value="recent">Recent uploads</option>
+                <option value="name_asc">Name A-Z</option>
+                <option value="name_desc">Name Z-A</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => void loadArtworkLibrary({ append: false, cursor: "" })}
+                disabled={isLoadingArtwork}
+                style={{
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  height: 32,
+                  padding: "0 10px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: isLoadingArtwork ? "not-allowed" : "pointer",
+                  opacity: isLoadingArtwork ? 0.6 : 1,
+                }}
+              >
+                Apply
+              </button>
+            </InlineStack>
+            {isLoadingArtwork ? (
+              <Text as="p" tone="subdued">
+                Loading artwork library...
+              </Text>
+            ) : null}
+            {artworkLoadError ? (
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="p" tone="critical">
+                  {artworkLoadError}
+                </Text>
+                <button
+                  type="button"
+                  onClick={() => void loadArtworkLibrary()}
+                  style={{
+                    borderRadius: 8,
+                    border: "1px solid #cbd5e1",
+                    background: "#ffffff",
+                    height: 28,
+                    padding: "0 10px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Retry
+                </button>
+              </InlineStack>
+            ) : null}
+            <Scrollable shadow style={{ maxHeight: 320 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+                  gap: 10,
+                  padding: 4,
+                }}
+              >
+                {imageLibrary.map((image) => (
+                  <button
+                    key={image.id}
+                    type="button"
+                    onClick={async () => {
+                      if (!canvasActions) return;
+                      if (isUploadedArtworkAsset(image)) {
+                        await canvasActions.addImage(image.file);
+                      } else {
+                        await canvasActions.addImageFromUrl(image.url);
+                      }
+                      setIsImageModalOpen(false);
+                    }}
+                    style={{
+                      border: "1px solid #d1d5db",
+                      borderRadius: 10,
+                      padding: 8,
+                      cursor: "pointer",
+                      background: "#ffffff",
+                      textAlign: "left",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+                      <Thumbnail source={image.url} alt={image.name} size="large" />
+                    </div>
+                    <Text as="p" variant="bodySm" truncate>
+                      {image.name}
+                    </Text>
+                  </button>
+                ))}
+              </div>
+            </Scrollable>
+            {hasMoreArtwork ? (
+              <InlineStack align="center">
+                <button
+                  type="button"
+                  onClick={() => void loadArtworkLibrary({ append: true, cursor: artworkCursor })}
+                  disabled={isLoadingArtwork}
+                  style={{
+                    borderRadius: 8,
+                    border: "1px solid #cbd5e1",
+                    background: "#ffffff",
+                    height: 32,
+                    padding: "0 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: isLoadingArtwork ? "not-allowed" : "pointer",
+                    opacity: isLoadingArtwork ? 0.6 : 1,
+                  }}
+                >
+                  Load more
+                </button>
+              </InlineStack>
+            ) : null}
+            {imageLibrary.length === 0 ? (
+              <Text as="p" tone="subdued">
+                No images yet. Upload artwork to get started.
+              </Text>
+            ) : null}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

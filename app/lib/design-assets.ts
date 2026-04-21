@@ -2,7 +2,7 @@
  * Client-safe mapping from productKey to design asset URLs (-front/-back).
  * Used by the customizer; do not use Node/server-only APIs here.
  */
-const APP_ASSET_BASE = "https://phpstack-1180784-6299772.cloudwaysapps.com";
+const APP_ASSET_BASE = "https://dtfta-storage-352196746036-us-east-1-an.s3.us-east-1.amazonaws.com";
 
 export const PRODUCT_KEY_TO_DESIGN_ASSET_BASE: Record<string, string> = {
   "nl-6210": "unisex-tee",
@@ -133,7 +133,7 @@ export function getProductDesignAssetUrl(assetKey: string, color?: string): stri
   const fallbackAsset = PRODUCT_KEY_TO_DESIGN_ASSET.default?.[assetKey];
   const resolved = colorAsset || fallbackAsset;
 
-  return resolved ? `/${resolved}` : "";
+  return resolved ? `${APP_ASSET_BASE}/${resolved}` : "";
 }
 
 /**

@@ -19,6 +19,7 @@ type Props = {
   onRegisterActions?: (actions: {
     addText: () => void;
     addImage: (file: File) => Promise<void>;
+    addImageFromUrl: (url: string) => Promise<void>;
     deleteSelected: () => void;
     clear: () => void;
   } | null) => void;
@@ -46,7 +47,7 @@ export default function CustomizeCanvasSection({
           padding: 12,
         }}
       >
-        <Text as="p" tone="warning">
+        <Text as="p" tone="caution">
           No active print areas found for this product.
         </Text>
       </div>
@@ -102,7 +103,7 @@ export default function CustomizeCanvasSection({
                 padding: 12,
               }}
             >
-              <Text as="p" tone="warning">
+              <Text as="p" tone="caution">
                 No background image found for the selected print area.
               </Text>
             </div>

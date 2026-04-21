@@ -65,6 +65,7 @@ interface DesignCanvasProps {
   onRegisterActions?: (actions: {
     addText: () => void;
     addImage: (file: File) => Promise<void>;
+    addImageFromUrl: (url: string) => Promise<void>;
     deleteSelected: () => void;
     clear: () => void;
   } | null) => void;
@@ -85,6 +86,40 @@ function readFileAsDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error ?? new Error("File read failed"));
     reader.readAsDataURL(file);
   });
+}
+
+function loadImageDataUrlFromSource(input: File | string): Promise<string> {
+  if (typeof input === "string") {
+    return Promise.resolve(input);
+  }
+  return readFileAsDataUrl(input);
+}
+
+function readFileAsText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Failed to read file as text"));
+      }
+    };
+
+    reader.onerror = () => reject(reader.error ?? new Error("File read failed"));
+    reader.readAsText(file);
+  });
+}
+
+function isSvgFile(file: File): boolean {
+  if (file.type === "image/svg+xml") return true;
+  return file.name.toLowerCase().endsWith(".svg");
+}
+
+function isSvgUrl(url: string): boolean {
+  const cleanUrl = url.split("?")[0]?.split("#")[0] ?? "";
+  return cleanUrl.toLowerCase().endsWith(".svg");
 }
 
 function isFabricCanvasObject(value: unknown): value is FabricObject {
@@ -863,16 +898,34 @@ export default function DesignCanvas({
     });
   }, [buildRegionClipPath, clampObjectToRegion, constrainScaleToRegion, textColor, fontFamily]);
 
-  const handleAddImage = useCallback(
-    async (file: File) => {
+  const handleAddImageFromSource = useCallback(
+    async (input: File | string) => {
       if (!canvasRef.current || !regionRectRef.current) return;
 
       try {
-        const dataUrl = await readFileAsDataUrl(file);
         const fabric = await import("fabric");
         const clipPath = await buildRegionClipPath();
+        const shouldTreatAsSvg =
+          typeof input === "string" ? isSvgUrl(input) : isSvgFile(input);
+        let img: FabricObject | null = null;
 
-        const img = await fabric.FabricImage.fromURL(dataUrl);
+        if (shouldTreatAsSvg) {
+          const svgMarkup =
+            typeof input === "string"
+              ? await fetch(input).then((response) => response.text())
+              : await readFileAsText(input);
+
+          const parsed = await fabric.loadSVGFromString(svgMarkup);
+          const svgObjects = parsed.objects.filter(
+            (obj): obj is FabricObject => obj !== null
+          );
+          img = fabric.util.groupSVGElements(svgObjects, parsed.options);
+        } else {
+          const imageSource = await loadImageDataUrlFromSource(input);
+          img = await fabric.FabricImage.fromURL(imageSource, {
+            crossOrigin: "anonymous",
+          });
+        }
 
         if (!img || !canvasRef.current || !regionRectRef.current) return;
 
@@ -918,6 +971,16 @@ export default function DesignCanvas({
     [buildRegionClipPath, clampObjectToRegion, constrainScaleToRegion]
   );
 
+  const handleAddImage = useCallback(
+    async (file: File) => handleAddImageFromSource(file),
+    [handleAddImageFromSource]
+  );
+
+  const handleAddImageFromUrl = useCallback(
+    async (url: string) => handleAddImageFromSource(url),
+    [handleAddImageFromSource]
+  );
+
   const handleClear = useCallback(() => {
     if (!canvasRef.current) return;
 
@@ -946,6 +1009,7 @@ export default function DesignCanvas({
     onRegisterActions?.({
       addText: handleAddText,
       addImage: handleAddImage,
+      addImageFromUrl: handleAddImageFromUrl,
       deleteSelected: handleDeleteSelected,
       clear: handleClear,
     });
@@ -953,7 +1017,14 @@ export default function DesignCanvas({
     return () => {
       onRegisterActions?.(null);
     };
-  }, [handleAddImage, handleAddText, handleClear, handleDeleteSelected, onRegisterActions]);
+  }, [
+    handleAddImage,
+    handleAddImageFromUrl,
+    handleAddText,
+    handleClear,
+    handleDeleteSelected,
+    onRegisterActions,
+  ]);
 
   const maxLeft = CANVAS_SIZE - 1;
   const maxTop = CANVAS_SIZE - 1;
@@ -1124,7 +1195,7 @@ export default function DesignCanvas({
             Add image
             <input
               type="file"
-              accept="image/*"
+              accept=".svg,image/svg+xml,image/*"
               style={{ display: "none" }}
               onChange={(e) => {
                 const f = e.target.files?.[0];
