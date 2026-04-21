@@ -14,6 +14,60 @@ import { authenticate } from '../shopify.server';
 import type { Order, OrderStatus } from '../types';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 
+function normalizeOrder(input: unknown): Order | null {
+  if (!input || typeof input !== 'object') return null;
+  const row = input as Record<string, unknown>;
+
+  const idRaw = row.id ?? row.order_id ?? row.shopify_order_id;
+  const orderNumberRaw = row.orderNumber ?? row.order_number ?? row.name;
+  const statusRaw = row.status;
+  const customerRaw =
+    row.customer && typeof row.customer === 'object'
+      ? (row.customer as Record<string, unknown>)
+      : {};
+  const itemsRaw = Array.isArray(row.items) ? row.items : [];
+  const dateRaw = row.date ?? row.created_at ?? row.createdAt;
+
+  const id = typeof idRaw === 'string' || typeof idRaw === 'number' ? String(idRaw) : '';
+  const orderNumber =
+    typeof orderNumberRaw === 'string' || typeof orderNumberRaw === 'number'
+      ? String(orderNumberRaw)
+      : typeof idRaw === 'string' || typeof idRaw === 'number'
+        ? String(idRaw)
+        : '';
+  const status = typeof statusRaw === 'string' ? (statusRaw as OrderStatus) : 'New';
+  const customerName = typeof customerRaw.name === 'string' ? customerRaw.name : 'Unknown';
+  const customerEmail = typeof customerRaw.email === 'string' ? customerRaw.email : '';
+  const date = typeof dateRaw === 'string' ? dateRaw : '';
+
+  if (!id) return null;
+
+  return {
+    id,
+    orderNumber,
+    status,
+    customer: {
+      name: customerName,
+      email: customerEmail,
+    },
+    date,
+    items: itemsRaw.map((item) => {
+      const rowItem = (item ?? {}) as Record<string, unknown>;
+      return {
+        quantity: typeof rowItem.quantity === 'number' ? rowItem.quantity : Number(rowItem.quantity ?? 1) || 1,
+        name:
+          typeof rowItem.name === 'string'
+            ? rowItem.name
+            : typeof rowItem.title === 'string'
+              ? rowItem.title
+              : 'Item',
+        sku: typeof rowItem.sku === 'string' ? rowItem.sku : undefined,
+      };
+    }),
+    tracking: typeof row.tracking === 'string' ? row.tracking : undefined,
+  };
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
@@ -21,8 +75,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const headers = createExternalApiHeaders("", { "X-Shop": shop });
   
   try {
-    const res = await fetch(`${API_BASE}/orders?shop=${encodeURIComponent(shop)}`, { headers });
-    const orders = res.ok ? await res.json() : [];
+    const candidates = [
+      `${API_BASE}/orders-signed?shop=${encodeURIComponent(shop)}`,
+      `${API_BASE}/orders?shop=${encodeURIComponent(shop)}`,
+    ];
+
+    let raw: unknown = [];
+    for (const url of candidates) {
+      const res = await fetch(url, { headers });
+      if (!res.ok) continue;
+      raw = await res.json();
+      break;
+    }
+
+    const rows = Array.isArray(raw) ? raw : Array.isArray((raw as { data?: unknown[] })?.data) ? (raw as { data: unknown[] }).data : [];
+    const orders = rows
+      .map(normalizeOrder)
+      .filter((order): order is Order => order !== null);
     return { orders };
   } catch {
     return { orders: [] };

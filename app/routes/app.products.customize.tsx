@@ -135,8 +135,6 @@ export default function ProductCustomize() {
   });
 
   const loadArtworkLibrary = useCallback(async (opts?: { append?: boolean; cursor?: string }) => {
-    if (!productKey) return;
-
     setIsLoadingArtwork(true);
     setArtworkLoadError(null);
 
@@ -144,9 +142,6 @@ export default function ProductCustomize() {
       const append = Boolean(opts?.append);
       const nextCursor = opts?.cursor ?? "";
       const params = new URLSearchParams({
-        productKey,
-        placement,
-        colorCode: selectedColor || "",
         limit: "60",
         cursor: nextCursor,
         search: artworkSearch.trim(),
@@ -204,7 +199,7 @@ export default function ProductCustomize() {
     } finally {
       setIsLoadingArtwork(false);
     }
-  }, [artworkSearch, artworkSort, artworkType, placement, productKey, selectedColor]);
+  }, [artworkSearch, artworkSort, artworkType]);
 
   const uploadArtwork = useCallback(
     async (file: File) => {
@@ -324,7 +319,7 @@ export default function ProductCustomize() {
                 <Text as="h2" variant="headingMd" tone="text-inverse">
                   Product Customizer Studio
                 </Text>
-                <Badge tone="info">Advanced Editor</Badge>
+                {/* <Badge tone="info">Advanced Editor</Badge> */}
               </InlineStack>
               <Text as="p" tone="text-inverse">
                 Fine-tune print placement, color variants, and composition before publishing to
@@ -713,7 +708,8 @@ export default function ProductCustomize() {
                     type="button"
                     onClick={async () => {
                       if (!canvasActions) return;
-                      await canvasActions.addImageFromUrl(image.url);
+                      const proxiedUrl = `/app/api/artworks-image?url=${encodeURIComponent(image.url)}`;
+                      await canvasActions.addImageFromUrl(proxiedUrl);
                       setIsImageModalOpen(false);
                     }}
                     style={{

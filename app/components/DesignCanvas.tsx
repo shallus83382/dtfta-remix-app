@@ -1343,19 +1343,66 @@ export default function DesignCanvas({
 export function exportCanvasToDataUrl(canvas: Canvas | null): string | null {
   if (!canvas) return null;
 
+  const extractFallbackArtworkSource = () => {
+    try {
+      const objects = canvas.getObjects();
+      for (const obj of objects) {
+        const typed = obj as FabricObject & {
+          data?: { __internal?: boolean };
+          getSrc?: () => string;
+          src?: string;
+        };
+        if (typed.data?.__internal) continue;
+
+        if (typeof typed.getSrc === "function") {
+          const src = typed.getSrc();
+          if (typeof src === "string" && src.trim()) return src;
+        }
+
+        if (typeof typed.src === "string" && typed.src.trim()) {
+          return typed.src;
+        }
+      }
+    } catch {
+      // Ignore fallback extraction failure.
+    }
+    return null;
+  };
+
   try {
-    if (typeof (canvas as Canvas & { toDataURL?: (options?: unknown) => string }).toDataURL === "function") {
-      return (canvas as Canvas & { toDataURL: (options?: unknown) => string }).toDataURL({
+    const isExportableObject = (obj: FabricObject) => {
+      const data = (obj as FabricObject & { data?: { kind?: string } }).data;
+      // Keep real background image, exclude only dotted design-region helper frame.
+      return data?.kind !== "region";
+    };
+
+    const anyCanvas = canvas as Canvas & {
+      toDataURL?: (options?: unknown) => string;
+      lowerCanvasEl?: HTMLCanvasElement;
+    };
+
+    if (typeof anyCanvas.toDataURL === "function") {
+      return anyCanvas.toDataURL({
         format: "png",
         multiplier: 1,
+        filter: isExportableObject,
       });
     }
 
-    const el = (canvas as unknown as { lowerCanvasEl?: HTMLCanvasElement }).lowerCanvasEl;
+    const el = anyCanvas.lowerCanvasEl;
     if (!el) return null;
 
     return el.toDataURL("image/png");
   } catch (error) {
+    const fallbackSource = extractFallbackArtworkSource();
+    if (fallbackSource) {
+      console.warn(
+        "Canvas export failed; falling back to artwork source URL.",
+        error
+      );
+      return fallbackSource;
+    }
+
     console.error("Canvas export failed. The canvas is likely tainted by a cross-origin image.", error);
     return null;
   }

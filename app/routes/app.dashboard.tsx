@@ -22,6 +22,60 @@ import ProductCard from '../common/ProductCard';
 import type { Order, Product, DashboardStats, BrandSettings, SetupStatus } from '../types';
 import {getProductDesignAssetUrl} from "../lib/design-assets";
 
+function normalizeOrder(input: unknown): Order | null {
+  if (!input || typeof input !== 'object') return null;
+  const row = input as Record<string, unknown>;
+
+  const idRaw = row.id ?? row.order_id ?? row.shopify_order_id;
+  const orderNumberRaw = row.orderNumber ?? row.order_number ?? row.name;
+  const statusRaw = row.status;
+  const customerRaw =
+    row.customer && typeof row.customer === 'object'
+      ? (row.customer as Record<string, unknown>)
+      : {};
+  const itemsRaw = Array.isArray(row.items) ? row.items : [];
+  const dateRaw = row.date ?? row.created_at ?? row.createdAt;
+
+  const id = typeof idRaw === 'string' || typeof idRaw === 'number' ? String(idRaw) : '';
+  const orderNumber =
+    typeof orderNumberRaw === 'string' || typeof orderNumberRaw === 'number'
+      ? String(orderNumberRaw)
+      : typeof idRaw === 'string' || typeof idRaw === 'number'
+        ? String(idRaw)
+        : '';
+  const status = typeof statusRaw === 'string' ? statusRaw : 'New';
+  const customerName = typeof customerRaw.name === 'string' ? customerRaw.name : 'Unknown';
+  const customerEmail = typeof customerRaw.email === 'string' ? customerRaw.email : '';
+  const date = typeof dateRaw === 'string' ? dateRaw : '';
+
+  if (!id) return null;
+
+  return {
+    id,
+    orderNumber,
+    status: status as Order['status'],
+    customer: {
+      name: customerName,
+      email: customerEmail,
+    },
+    date,
+    items: itemsRaw.map((item) => {
+      const rowItem = (item ?? {}) as Record<string, unknown>;
+      return {
+        quantity: typeof rowItem.quantity === 'number' ? rowItem.quantity : Number(rowItem.quantity ?? 1) || 1,
+        name:
+          typeof rowItem.name === 'string'
+            ? rowItem.name
+            : typeof rowItem.title === 'string'
+              ? rowItem.title
+              : 'Item',
+        sku: typeof rowItem.sku === 'string' ? rowItem.sku : undefined,
+      };
+    }),
+    tracking: typeof row.tracking === 'string' ? row.tracking : undefined,
+  };
+}
+
 export type ProductWithKey = Product & {
   productKey?: string;
   colors?: string[];
@@ -48,8 +102,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
   const headers = createExternalApiHeaders('', { 'X-Shop': shop });
 
+  const fetchOrders = async () => {
+    const candidates = [
+      `${API_BASE}/orders-signed?shop=${encodeURIComponent(shop)}`,
+      `${API_BASE}/orders?shop=${encodeURIComponent(shop)}`,
+    ];
+
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, { headers });
+        if (!res.ok) continue;
+        return await res.json();
+      } catch {
+        // Try next candidate endpoint.
+      }
+    }
+
+    return [];
+  };
+
   const [ordersRes, productsRes, statsRes, fulfillmentRes, brandRes] = await Promise.allSettled([
-    fetch(`${API_BASE}/orders?shop=${encodeURIComponent(shop)}`, { headers }),
+    fetchOrders(),
     fetch(`${API_BASE}/products/get?shop=${encodeURIComponent(shop)}`, { headers }),
     fetch(`${API_BASE}/dashboard-stats?shop=${encodeURIComponent(shop)}`, { headers }),
     fetch(`${API_BASE}/fulfillment-status?shop=${encodeURIComponent(shop)}`, { headers }),
@@ -65,7 +138,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   };
 
-  const orders = ordersRes.status === 'fulfilled' ? await safeJson(ordersRes.value) : [];
+  const rawOrdersRes = ordersRes.status === 'fulfilled' ? ordersRes.value : [];
+  const rawOrders: unknown[] = Array.isArray(rawOrdersRes)
+    ? rawOrdersRes
+    : Array.isArray(rawOrdersRes?.data)
+      ? rawOrdersRes.data
+      : [];
+  const orders = rawOrders
+    .map(normalizeOrder)
+    .filter((order): order is Order => order !== null);
   const rawProductsRes = productsRes.status === 'fulfilled' ? await safeJson(productsRes.value) : [];
   const dashboardStats = statsRes.status === 'fulfilled' ? await safeJson(statsRes.value) : null;
   const fulfillmentStatus =
