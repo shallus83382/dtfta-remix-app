@@ -43,6 +43,10 @@ export default function ProductCard({
   };
 
   const isActiveVisual = isHovered || isSelected;
+  const normalizedPrice = Number(product?.price);
+  const formattedPrice = Number.isFinite(normalizedPrice)
+    ? normalizedPrice.toFixed(2)
+    : "0.00";
 
   return (
     <div
@@ -178,7 +182,7 @@ export default function ProductCard({
               tone={isActiveVisual ? "text-inverse" : "base"}
               style={{ color: isActiveVisual ? "#ffffff" : undefined }}
             >
-              From {product?.currency} {product?.price?.toFixed(2)}
+              From {product?.currency} {formattedPrice}
             </Text>
             <Text
               as="p"
