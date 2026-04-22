@@ -21,7 +21,7 @@ type BuildDtftaLineItemArgs = {
 export function buildDtftaLineItem(input: BuildDtftaLineItemArgs) {
   const base = {
     _dtfta_type: "APPAREL_POD",
-   // _dtfta_template_id: String(input.templateId),
+    _dtfta_template_id: String(input.templateId),
     _dtfta_product_key: input.productKey,
     _dtfta_garment_brand: input.garmentBrand,
     _dtfta_garment_style: input.garmentStyle,
