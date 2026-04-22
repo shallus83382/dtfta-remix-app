@@ -73,57 +73,57 @@ export const PRODUCT_KEY_TO_DESIGN_ASSET: Record<string, Record<string, string>>
   },
 
   brown: {
-    unisex_tee_front: "assets/customizer/brown/front/unisex-tee-front.jpg",
-    unisex_tee_back: "assets/customizer/brown/back/unisex-tee-back.jpg",
+    unisex_tee_front: "assets/customizer/brown/front/unisex-tee-front.png",
+    unisex_tee_back: "assets/customizer/brown/back/unisex-tee-back.png",
 
-    long_sleeve_tee_front: "assets/customizer/brown/front/long-sleeve-tee-front.jpg",
-    long_sleeve_tee_back: "assets/customizer/brown/back/long-sleeve-tee-back.jpg",
+    long_sleeve_tee_front: "assets/customizer/brown/front/long-sleeve-tee-front.png",
+    long_sleeve_tee_back: "assets/customizer/brown/back/long-sleeve-tee-back.png",
 
-    heavyweight_hoodie_front: "assets/customizer/brown/front/heavyweight-hoodie-front.jpg",
-    heavyweight_hoodie_back: "assets/customizer/brown/back/heavyweight-hoodie-back.jpg",
+    heavyweight_hoodie_front: "assets/customizer/brown/front/heavyweight-hoodie-front.png",
+    heavyweight_hoodie_back: "assets/customizer/brown/back/heavyweight-hoodie-back.png",
 
-    heavy_blend_hoodie_front: "assets/customizer/brown/front/heavy-blend-hoodie-front.jpg",
-    heavy_blend_hoodie_back: "assets/customizer/brown/back/heavy-blend-hoodie-back.jpg",
+    heavy_blend_hoodie_front: "assets/customizer/brown/front/heavy-blend-hoodie-front.png",
+    heavy_blend_hoodie_back: "assets/customizer/brown/back/heavy-blend-hoodie-back.png",
   },
 
   green: {
-    unisex_tee_front: "assets/customizer/green/front/unisex-tee-front.jpg",
-    unisex_tee_back: "assets/customizer/green/back/unisex-tee-back.jpg",
+    unisex_tee_front: "assets/customizer/green/front/unisex-tee-front.png",
+    unisex_tee_back: "assets/customizer/green/back/unisex-tee-back.png",
 
-    long_sleeve_tee_front: "assets/customizer/green/front/long-sleeve-tee-front.jpg",
-    long_sleeve_tee_back: "assets/customizer/green/back/long-sleeve-tee-back.jpg",
+    long_sleeve_tee_front: "assets/customizer/green/front/long-sleeve-tee-front.png",
+    long_sleeve_tee_back: "assets/customizer/green/back/long-sleeve-tee-back.png",
 
-    heavyweight_hoodie_front: "assets/customizer/green/front/heavyweight-hoodie-front.jpg",
-    heavyweight_hoodie_back: "assets/customizer/green/back/heavyweight-hoodie-back.jpg",
+    heavyweight_hoodie_front: "assets/customizer/green/front/heavyweight-hoodie-front.png",
+    heavyweight_hoodie_back: "assets/customizer/green/back/heavyweight-hoodie-back.png",
 
-    heavy_blend_hoodie_front: "assets/customizer/green/front/heavy-blend-hoodie-front.jpg",
-    heavy_blend_hoodie_back: "assets/customizer/green/back/heavy-blend-hoodie-back.jpg",
+    heavy_blend_hoodie_front: "assets/customizer/green/front/heavy-blend-hoodie-front.png",
+    heavy_blend_hoodie_back: "assets/customizer/green/back/heavy-blend-hoodie-back.png",
   },
   blue: {
-    unisex_tee_front: "assets/customizer/blue/front/unisex-tee-front.jpg",
-    unisex_tee_back: "assets/customizer/blue/back/unisex-tee-back.jpg",
+    unisex_tee_front: "assets/customizer/blue/front/unisex-tee-front.png",
+    unisex_tee_back: "assets/customizer/blue/back/unisex-tee-back.png",
 
-    long_sleeve_tee_front: "assets/customizer/blue/front/long-sleeve-tee-front.jpg",
-    long_sleeve_tee_back: "assets/customizer/blue/back/long-sleeve-tee-back.jpg",
+    long_sleeve_tee_front: "assets/customizer/blue/front/long-sleeve-tee-front.png",
+    long_sleeve_tee_back: "assets/customizer/blue/back/long-sleeve-tee-back.png",
 
-    heavyweight_hoodie_front: "assets/customizer/blue/front/heavyweight-hoodie-front.jpg",
-    heavyweight_hoodie_back: "assets/customizer/blue/back/heavyweight-hoodie-back.jpg",
+    heavyweight_hoodie_front: "assets/customizer/blue/front/heavyweight-hoodie-front.png",
+    heavyweight_hoodie_back: "assets/customizer/blue/back/heavyweight-hoodie-back.png",
 
-    heavy_blend_hoodie_front: "assets/customizer/blue/front/heavy-blend-hoodie-front.jpg",
-    heavy_blend_hoodie_back: "assets/customizer/blue/back/heavy-blend-hoodie-back.jpg",
+    heavy_blend_hoodie_front: "assets/customizer/blue/front/heavy-blend-hoodie-front.png",
+    heavy_blend_hoodie_back: "assets/customizer/blue/back/heavy-blend-hoodie-back.png",
   },
   orange: {
-    unisex_tee_front: "assets/customizer/orange/front/unisex-tee-front.jpg",
-    unisex_tee_back: "assets/customizer/orange/back/unisex-tee-back.jpg",
+    unisex_tee_front: "assets/customizer/orange/front/unisex-tee-front.png",
+    unisex_tee_back: "assets/customizer/orange/back/unisex-tee-back.png",
 
-    long_sleeve_tee_front: "assets/customizer/orange/front/long-sleeve-tee-front.jpg",
-    long_sleeve_tee_back: "assets/customizer/orange/back/long-sleeve-tee-back.jpg",
+    long_sleeve_tee_front: "assets/customizer/orange/front/long-sleeve-tee-front.png",
+    long_sleeve_tee_back: "assets/customizer/orange/back/long-sleeve-tee-back.png",
 
-    heavyweight_hoodie_front: "assets/customizer/orange/front/heavyweight-hoodie-front.jpg",
-    heavyweight_hoodie_back: "assets/customizer/orange/back/heavyweight-hoodie-back.jpg",
+    heavyweight_hoodie_front: "assets/customizer/orange/front/heavyweight-hoodie-front.png",
+    heavyweight_hoodie_back: "assets/customizer/orange/back/heavyweight-hoodie-back.png",
 
-    heavy_blend_hoodie_front: "assets/customizer/orange/front/heavy-blend-hoodie-front.jpg",
-    heavy_blend_hoodie_back: "assets/customizer/orange/back/heavy-blend-hoodie-back.jpg",
+    heavy_blend_hoodie_front: "assets/customizer/orange/front/heavy-blend-hoodie-front.png",
+    heavy_blend_hoodie_back: "assets/customizer/orange/back/heavy-blend-hoodie-back.png",
   },
 };
 
@@ -150,10 +150,22 @@ export function mapColorToAssetCategory(color?: string): string {
     case "wht":
       return "white";
 
-    case "navy":
-    case "nav":
-      return "navy";
+    case "brown":
+    case "brn":
+      return "brown";
 
+    case "green":
+    case "grn":
+      return "green";
+
+    case "blue":
+    case "blu":
+      return "blue";
+
+    case "orange":
+    case "org":
+      return "orange";
+    
     default:
       return "default";
   }
@@ -172,7 +184,7 @@ export function getProductDesignAssetUrl(assetKey: string, color?: string): stri
   const colorAsset = PRODUCT_KEY_TO_DESIGN_ASSET[colorCategory]?.[assetKey];
   const fallbackAsset = PRODUCT_KEY_TO_DESIGN_ASSET.default?.[assetKey];
   const resolved = colorAsset || fallbackAsset;
-
+  console.log("resolved", resolved ? `${APP_ASSET_BASE}/${resolved}` : "", "colorCategory", colorCategory, "assetKey", assetKey);
   return resolved ? `${APP_ASSET_BASE}/${resolved}` : "";
 }
 
