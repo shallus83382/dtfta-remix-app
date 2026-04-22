@@ -11,7 +11,7 @@ import type {
   CustomizeSubmitResult,
   PrintableAreaPayload,
   ProductWithApiFields,
-  VariantArtworkPayload,
+  ArtworkUrlPayload,
 } from "./types";
 
 export async function loadCustomizeProduct({ request }: LoaderFunctionArgs) {
@@ -92,6 +92,14 @@ function collectArtworkUrls(formData: FormData) {
   return artworkUrls;
 }
 
+function parseArtworkUrlsPayload(raw: string): Record<string, ArtworkUrlPayload> {
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Invalid artworkUrls payload");
+  }
+  return parsed as Record<string, ArtworkUrlPayload>;
+}
+
 function parsePrintableAreas(raw: string): PrintableAreaPayload[] {
   const parsed = JSON.parse(raw);
 
@@ -102,39 +110,45 @@ function parsePrintableAreas(raw: string): PrintableAreaPayload[] {
   return parsed;
 }
 
-function parseVariantArtworkPayload(raw: string): VariantArtworkPayload[] {
-  const parsed = JSON.parse(raw);
-
-  if (!Array.isArray(parsed)) {
-    throw new Error("Invalid variantArtworkPayload payload");
-  }
-
-  return parsed;
-}
-
 function attachArtworkToPrintableAreas({
   printableAreas,
-  artworkUrls,
+  flatArtworkUrls,
+  artworkUrlsPayload,
   selectedColor,
 }: {
   printableAreas: PrintableAreaPayload[];
-  artworkUrls: Record<string, string>;
+  flatArtworkUrls: Record<string, string>;
+  artworkUrlsPayload: Record<string, ArtworkUrlPayload>;
   selectedColor: string;
 }): PrintableAreaPayload[] {
   return printableAreas.map((area) => {
     const colorPlacementKey = `${selectedColor}_${area.placement}`;
     const fallbackPlacementKey = area.placement;
+    const payloadArtwork = artworkUrlsPayload[colorPlacementKey]?.artworkUrl ?? "";
     const artwork =
-      artworkUrls[colorPlacementKey] ??
-      artworkUrls[fallbackPlacementKey] ??
-      area.artwork ??
-      "";
+      payloadArtwork ||
+      (flatArtworkUrls[colorPlacementKey] ??
+        flatArtworkUrls[fallbackPlacementKey] ??
+        area.artwork ??
+        "");
+
+    const payloadRegion = artworkUrlsPayload[colorPlacementKey]?.designableRegion;
+    const payloadPrintSize = artworkUrlsPayload[colorPlacementKey]?.printSize;
 
     return {
       ...area,
       artwork,
+      designableRegion: payloadRegion ?? area.designableRegion,
+      printSize: payloadPrintSize ?? area.printSize,
     };
   });
+}
+
+function stripPrintableAreaArtwork(printableAreas: PrintableAreaPayload[]): PrintableAreaPayload[] {
+  return printableAreas.map((area) => ({
+    ...area,
+    artwork: "",
+  }));
 }
 
 export async function publishCustomizeProduct({
@@ -153,7 +167,7 @@ export async function publishCustomizeProduct({
   const productId = String(formData.get("productId") || "");
   const printPlan = String(formData.get("printPlan") || "");
   const printableAreasRaw = String(formData.get("printableAreas") || "[]");
-  const variantArtworkPayloadRaw = String(formData.get("variantArtworkPayload") || "[]");
+  const artworkUrlsRaw = String(formData.get("artworkUrls") || "{}");
 
   const selectedColor = String(formData.get("selectedColor") || "");
 
@@ -161,13 +175,13 @@ export async function publishCustomizeProduct({
     return { ok: false, error: "Missing product key" };
   }
 
-  const artworkUrls = collectArtworkUrls(formData);
+  const flatArtworkUrls = collectArtworkUrls(formData);
 
   let printableAreas: PrintableAreaPayload[] = [];
-  let variantArtworkPayload: VariantArtworkPayload[] = [];
+  let artworkUrlsPayload: Record<string, ArtworkUrlPayload> = {};
   try {
     printableAreas = parsePrintableAreas(printableAreasRaw);
-    variantArtworkPayload = parseVariantArtworkPayload(variantArtworkPayloadRaw);
+    artworkUrlsPayload = parseArtworkUrlsPayload(artworkUrlsRaw);
   } catch (error) {
     return {
       ok: false,
@@ -175,13 +189,13 @@ export async function publishCustomizeProduct({
     };
   }
 
-  const selectedVariant =
-    variantArtworkPayload.find((variant) => variant.colorCode === selectedColor) ?? null;
   const printableAreasWithArtwork = attachArtworkToPrintableAreas({
     printableAreas,
-    artworkUrls,
+    flatArtworkUrls,
+    artworkUrlsPayload,
     selectedColor,
   });
+  const printableAreasWithoutArtwork = stripPrintableAreaArtwork(printableAreasWithArtwork);
 
   const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
   const payload = {
@@ -190,12 +204,12 @@ export async function publishCustomizeProduct({
     productId,
     title,
     printPlan,
-    artworkUrls,
-    printableAreas: printableAreasWithArtwork,
+    artworkUrls: artworkUrlsPayload,
+    printableAreas: printableAreasWithoutArtwork,
     selectedColor,
-    selectedColorName: selectedVariant?.colorName || "",
-    selectedVariantId: selectedVariant?.variantId || "",
-    selectedVariantSku: selectedVariant?.variantSku || "",
+    selectedColorName: "",
+    selectedVariantId: "",
+    selectedVariantSku: "",
   };
 
   const headers = createExternalApiHeaders(payload, { "X-Shop": shop });

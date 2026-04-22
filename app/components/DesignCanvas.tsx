@@ -1340,7 +1340,10 @@ export default function DesignCanvas({
   );
 }
 
-export function exportCanvasToDataUrl(canvas: Canvas | null): string | null {
+export function exportCanvasToDataUrl(
+  canvas: Canvas | null,
+  options?: { region?: DesignableRegion; includeBackground?: boolean }
+): string | null {
   if (!canvas) return null;
 
   const extractFallbackArtworkSource = () => {
@@ -1372,6 +1375,9 @@ export function exportCanvasToDataUrl(canvas: Canvas | null): string | null {
   try {
     const isExportableObject = (obj: FabricObject) => {
       const data = (obj as FabricObject & { data?: { kind?: string } }).data;
+      if (options?.includeBackground === false && data?.kind === "background") {
+        return false;
+      }
       // Keep real background image, exclude only dotted design-region helper frame.
       return data?.kind !== "region";
     };
@@ -1382,10 +1388,28 @@ export function exportCanvasToDataUrl(canvas: Canvas | null): string | null {
     };
 
     if (typeof anyCanvas.toDataURL === "function") {
+      const region = options?.region;
+      const widthScale =
+        typeof (canvas as Canvas & { getWidth?: () => number }).getWidth === "function"
+          ? ((canvas as Canvas & { getWidth: () => number }).getWidth() || CANVAS_SIZE) / CANVAS_SIZE
+          : 1;
+      const heightScale =
+        typeof (canvas as Canvas & { getHeight?: () => number }).getHeight === "function"
+          ? ((canvas as Canvas & { getHeight: () => number }).getHeight() || CANVAS_SIZE) / CANVAS_SIZE
+          : 1;
+
       return anyCanvas.toDataURL({
         format: "png",
         multiplier: 1,
         filter: isExportableObject,
+        ...(region
+          ? {
+              left: Math.max(0, region.left * widthScale),
+              top: Math.max(0, region.top * heightScale),
+              width: Math.max(1, region.width * widthScale),
+              height: Math.max(1, region.height * heightScale),
+            }
+          : {}),
       });
     }
 
@@ -1406,4 +1430,37 @@ export function exportCanvasToDataUrl(canvas: Canvas | null): string | null {
     console.error("Canvas export failed. The canvas is likely tainted by a cross-origin image.", error);
     return null;
   }
+}
+
+export function extractCanvasArtworkSourceUrl(canvas: Canvas | null): string | null {
+  if (!canvas) return null;
+
+  try {
+    const objects = canvas.getObjects();
+    for (const obj of objects) {
+      const typed = obj as FabricObject & {
+        type?: string;
+        data?: { __internal?: boolean };
+        getSrc?: () => string;
+        src?: string;
+      };
+
+      if (typed.data?.__internal) continue;
+      const isImageLike = typed.type === "image" || typed.type === "group";
+      if (!isImageLike) continue;
+
+      if (typeof typed.getSrc === "function") {
+        const src = typed.getSrc();
+        if (typeof src === "string" && src.trim()) return src;
+      }
+
+      if (typeof typed.src === "string" && typed.src.trim()) {
+        return typed.src;
+      }
+    }
+  } catch {
+    // ignore extraction errors
+  }
+
+  return null;
 }

@@ -1,18 +1,19 @@
 import type { Canvas } from "fabric";
 import { buildPrintPlan } from "../dtfta-design";
-import { exportCanvasToDataUrl } from "../../components/DesignCanvas";
+import { exportCanvasToDataUrl, extractCanvasArtworkSourceUrl } from "../../components/DesignCanvas";
 import type { DtftaPrintArea, DtftaVariant } from "../dtfta-products.server";
 import type {
   PlacementCanvasStateMap,
   PlacementPrintSizeMap,
   PlacementRegionMap,
   PrintableAreaPayload,
-  VariantArtworkPayload,
+  ArtworkUrlPayload,
 } from "./types";
 import {
   getRegionFromPrintArea,
   normalizePlacementKey,
   buildColorPlacementKey,
+  parseColorPlacementKey,
 } from "./helpers";
 import { getProductDesignAssetUrl } from "../design-assets";
 
@@ -36,7 +37,7 @@ type BuildCustomizeSubmissionResult =
       formData: FormData;
       printableAreas: PrintableAreaPayload[];
       printPlan: string;
-      variantArtworkPayload: VariantArtworkPayload[];
+      artworkUrls: Record<string, ArtworkUrlPayload>;
     }
   | {
       ok: false;
@@ -121,13 +122,29 @@ export function buildCustomizeSubmission({
   const finalArtworkByPlacement: Record<string, string> = {
     ...artworkByPlacement,
   };
+  const finalCustomArtworkByPlacement: Record<string, string> = {};
 
   for (const [storageKey, canvas] of Object.entries(canvases)) {
     if (!canvas) continue;
 
-    const exportedArtwork = exportCanvasToDataUrl(canvas);
-    if (exportedArtwork) {
-      finalArtworkByPlacement[storageKey] = exportedArtwork;
+    const { placement } = parseColorPlacementKey(storageKey);
+    const placementArea = printAreas.find(
+      (area) => normalizePlacementKey(area.title) === placement
+    );
+    const regionForExport =
+      regions[storageKey] ??
+      (placementArea ? getRegionFromPrintArea(placementArea) : getRegionFromPrintArea(printAreas[0]));
+
+    const exportedCustomArtwork = exportCanvasToDataUrl(canvas, {
+      region: regionForExport,
+      includeBackground: false,
+    });
+    const sourceArtworkUrl = exportCanvasToDataUrl(canvas);
+    if (sourceArtworkUrl) {
+      finalArtworkByPlacement[storageKey] = sourceArtworkUrl;
+    }
+    if (exportedCustomArtwork) {
+      finalCustomArtworkByPlacement[storageKey] = exportedCustomArtwork;
     }
   }
 
@@ -146,29 +163,62 @@ export function buildCustomizeSubmission({
     printSizes,
   });
 
-  const activeVariants = variants.filter(
-    (variant) => variant.is_active && variant.id != null
+  const allColorCodes = Array.from(
+    new Set([
+      selectedColor,
+      ...variants
+        .filter((variant) => variant.is_active)
+        .map((variant) => String(variant.colorCode || "").trim())
+        .filter(Boolean),
+    ])
   );
 
-  const variantArtworkPayload: VariantArtworkPayload[] = activeVariants.map((variant) => {
-    const variantPrintPlan = buildPrintPlanForColor({
-      colorCode: variant.colorCode,
-      printAreas,
-      printSizes,
-    });
+  const artworkUrls = allColorCodes.reduce<Record<string, ArtworkUrlPayload>>((acc, colorCode) => {
+    for (const area of printAreas) {
+      const placement = normalizePlacementKey(area.title);
+      const colorKey = buildColorPlacementKey(colorCode, placement);
+      const selectedColorKey = buildColorPlacementKey(selectedColor, placement);
 
-    return {
-      variantId: String(variant.id),
-      variantSku: variant.sku ?? "",
-      colorCode: variant.colorCode,
-      colorName: variant.colorName,
-      printPlan: variantPrintPlan,
-    };
-  });
+      const artworkUrl =
+        finalArtworkByPlacement[colorKey] ??
+        finalArtworkByPlacement[selectedColorKey] ??
+        "";
+      const customArtworkUrl =
+        finalCustomArtworkByPlacement[colorKey] ??
+        finalCustomArtworkByPlacement[selectedColorKey] ??
+        "";
+
+      if (!artworkUrl) continue;
+
+      const designableRegion =
+        regions[colorKey] ??
+        regions[selectedColorKey] ??
+        getRegionFromPrintArea(area);
+
+      const printSize =
+        printSizes[colorKey] ??
+        printSizes[selectedColorKey] ?? {
+          width: Number(area.area_width || 250),
+          height: Number(area.area_height || 250),
+        };
+
+      const payloadKey = `${colorCode}_${placement}`;
+      acc[payloadKey] = {
+        colorCode,
+        placement,
+        artworkUrl,
+        ...(customArtworkUrl ? { customArtworkUrl } : {}),
+        designableRegion,
+        printSize,
+      };
+    }
+
+    return acc;
+  }, {});
 
   const hasArtwork = Object.values(finalArtworkByPlacement).some((artwork) => Boolean(artwork));
 
-  const hasPrintPlan = Boolean(printPlan) || variantArtworkPayload.some((variant) => Boolean(variant.printPlan));
+  const hasPrintPlan = Boolean(printPlan);
 
   if (!hasPrintPlan && !hasArtwork) {
     return {
@@ -193,19 +243,13 @@ export function buildCustomizeSubmission({
   }));
   formData.set("printableAreas", JSON.stringify(printableAreasPayload));
   formData.set("selectedColor", selectedColor || "");
-  formData.set("variantArtworkPayload", JSON.stringify(variantArtworkPayload));
-
-  for (const [key, value] of Object.entries(finalArtworkByPlacement)) {
-    if (value) {
-      formData.set(`artwork_${key}`, value);
-    }
-  }
+  formData.set("artworkUrls", JSON.stringify(artworkUrls));
 
   return {
     ok: true,
     formData,
     printableAreas,
     printPlan,
-    variantArtworkPayload,
+    artworkUrls,
   };
 }

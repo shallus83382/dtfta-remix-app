@@ -32,12 +32,16 @@ export type PrintableAreaPayload = {
   editorState?: unknown;
 };
 
-export type VariantArtworkPayload = {
-  variantId: string;
-  variantSku: string;
+export type ArtworkUrlPayload = {
   colorCode: string;
-  colorName: string;
-  printPlan: string;
+  placement: string;
+  artworkUrl: string;
+  customArtworkUrl?: string;
+  designableRegion: DesignableRegion;
+  printSize: {
+    width: number;
+    height: number;
+  };
 };
 
 export type CustomizeSubmitResult =
