@@ -229,172 +229,172 @@ export default function Orders() {
           </div>
         </Card>
 
-      <InlineStack align="start" gap="500" blockAlign="start">
-        <div style={{ flex: '1', minWidth: 0 }}>
-          <BlockStack gap="500">
-            <Card>
-              <BlockStack gap="400">
-                <InlineStack align="space-between" blockAlign="center">
-                  <InlineStack gap="200" blockAlign="center">
-                    <Text as="h2" variant="headingMd">
-                      Order Management
-                    </Text>
-                    <Badge tone="info">Advanced</Badge>
+        <InlineStack align="start" gap="500" blockAlign="start">
+          <div style={{ flex: '1', minWidth: 0 }}>
+            <BlockStack gap="500">
+              <Card>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <InlineStack gap="200" blockAlign="center">
+                      <Text as="h2" variant="headingMd">
+                        Order Management
+                      </Text>
+                      <Badge tone="info">Advanced</Badge>
+                    </InlineStack>
                   </InlineStack>
-                </InlineStack>
 
-                <TextField
-                  label="Search Orders"
-                  placeholder="Search by order number, customer, or email"
-                  value={searchQuery}
-                  onChange={(value) => setSearchQuery(value)}
-                  autoComplete="off"
-                />
+                  <TextField
+                    label="Search Orders"
+                    placeholder="Search by order number, customer, or email"
+                    value={searchQuery}
+                    onChange={(value) => setSearchQuery(value)}
+                    autoComplete="off"
+                  />
 
-                <InlineStack gap="200">
-                  {filters.map((filter) => (
-                    <button
-                      type="button"
-                      key={filter}
-                      style={selectedOrderFilter === filter ? primaryButtonStyle : secondaryButtonStyle}
-                      onClick={() => setSelectedOrderFilter(filter)}
-                    >
-                      {filter}
-                    </button>
-                  ))}
-                </InlineStack>
+                  <InlineStack gap="200">
+                    {filters.map((filter) => (
+                      <button
+                        type="button"
+                        key={filter}
+                        style={selectedOrderFilter === filter ? primaryButtonStyle : secondaryButtonStyle}
+                        onClick={() => setSelectedOrderFilter(filter)}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </InlineStack>
 
-                <BlockStack gap="300">
-                  {filteredOrders.length === 0 ? (
-                    <div
-                      style={{
-                        borderRadius: 12,
-                        border: '1px dashed #cbd5e1',
-                        backgroundColor: '#f8fafc',
-                        padding: 20,
-                      }}
-                    >
-                      <BlockStack gap="200" align="center">
-                        <Text as="p" variant="bodyMd" alignment="center">
-                          No orders found matching your criteria.
-                        </Text>
-                        <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                          Try changing filter or search by order number and customer email.
-                        </Text>
-                      </BlockStack>
-                    </div>
-                  ) : (
-                    filteredOrders.map((order) => (
+                  <BlockStack gap="300">
+                    {filteredOrders.length === 0 ? (
                       <div
-                        key={order.id}
                         style={{
-                          ...surfaceStyle,
-                          borderLeft: `4px solid ${getOrderAccentColor(order.status)}`,
+                          borderRadius: 12,
+                          border: '1px dashed #cbd5e1',
+                          backgroundColor: '#f8fafc',
+                          padding: 20,
                         }}
                       >
-                        <BlockStack gap="300">
-                          <InlineStack align="space-between" blockAlign="start">
-                            <BlockStack gap="100">
-                              <InlineStack gap="200" blockAlign="center">
-                                <Text as="p" variant="bodyMd" fontWeight="semibold">
-                                  Order #{order.orderNumber}
-                                </Text>
-                                <Badge tone={getBadgeTone(order.status)}>
-                                  {order.status}
-                                </Badge>
-                              </InlineStack>
-                              <Text as="p" variant="bodySm">
-                                {order.customer.name}, {order.customer.email}
-                              </Text>
-                              <Text as="p" variant="bodySm" tone="subdued">
-                                Date: {order.date}
-                              </Text>
-                            </BlockStack>
-                            <button type="button" style={secondaryButtonStyle}>
-                              View Details
-                            </button>
-                          </InlineStack>
-
-                          <BlockStack gap="100">
-                            {order.items.map((item, index) => (
-                              <Text key={index} as="p" variant="bodySm">
-                                {item.quantity}x {item.name}
-                              </Text>
-                            ))}
-                          </BlockStack>
-
-                          {order.tracking && (
-                            <Text as="p" variant="bodySm">
-                              Tracking: {order.tracking}
-                            </Text>
-                          )}
+                        <BlockStack gap="200" align="center">
+                          <Text as="p" variant="bodyMd" alignment="center">
+                            No orders found matching your criteria.
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+                            Try changing filter or search by order number and customer email.
+                          </Text>
                         </BlockStack>
                       </div>
-                    ))
-                  )}
-                </BlockStack>
-              </BlockStack>
-            </Card>
-          </BlockStack>
-        </div>
+                    ) : (
+                      filteredOrders.map((order) => (
+                        <div
+                          key={order.id}
+                          style={{
+                            ...surfaceStyle,
+                            borderLeft: `4px solid ${getOrderAccentColor(order.status)}`,
+                          }}
+                        >
+                          <BlockStack gap="300">
+                            <InlineStack align="space-between" blockAlign="start">
+                              <BlockStack gap="100">
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Text as="p" variant="bodyMd" fontWeight="semibold">
+                                    Order #{order.orderNumber}
+                                  </Text>
+                                  <Badge tone={getBadgeTone(order.status)}>
+                                    {order.status}
+                                  </Badge>
+                                </InlineStack>
+                                <Text as="p" variant="bodySm">
+                                  {order.customer.name}, {order.customer.email}
+                                </Text>
+                                <Text as="p" variant="bodySm" tone="subdued">
+                                  Date: {order.date}
+                                </Text>
+                              </BlockStack>
+                              {/* <button type="button" style={secondaryButtonStyle}>
+                                View Details
+                              </button> */}
+                            </InlineStack>
 
-        <div style={{ minWidth: '320px', maxWidth: '360px', flexShrink: 0 }}>
-          <Card>
-            <div style={surfaceStyle}>
-              <BlockStack gap="400">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text as="h2" variant="headingMd">
-                    Order Status Guide
-                  </Text>
-                  <Badge tone="success">Reference</Badge>
-                </InlineStack>
-                <BlockStack gap="300">
-                  <BlockStack gap="050">
-                    <Text as="p" variant="bodyMd" fontWeight="semibold">
-                      New
-                    </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Order received, awaiting processing.
-                    </Text>
-                  </BlockStack>
-                  <BlockStack gap="050">
-                    <Text as="p" variant="bodyMd" fontWeight="semibold">
-                      In Production
-                    </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Currently being printed.
-                    </Text>
-                  </BlockStack>
-                  <BlockStack gap="050">
-                    <Text as="p" variant="bodyMd" fontWeight="semibold">
-                      Shipped
-                    </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Order has been shipped with tracking.
-                    </Text>
-                  </BlockStack>
-                  <BlockStack gap="050">
-                    <Text as="p" variant="bodyMd" fontWeight="semibold">
-                      Artwork Needed
-                    </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Missing design files.
-                    </Text>
-                  </BlockStack>
-                  <BlockStack gap="050">
-                    <Text as="p" variant="bodyMd" fontWeight="semibold">
-                      Exception
-                    </Text>
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Issue with order that needs attention.
-                    </Text>
+                            <BlockStack gap="100">
+                              {order.items.map((item, index) => (
+                                <Text key={index} as="p" variant="bodySm">
+                                  {item.quantity}x {item.name}
+                                </Text>
+                              ))}
+                            </BlockStack>
+
+                            {order.tracking && (
+                              <Text as="p" variant="bodySm">
+                                Tracking: {order.tracking}
+                              </Text>
+                            )}
+                          </BlockStack>
+                        </div>
+                      ))
+                    )}
                   </BlockStack>
                 </BlockStack>
-              </BlockStack>
-            </div>
-          </Card>
-        </div>
-      </InlineStack>
+              </Card>
+            </BlockStack>
+          </div>
+
+          <div style={{ minWidth: '320px', maxWidth: '360px', flexShrink: 0 }}>
+            <Card>
+              <div style={surfaceStyle}>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      Order Status Guide
+                    </Text>
+                    <Badge tone="success">Reference</Badge>
+                  </InlineStack>
+                  <BlockStack gap="300">
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        New
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Order received, awaiting processing.
+                      </Text>
+                    </BlockStack>
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        In Production
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Currently being printed.
+                      </Text>
+                    </BlockStack>
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        Shipped
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Order has been shipped with tracking.
+                      </Text>
+                    </BlockStack>
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        Artwork Needed
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Missing design files.
+                      </Text>
+                    </BlockStack>
+                    <BlockStack gap="050">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        Exception
+                      </Text>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Issue with order that needs attention.
+                      </Text>
+                    </BlockStack>
+                  </BlockStack>
+                </BlockStack>
+              </div>
+            </Card>
+          </div>
+        </InlineStack>
       </BlockStack>
     </Page>
   );
