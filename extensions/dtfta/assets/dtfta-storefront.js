@@ -1,11 +1,11 @@
-console.log("[DTFTA] JS file loaded");
+//console.log("[DTFTA] JS file loaded");
 
 (function () {
   const config = window.DTFTA;
-  console.log("[DTFTA] window.DTFTA =", config);
+  //console.log("[DTFTA] window.DTFTA =", config);
 
   if (!config?.enabled) {
-    console.log("[DTFTA] exiting: config missing or disabled");
+    //console.log("[DTFTA] exiting: config missing or disabled");
     return;
   }
 
@@ -70,7 +70,7 @@ console.log("[DTFTA] JS file loaded");
       const variant = await res.json();
       return String(variant?.sku || "").trim();
     } catch (error) {
-      console.error("[DTFTA] Failed to fetch variant SKU", error);
+      //console.error("[DTFTA] Failed to fetch variant SKU", error);
       return "";
     }
   }
@@ -119,7 +119,7 @@ console.log("[DTFTA] JS file loaded");
     if (form.dataset.podBound === "true") return;
     form.dataset.podBound = "true";
 
-    console.log("[DTFTA] bound form", form);
+    //console.log("[DTFTA] bound form", form);
 
     form.addEventListener("submit", async function (event) {
       const templateId = getTemplateId(form);
