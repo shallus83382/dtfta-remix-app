@@ -165,7 +165,7 @@ export function mapColorToAssetCategory(color?: string): string {
     case "orange":
     case "org":
       return "orange";
-    
+
     default:
       return "default";
   }
@@ -184,7 +184,6 @@ export function getProductDesignAssetUrl(assetKey: string, color?: string): stri
   const colorAsset = PRODUCT_KEY_TO_DESIGN_ASSET[colorCategory]?.[assetKey];
   const fallbackAsset = PRODUCT_KEY_TO_DESIGN_ASSET.default?.[assetKey];
   const resolved = colorAsset || fallbackAsset;
-  console.log("resolved", resolved ? `${APP_ASSET_BASE}/${resolved}` : "", "colorCategory", colorCategory, "assetKey", assetKey);
   return resolved ? `${APP_ASSET_BASE}/${resolved}` : "";
 }
 
