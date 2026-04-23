@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
 import {
@@ -11,7 +11,7 @@ import {
   Badge,
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
-import type { Order, OrderStatus } from '../types';
+import type { BillingStatus, Order, OrderStatus } from '../types';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 
 function normalizeOrder(input: unknown): Order | null {
@@ -103,6 +103,63 @@ export default function Orders() {
   const [orders] = useState<Order[]>((loaderData && loaderData.orders) || []);
   const [selectedOrderFilter, setSelectedOrderFilter] = useState<OrderStatus | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [billingStatus, setBillingStatus] = useState<BillingStatus>({
+    status: 'inactive',
+    required: false,
+    lineItemId: null,
+  });
+  const [billingLoading, setBillingLoading] = useState(true);
+  const [billingError, setBillingError] = useState('');
+  const [isGeneratingBillingLink, setIsGeneratingBillingLink] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadBilling = async () => {
+      setBillingLoading(true);
+      setBillingError('');
+      try {
+        const res = await fetch('/app/api/billing-status');
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Failed to load billing status.');
+        }
+        if (!cancelled) {
+          setBillingStatus({
+            status: payload.billingStatus ?? 'inactive',
+            required: Boolean(payload.isBillingRequired),
+            lineItemId: payload.lineItemId ?? null,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setBillingError(error instanceof Error ? error.message : 'Failed to load billing status.');
+        }
+      } finally {
+        if (!cancelled) setBillingLoading(false);
+      }
+    };
+    loadBilling();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleActivateBilling = async () => {
+    setIsGeneratingBillingLink(true);
+    setBillingError('');
+    try {
+      const res = await fetch('/app/api/billing-approve', { method: 'POST' });
+      const payload = await res.json();
+      if (!res.ok || !payload?.ok || !payload?.confirmationUrl) {
+        throw new Error(payload?.error || 'Unable to generate billing approval link.');
+      }
+      window.open(payload.confirmationUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      setBillingError(error instanceof Error ? error.message : 'Unable to generate billing approval link.');
+    } finally {
+      setIsGeneratingBillingLink(false);
+    }
+  };
 
   const getBadgeTone = (status: OrderStatus): 'success' | 'attention' | 'info' | 'critical' | 'warning' => {
     switch (status) {
@@ -224,7 +281,25 @@ export default function Orders() {
                 <button type="button" style={secondaryButtonStyle}>
                   Filter: {selectedOrderFilter}
                 </button>
+                <Badge tone={billingStatus.status === 'active' ? 'success' : billingStatus.status === 'blocked' ? 'critical' : 'attention'}>
+                  Billing: {billingLoading ? 'Loading...' : billingStatus.status}
+                </Badge>
+                {billingStatus.required && billingStatus.status !== 'active' ? (
+                  <button
+                    type="button"
+                    style={secondaryButtonStyle}
+                    onClick={handleActivateBilling}
+                    disabled={isGeneratingBillingLink}
+                  >
+                    {isGeneratingBillingLink ? 'Preparing...' : 'Activate Billing'}
+                  </button>
+                ) : null}
               </InlineStack>
+              {billingError ? (
+                <Text as="p" tone="critical">
+                  {billingError}
+                </Text>
+              ) : null}
             </BlockStack>
           </div>
         </Card>
