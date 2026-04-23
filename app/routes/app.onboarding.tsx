@@ -20,6 +20,7 @@ import {
 import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 import type { BrandSettings } from '../types';
+import AppHeroBanner from '../common/AppHeroBanner';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -206,39 +207,19 @@ export default function Onboarding() {
   return (
     <Page title="Welcome to DTFTA" fullWidth>
       <BlockStack gap="500">
-        <Card>
-          <div
-            style={{
-              background:
-                'linear-gradient(135deg, rgba(30,41,59,0.96) 0%, rgba(37,99,235,0.9) 55%, rgba(14,116,144,0.88) 100%)',
-              borderRadius: 12,
-              padding: 24,
-              color: '#ffffff',
-            }}
-          >
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="start">
-                <BlockStack gap="100">
-                  <Text as="h2" variant="headingLg" tone="text-inverse">
-                    Welcome to DTFTA Onboarding
-                  </Text>
-                  <Text as="p" tone="text-inverse">
-                    Set up your white-label profile so orders can be fulfilled with your brand
-                    identity from day one.
-                  </Text>
-                </BlockStack>
-                <Badge tone="info">New Setup</Badge>
-              </InlineStack>
-
-              <InlineStack gap="200">
-                <Badge tone={completionPercent === 100 ? 'success' : 'warning'}>
-                  {completionPercent}% Complete
-                </Badge>
-                {hasExistingBranding ? <Badge tone="info">Existing profile detected</Badge> : null}
-              </InlineStack>
-            </BlockStack>
-          </div>
-        </Card>
+        <AppHeroBanner
+          title="Welcome to DTFTA Onboarding"
+          subtitle="Set up your white-label profile so orders can be fulfilled with your brand identity from day one."
+          badges={
+            <>
+              <Badge tone="info">New Setup</Badge>
+              <Badge tone={completionPercent === 100 ? 'success' : 'warning'}>
+                {completionPercent}% Complete
+              </Badge>
+              {hasExistingBranding ? <Badge tone="info">Existing profile detected</Badge> : null}
+            </>
+          }
+        />
 
         {actionData?.error ? (
           <Card>

@@ -20,6 +20,7 @@ import {
   normalizeDtftaProduct,
 } from "../lib/dtfta-products.server";
 import ProductCard from "../common/ProductCard";
+import AppHeroBanner from "../common/AppHeroBanner";
 import type { Product } from "../types";
 import {getProductDesignAssetUrl} from "../lib/design-assets";
 
@@ -143,90 +144,178 @@ export default function ProductsIndex() {
   const primaryButtonStyle = {
     borderRadius: 10,
     border: "1px solid transparent",
-    height: 38,
-    width: "100%",
-    padding: "0 14px",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    transition: "all 180ms ease",
-    background: "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)",
-    color: "#ffffff",
-    boxShadow: "0 8px 18px rgba(29,78,216,0.28)",
-  } as const;
-
-  const secondaryButtonStyle = {
-    borderRadius: 10,
-    border: "1px solid #cbd5e1",
     height: 36,
     padding: "0 14px",
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",
-    transition: "all 180ms ease",
-    backgroundColor: "#f8fafc",
-    color: "#0f172a",
+    transition: "all 200ms ease",
+    transform: "translateY(0)",
+    background: "linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)",
+    color: "#ffffff",
+    boxShadow: "0 10px 20px rgba(246,98,110,0.32)",
   } as const;
+
+  const secondaryButtonStyle = {
+    borderRadius: 10,
+    border: "1px solid transparent",
+    height: 36,
+    padding: "0 14px",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all 200ms ease",
+    transform: "translateY(0)",
+    background: "linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)",
+    color: "#ffffff",
+    boxShadow: "0 10px 20px rgba(246,98,110,0.28)",
+  } as const;
+
+  const sidebarSurfaceStyle = {
+    position: "relative" as const,
+    overflow: "hidden" as const,
+    borderRadius: 14,
+    border: "1px solid rgba(71,176,161,0.31)",
+    background: "linear-gradient(145deg, #ffffff 0%, rgba(71,176,161,0.10) 100%)",
+    padding: 16,
+    boxShadow: "0 14px 30px rgba(15,23,42,0.1)",
+  };
 
   return (
     <Page title="DTFTA Products" fullWidth>
-      <BlockStack gap="500">
-        <Card>
-          <div
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(17,24,39,1) 0%, rgba(30,58,138,0.96) 58%, rgba(14,116,144,0.92) 100%)",
-              borderRadius: 12,
-              padding: 24,
-              color: "#ffffff",
-            }}
-          >
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="start">
-                <BlockStack gap="100">
-                  <Text as="h2" variant="headingLg" tone="text-inverse">
-                    DTFTA Product Catalog
-                  </Text>
-                  <Text as="p" tone="text-inverse">
-                    Browse, shortlist, and customize top print-on-demand products with a clean
-                    production-ready workflow.
-                  </Text>
-                </BlockStack>
-                <Badge tone="info">Advanced Catalog</Badge>
-              </InlineStack>
+      <style>
+        {`
+          .products-sidebar-btn {
+            position: relative;
+            overflow: hidden;
+          }
+          .products-sidebar-btn::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -38%;
+            width: 30%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-18deg);
+            transition: transform 520ms ease;
+            pointer-events: none;
+          }
+          .products-sidebar-btn:hover {
+            transform: translateY(-2px);
+            filter: saturate(1.08) brightness(1.03);
+          }
+          .products-sidebar-btn:hover::after {
+            transform: translateX(420%) skewX(-18deg);
+          }
 
-              <InlineStack gap="200">
-                <button type="button" style={secondaryButtonStyle}>
-                  Available: {products.length}
-                </button>
-                <button type="button" style={secondaryButtonStyle}>
-                  Favorites: {products.filter((p) => p.isFavorite).length}
-                </button>
-              </InlineStack>
-            </BlockStack>
-          </div>
-        </Card>
+          @keyframes dtftaPlaceholderShimmer {
+            0% { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
+            35% { opacity: 0.38; }
+            100% { transform: translateX(280%) skewX(-18deg); opacity: 0; }
+          }
+          @keyframes dtftaPlaceholderFloat {
+            0% { transform: translateY(0px) scale(1); opacity: 0.72; }
+            50% { transform: translateY(-6px) scale(1.06); opacity: 1; }
+            100% { transform: translateY(0px) scale(1); opacity: 0.72; }
+          }
+          @keyframes dtftaPlaceholderBgShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+          }
+          .dtfta-filler-card {
+            transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+          }
+          .dtfta-filler-card:hover {
+            transform: translateY(-4px);
+            border-color: #c7d2fe;
+            box-shadow: 0 18px 34px rgba(15,23,42,0.12);
+          }
+        `}
+      </style>
+      <BlockStack gap="500">
+        <AppHeroBanner
+          title="DTFTA Product Catalog"
+          subtitle="Browse, shortlist, and customize top print-on-demand products with a clean production-ready workflow."
+          badges={<Badge tone="info">Advanced Catalog</Badge>}
+          actions={
+            <>
+              <button type="button" style={secondaryButtonStyle}>
+                Available: {products.length}
+              </button>
+              <button type="button" style={secondaryButtonStyle}>
+                Favorites: {products.filter((p) => p.isFavorite).length}
+              </button>
+            </>
+          }
+        />
 
         <InlineStack align="start" gap="500" blockAlign="start">
         <div style={{ flex: "1", minWidth: 0 }}>
-          <Card>
-            <BlockStack gap="500">
+          <BlockStack gap="500">
               <InlineStack align="space-between" blockAlign="center">
-                <BlockStack gap="100">
-                  <InlineStack gap="200" blockAlign="center">
-                    <Text as="h2" variant="headingMd">
-                      Available Products
+                <div
+                  style={{
+                    position: "relative",
+                    overflow: "hidden",
+                    width: "100%",
+                    borderRadius: 14,
+                    border: "1px solid #dbe4f4",
+                    background: "#ffffff",
+                    padding: "12px 14px",
+                    boxShadow: "0 10px 22px rgba(15,23,42,0.06)",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: -24,
+                      right: -12,
+                      width: 90,
+                      height: 90,
+                      borderRadius: "50%",
+                      background: "radial-gradient(circle, rgba(127,115,239,0.24) 0%, rgba(127,115,239,0) 72%)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: -28,
+                      left: -14,
+                      width: 96,
+                      height: 96,
+                      borderRadius: "50%",
+                      background: "radial-gradient(circle, rgba(31,151,221,0.2) 0%, rgba(31,151,221,0) 72%)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "relative",
+                      display: "inline-flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      borderLeft: "4px solid #7f73ef",
+                      paddingLeft: 10,
+                    }}
+                  >
+                    <InlineStack gap="200" blockAlign="center">
+                      <Text as="h2" variant="headingMd">
+                        Available Products
+                      </Text>
+                      <Badge tone="info">Curated</Badge>
+                    </InlineStack>
+                    <Text as="p" variant="bodyMd" tone="subdued">
+                      Click any card to preview details and quickly begin customization.
                     </Text>
-                    <Badge tone="info">Curated</Badge>
-                  </InlineStack>
-                  <Text as="p" variant="bodyMd" tone="subdued">
-                    Click any card to preview details and quickly begin customization.
-                  </Text>
-                </BlockStack>
+                  </div>
+                </div>
               </InlineStack>
 
               {hasProducts ? (
-                <div style={surfaceStyle}>
+                <>
                   {selectedProductData ? (
                     <div
                       style={{
@@ -252,51 +341,150 @@ export default function ProductsIndex() {
                     </div>
                   ) : null}
 
-                  <InlineGrid columns={{ xs: 1, sm: 2, md: 3, lg: 4 }} gap="400">
-                    {products.map((product) => (
-                      <ProductCard
-                        key={String(product.id)}
-                        product={product}
-                        onToggleFavorite={(pid) => {
-                          setProducts((prev) =>
-                            prev.map((p) =>
-                              String(p.id) === String(pid)
-                                ? { ...p, isFavorite: !p.isFavorite }
-                                : p
-                            )
-                          );
-                        }}
-                        onClick={(productId) => setSelectedProduct(String(productId))}
-                        isSelected={selectedProduct === String(product.id)}
-                        showFavorite={true}
-                        variant="default"
-                      />
-                    ))}
+                  <div style={{ marginTop: 10 }}>
+                    <InlineGrid columns={{ xs: 1, sm: 2, md: 3, lg: 4 }} gap="400">
+                      {products.map((product) => (
+                        <ProductCard
+                          key={String(product.id)}
+                          product={product}
+                          onToggleFavorite={(pid) => {
+                            setProducts((prev) =>
+                              prev.map((p) =>
+                                String(p.id) === String(pid)
+                                  ? { ...p, isFavorite: !p.isFavorite }
+                                  : p
+                              )
+                            );
+                          }}
+                          onClick={(productId) => setSelectedProduct(String(productId))}
+                          isSelected={selectedProduct === String(product.id)}
+                          showFavorite={true}
+                          variant="default"
+                        />
+                      ))}
 
-                    {Array.from({ length: fillerTileCount }).map((_, index) => (
-                      <div
-                        key={`filler-${index}`}
-                        style={{
-                          borderRadius: 12,
-                          border: "1px dashed #cbd5e1",
-                          backgroundColor: "#f8fafc",
-                          minHeight: 220,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: 16,
-                        }}
-                      >
-                        <BlockStack gap="100" inlineAlign="center">
-                          <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                            More styles coming soon
-                          </Text>
-                          <Badge tone="attention">Catalog expanding</Badge>
-                        </BlockStack>
-                      </div>
-                    ))}
-                  </InlineGrid>
-                </div>
+                      {Array.from({ length: fillerTileCount }).map((_, index) => (
+                        <div
+                          key={`filler-${index}`}
+                          className="dtfta-filler-card"
+                          style={{
+                            position: "relative",
+                            overflow: "hidden",
+                            borderRadius: 14,
+                            border: "1px solid #d6def0",
+                            background:
+                              "linear-gradient(145deg, #ffffff 0%, #f1f6ff 38%, #eef2ff 68%, #f7fbff 100%)",
+                            backgroundSize: "180% 180%",
+                            animation: "dtftaPlaceholderBgShift 8.5s ease-in-out infinite",
+                            minHeight: 220,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: 18,
+                            boxShadow: "0 12px 24px rgba(15,23,42,0.08)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: "-34%",
+                              width: "28%",
+                              height: "100%",
+                              background:
+                                "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%)",
+                              animation: "dtftaPlaceholderShimmer 3.8s ease-in-out infinite",
+                              pointerEvents: "none",
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              background:
+                                "linear-gradient(120deg, rgba(56,189,248,0.08) 0%, rgba(255,255,255,0) 42%, rgba(129,140,248,0.10) 100%)",
+                              pointerEvents: "none",
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: -24,
+                              right: -24,
+                              width: 88,
+                              height: 88,
+                              borderRadius: "50%",
+                              background:
+                                "radial-gradient(circle, rgba(127,115,239,0.26) 0%, rgba(127,115,239,0) 72%)",
+                              animation: "dtftaPlaceholderFloat 3.2s ease-in-out infinite",
+                              pointerEvents: "none",
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: "absolute",
+                              bottom: -28,
+                              left: -18,
+                              width: 92,
+                              height: 92,
+                              borderRadius: "50%",
+                              background:
+                                "radial-gradient(circle, rgba(31,151,221,0.22) 0%, rgba(31,151,221,0) 72%)",
+                              animation: "dtftaPlaceholderFloat 4s ease-in-out 0.4s infinite",
+                              pointerEvents: "none",
+                            }}
+                          />
+                          <BlockStack gap="100" inlineAlign="center">
+                            <div
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 999,
+                                border: "1px solid #c7d2fe",
+                                background: "linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                margin: "0 auto 4px",
+                              }}
+                            >
+                              <Text as="span" variant="bodySm" fontWeight="semibold">
+                                +
+                              </Text>
+                            </div>
+                            <Text as="p" variant="bodySm" alignment="center">
+                              <span style={{ color: "#475569", fontWeight: 500 }}>
+                                More styles coming soon
+                              </span>
+                            </Text>
+                            <Text as="p" variant="bodySm" alignment="center">
+                              <span style={{ color: "#64748b", fontSize: 12 }}>
+                                New catalog drops will appear here.
+                              </span>
+                            </Text>
+                            <div
+                              style={{
+                                width: 56,
+                                height: 3,
+                                borderRadius: 999,
+                                background: "linear-gradient(90deg, #818cf8 0%, #38bdf8 100%)",
+                                margin: "2px auto 0",
+                              }}
+                            />
+                            <div style={{ marginTop: 2 }}>
+                              <Badge tone="attention">Catalog expanding</Badge>
+                            </div>
+                            <Text as="p" variant="bodySm" alignment="center">
+                              <span style={{ color: "#6366f1", fontWeight: 600, fontSize: 12 }}>
+                                Stay tuned
+                              </span>
+                            </Text>
+                          </BlockStack>
+                        </div>
+                      ))}
+                    </InlineGrid>
+                  </div>
+                </>
               ) : (
                 <div
                   style={{
@@ -316,80 +504,109 @@ export default function ProductsIndex() {
                   </BlockStack>
                 </div>
               )}
-            </BlockStack>
-          </Card>
+          </BlockStack>
         </div>
 
         <div style={{ minWidth: "280px", maxWidth: "320px", flexShrink: 0 }}>
-          <Card>
-            <div style={surfaceStyle}>
-              <BlockStack gap="400">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text as="h2" variant="headingMd">
-                    Product Information
-                  </Text>
-                  <Badge tone="success">On-demand</Badge>
-                </InlineStack>
-
-                <Text as="p" variant="bodyMd">
-                  Products are made-to-order after purchase, so there is no inventory overhead.
+          <div style={sidebarSurfaceStyle}>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  Product Information
                 </Text>
+                <Badge tone="success">On-demand</Badge>
+              </InlineStack>
 
-                <List type="bullet">
-                  <List.Item>Full customization support</List.Item>
-                  <List.Item>White-label fulfillment</List.Item>
-                  <List.Item>US-based shipping</List.Item>
-                  <List.Item>Quality guaranteed</List.Item>
-                </List>
+              <Text as="p" variant="bodyMd" style={{ color: "#334155" }}>
+                Products are made-to-order after purchase, so there is no inventory overhead.
+              </Text>
 
-                {selectedProductData ? (
-                  <div
-                    style={{
-                      borderRadius: 10,
-                      border: "1px solid #dbe7ff",
-                      background:
-                        "linear-gradient(135deg, rgba(239,246,255,0.95) 0%, rgba(255,255,255,1) 100%)",
-                      padding: "10px 12px",
-                    }}
-                  >
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Selected product
-                    </Text>
-                    <Text as="p" fontWeight="semibold">
-                      {selectedProductData.name}
-                    </Text>
-                  </div>
-                ) : (
+              <List type="bullet">
+                <List.Item>Full customization support</List.Item>
+                <List.Item>White-label fulfillment</List.Item>
+                <List.Item>US-based shipping</List.Item>
+                <List.Item>Quality guaranteed</List.Item>
+              </List>
+
+              {selectedProductData ? (
+                <div
+                  style={{
+                    borderRadius: 12,
+                    border: "1px solid #cfe0ff",
+                    background:
+                      "linear-gradient(135deg, rgba(239,246,255,0.96) 0%, rgba(245,243,255,0.92) 100%)",
+                    padding: "12px 12px",
+                  }}
+                >
                   <Text as="p" variant="bodySm" tone="subdued">
-                    Select a product card to enable quick customization.
+                    Selected product
                   </Text>
-                )}
+                  <Text as="p" fontWeight="semibold">
+                    {selectedProductData.name}
+                  </Text>
+                </div>
+              ) : (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Select a product card to enable quick customization.
+                </Text>
+              )}
 
-                {selectedProductData ? (
-                  <button
-                    type="button"
-                    style={primaryButtonStyle}
-                    onClick={() => {
-                      const productKey =
-                        selectedProductData.productKey ?? String(selectedProductData.id);
+              {selectedProductData ? (
+                <button
+                className="products-sidebar-btn"
+                  type="button"
+                  style={{
+                    ...primaryButtonStyle,
+                    height: 38,
+                    width: "100%",
+                    fontWeight: 700,
+                  }}
+                  onClick={() => {
+                    const productKey =
+                      selectedProductData.productKey ?? String(selectedProductData.id);
 
-                      navigate(
-                        `/app/products/customize?productId=${encodeURIComponent(
-                          String(selectedProductData.id)
-                        )}&productKey=${encodeURIComponent(productKey)}`
-                      );
-                    }}
-                  >
-                    Customize and Add to Store
-                  </button>
-                ) : (
-                  <button type="button" style={secondaryButtonStyle} disabled>
-                    Choose a Product to Continue
-                  </button>
-                )}
-              </BlockStack>
-            </div>
-          </Card>
+                    navigate(
+                      `/app/products/customize?productId=${encodeURIComponent(
+                        String(selectedProductData.id)
+                      )}&productKey=${encodeURIComponent(productKey)}`
+                    );
+                  }}
+                >
+                  Customize and Add to Store
+                </button>
+              ) : (
+                <button
+                className="products-sidebar-btn"
+                  type="button"
+                  style={{
+                    ...secondaryButtonStyle,
+                    width: "100%",
+                    fontWeight: 700,
+                    border: "1px solid transparent",
+                    background: "linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)",
+                    color: "#ffffff",
+                    boxShadow: "0 8px 18px rgba(246,98,110,0.24)",
+                  opacity: 1,
+                  }}
+                  disabled
+                >
+                  Choose a Product to Continue
+                </button>
+              )}
+            </BlockStack>
+            <div
+              style={{
+                position: "absolute",
+                top: -30,
+                right: -22,
+                width: 96,
+                height: 96,
+                borderRadius: "50%",
+                background: "radial-gradient(circle, rgba(71,176,161,0.21) 0%, rgba(71,176,161,0) 72%)",
+                pointerEvents: "none",
+              }}
+            />
+          </div>
         </div>
         </InlineStack>
         <div style={{ marginBottom: 32 }} />

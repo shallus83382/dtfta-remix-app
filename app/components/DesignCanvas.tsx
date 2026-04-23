@@ -1032,15 +1032,16 @@ export default function DesignCanvas({
   const maxHeightVal = CANVAS_SIZE;
 
   const chipButtonStyle = {
-    borderRadius: 8,
+    borderRadius: 10,
     border: "1px solid #cbd5e1",
     height: 32,
     padding: "0 10px",
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
-    background: "#f8fafc",
+    background: "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
     color: "#0f172a",
+    boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
   } as const;
 
   const actionButtonStyle = {
@@ -1060,11 +1061,13 @@ export default function DesignCanvas({
       <div
         style={{
           marginBottom: 10,
-          borderRadius: 8,
-          background: "#f8fafc",
-          padding: "6px 10px",
+          borderRadius: 10,
+          border: "1px solid #dbe3ec",
+          background: "linear-gradient(145deg, #ffffff 0%, #f8fbff 100%)",
+          padding: "8px 12px",
           fontWeight: 600,
           color: "#0f172a",
+          boxShadow: "0 8px 18px rgba(15,23,42,0.05)",
         }}
       >
         {label}
@@ -1077,13 +1080,15 @@ export default function DesignCanvas({
           gap: 8,
           marginBottom: 10,
           flexWrap: "wrap",
-          borderRadius: 8,
-          background: "#f8fafc",
-          padding: 8,
+          borderRadius: 10,
+          border: "1px solid #dbe3ec",
+          background: "linear-gradient(145deg, #ffffff 0%, #f8fbff 100%)",
+          padding: 10,
+          boxShadow: "0 8px 18px rgba(15,23,42,0.05)",
         }}
       >
         <InlineStack gap="300" blockAlign="center">
-        <span style={{ fontSize: 12, fontWeight: 600 }}>Zoom:</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>Zoom:</span>
 
         <button
           type="button"
@@ -1100,7 +1105,7 @@ export default function DesignCanvas({
           −
         </button>
 
-        <span style={{ minWidth: 48, textAlign: "center", fontSize: 14 }}>
+        <span style={{ minWidth: 48, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
           {Math.round(zoom * 100)}%
         </span>
 
@@ -1151,7 +1156,8 @@ export default function DesignCanvas({
               border: "1px solid #cbd5e1",
               borderRadius: 8,
               padding: 2,
-              background: "#fff",
+              background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+              boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
               cursor: "pointer",
             }}
           />

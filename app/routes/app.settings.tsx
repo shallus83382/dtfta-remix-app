@@ -12,6 +12,7 @@ import {
 import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 import type { BrandSettings } from '../types';
+import AppHeroBanner from '../common/AppHeroBanner';
 
 type LoaderData = {
   success: boolean;
@@ -181,11 +182,11 @@ export default function Settings() {
   const completionPercent = Math.round((completedItems / 4) * 100);
 
   const panelStyle = {
-    borderRadius: 0,
-    border: 'none',
-    backgroundColor: 'transparent',
-    padding: 0,
-    boxShadow: 'none',
+    borderRadius: 14,
+    border: '1px solid #dbe3ec',
+    background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
+    padding: 16,
+    boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
   } as const;
 
   const submitButtonStyle = {
@@ -197,9 +198,9 @@ export default function Settings() {
     fontWeight: 600,
     cursor: 'pointer',
     transition: 'all 180ms ease',
-    background: 'linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)',
+    background: 'linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)',
     color: '#ffffff',
-    boxShadow: '0 8px 18px rgba(29,78,216,0.28)',
+    boxShadow: '0 10px 20px rgba(246,98,110,0.32)',
     width: 'fit-content',
   } as const;
 
@@ -227,29 +228,51 @@ export default function Settings() {
     transition: 'border-color 150ms ease, box-shadow 150ms ease',
   };
 
+  const sidebarSurfaceStyle = {
+    position: 'relative' as const,
+    overflow: 'hidden' as const,
+    borderRadius: 16,
+    border: '1px solid rgba(71,176,161,0.31)',
+    background: 'linear-gradient(145deg, #ffffff 0%, rgba(71,176,161,0.10) 100%)',
+    padding: 16,
+    boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+  };
+
   return (
     <Page title="Settings" fullWidth>
+      <style>
+        {`
+          .settings-save-btn {
+            position: relative;
+            overflow: hidden;
+          }
+          .settings-save-btn::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -38%;
+            width: 30%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-18deg);
+            transition: transform 520ms ease;
+            pointer-events: none;
+          }
+          .settings-save-btn:hover {
+            transform: translateY(-2px);
+            filter: saturate(1.08) brightness(1.03);
+          }
+          .settings-save-btn:hover::after {
+            transform: translateX(420%) skewX(-18deg);
+          }
+        `}
+      </style>
       <BlockStack gap="500">
-        <Card>
-          <div
-            style={{
-              borderRadius: 12,
-              background:
-                'linear-gradient(135deg, rgba(30,41,59,0.96) 0%, rgba(37,99,235,0.9) 55%, rgba(14,116,144,0.88) 100%)',
-              border: '1px solid rgba(148,163,184,0.28)',
-              padding: 22,
-            }}
-          >
-            <BlockStack gap="100">
-              <Text as="h2" variant="headingLg" tone="text-inverse">
-                Brand & Fulfillment Settings
-              </Text>
-              <Text as="p" tone="text-inverse">
-                Configure your brand details for packing slips, return labels, and support contact.
-              </Text>
-            </BlockStack>
-          </div>
-        </Card>
+        <AppHeroBanner
+          title="Brand & Fulfillment Settings"
+          subtitle="Configure your brand details for packing slips, return labels, and support contact."
+          minHeight={120}
+        />
 
       <InlineStack align="start" gap="400" blockAlign="start">
         <div style={{ flex: '1', minWidth: 0, maxWidth: 980 }}>
@@ -306,8 +329,7 @@ export default function Settings() {
 
               <Form method="post">
                 <BlockStack gap="500">
-                  <Card>
-                    <div style={panelStyle}>
+                  <div style={panelStyle}>
                       <BlockStack gap="400">
                         <Text as="h3" variant="headingSm">
                           Brand Information
@@ -328,11 +350,9 @@ export default function Settings() {
                           style={fieldInputStyle}
                         />
                       </BlockStack>
-                    </div>
-                  </Card>
+                  </div>
 
-                  <Card>
-                    <div style={panelStyle}>
+                  <div style={panelStyle}>
                       <BlockStack gap="400">
                         <Text as="h3" variant="headingSm">
                           Return Address
@@ -410,11 +430,9 @@ export default function Settings() {
                           </div>
                         </BlockStack>
                       </BlockStack>
-                    </div>
-                  </Card>
+                  </div>
 
-                  <Card>
-                    <div style={panelStyle}>
+                  <div style={panelStyle}>
                       <BlockStack gap="400">
                         <Text as="h3" variant="headingSm">
                           Support Contact
@@ -462,11 +480,10 @@ export default function Settings() {
                           </div>
                         </InlineGrid>
                       </BlockStack>
-                    </div>
-                  </Card>
+                  </div>
 
                   <div style={{ paddingBottom: 24 }}>
-                    <button type="submit" style={submitButtonStyle}>
+                    <button type="submit" className="settings-save-btn" style={submitButtonStyle}>
                       Save Settings
                     </button>
                   </div>
@@ -477,8 +494,19 @@ export default function Settings() {
         </div>
 
         <div style={{ minWidth: '320px', maxWidth: '360px', flexShrink: 0 }}>
-          <Card>
-            <div style={panelStyle}>
+            <div style={sidebarSurfaceStyle}>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: -30,
+                  right: -22,
+                  width: 96,
+                  height: 96,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(71,176,161,0.21) 0%, rgba(71,176,161,0) 72%)',
+                  pointerEvents: 'none',
+                }}
+              />
               <BlockStack gap="400">
                 <InlineStack align="space-between" blockAlign="start">
                   <Text as="h2" variant="headingMd">
@@ -533,7 +561,6 @@ export default function Settings() {
                 </Text>
               </BlockStack>
             </div>
-          </Card>
         </div>
       </InlineStack>
       <div style={{ marginBottom: 32 }} />

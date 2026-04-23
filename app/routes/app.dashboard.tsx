@@ -7,7 +7,6 @@ import {
   BlockStack,
   InlineStack,
   Text,
-  Link,
   Badge,
   InlineGrid,
 } from '@shopify/polaris';
@@ -244,6 +243,8 @@ export default function Dashboard() {
     }
   );
   const [brandSettings] = useState<BrandSettings | null>(loaderData?.brandSetting || null);
+  const [hoveredTopBox, setHoveredTopBox] = useState<string | null>(null);
+  const [hoveredStatCard, setHoveredStatCard] = useState<string | null>(null);
   const [setupStatus] = useState<SetupStatus>(
     loaderData?.fulfillmentStatus || {
       fulfillmentServiceConnected: false,
@@ -309,51 +310,81 @@ export default function Dashboard() {
     }
   };
 
+  const brandPalette = {
+    blue: '#3498db',
+    green: '#2ecc71',
+    pink: '#ff4da6',
+    orange: '#ff7a00',
+    teal: '#47b0a1',
+    coral: '#f6626e',
+    violet: '#7f73ef',
+    magenta: '#ee5499',
+    sky: '#1f97dd',
+  } as const;
+
+  const heroParticles = [
+    { left: '6%', top: '16%', size: 7, delay: '0s', duration: '3.2s', dx: 12, dy: -14 },
+    { left: '14%', top: '72%', size: 5, delay: '0.3s', duration: '3.8s', dx: -10, dy: -12 },
+    { left: '24%', top: '36%', size: 6, delay: '0.7s', duration: '3.5s', dx: 14, dy: -9 },
+    { left: '34%', top: '20%', size: 8, delay: '0.5s', duration: '4.1s', dx: -12, dy: -16 },
+    { left: '42%', top: '74%', size: 6, delay: '1.1s', duration: '3.6s', dx: 11, dy: -10 },
+    { left: '53%', top: '28%', size: 7, delay: '0.2s', duration: '3.4s', dx: -14, dy: -8 },
+    { left: '62%', top: '64%', size: 5, delay: '1.3s', duration: '3.1s', dx: 9, dy: -12 },
+    { left: '70%', top: '22%', size: 6, delay: '0.6s', duration: '4s', dx: -10, dy: -11 },
+    { left: '78%', top: '58%', size: 7, delay: '0.9s', duration: '3.3s', dx: 12, dy: -13 },
+    { left: '86%', top: '30%', size: 6, delay: '0.4s', duration: '3.7s', dx: -12, dy: -9 },
+    { left: '92%', top: '70%', size: 5, delay: '1s', duration: '3.2s', dx: 8, dy: -11 },
+  ] as const;
+
   const statsCards = [
     {
       label: 'Total Orders',
       value: dashboardStats.totalOrders,
       helper: 'All-time tracked orders',
-      tone: '#1f2937',
-      accent: '#dbeafe',
+      tone: brandPalette.blue,
+      accent: `linear-gradient(135deg, ${brandPalette.blue}20 0%, ${brandPalette.sky}1f 100%)`,
+      highlight: '+12% this week',
     },
     {
       label: 'Pending',
       value: dashboardStats.pending,
       helper: 'Awaiting production start',
-      tone: '#92400e',
-      accent: '#fef3c7',
+      tone: brandPalette.orange,
+      accent: `linear-gradient(135deg, ${brandPalette.orange}20 0%, ${brandPalette.coral}1f 100%)`,
+      highlight: 'Prioritize these today',
     },
     {
       label: 'In Production',
       value: dashboardStats.inProduction,
       helper: 'Currently being fulfilled',
-      tone: '#1e3a8a',
-      accent: '#dbeafe',
+      tone: brandPalette.violet,
+      accent: `linear-gradient(135deg, ${brandPalette.violet}20 0%, ${brandPalette.sky}1f 100%)`,
+      highlight: 'Running smoothly',
     },
     {
       label: 'Shipped',
       value: dashboardStats.shipped,
       helper: 'Completed and dispatched',
-      tone: '#065f46',
-      accent: '#d1fae5',
+      tone: brandPalette.green,
+      accent: `linear-gradient(135deg, ${brandPalette.green}20 0%, ${brandPalette.teal}1f 100%)`,
+      highlight: 'Delivery flow healthy',
     },
   ];
 
   const widgetSurfaceStyle: React.CSSProperties = {
     borderRadius: 14,
-    border: '1px solid #d7e0ea',
+    border: '1px solid #dbe3ec',
     padding: 16,
-    background: 'linear-gradient(180deg, #ffffff 0%, #f8fafd 100%)',
-    boxShadow: '0 8px 24px rgba(15,23,42,0.06)',
+    background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
+    boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
   };
 
   const panelSurfaceStyle: React.CSSProperties = {
     borderRadius: 14,
-    border: '1px solid #d7e0ea',
-    background: 'linear-gradient(180deg, rgba(248,250,252,0.9) 0%, #ffffff 100%)',
-    padding: 16,
-    boxShadow: '0 10px 28px rgba(15,23,42,0.06)',
+    border: '1px solid #dbe3ec',
+    background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
+    padding: 18,
+    boxShadow: '0 12px 28px rgba(15,23,42,0.08)',
   };
 
   const buttonBaseStyle: React.CSSProperties = {
@@ -364,35 +395,38 @@ export default function Dashboard() {
     fontSize: 13,
     fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 180ms ease',
+    transition: 'all 200ms ease',
+    transform: 'translateY(0)',
   };
 
   const primaryButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
-    background: 'linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)',
+    background: `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
     color: '#ffffff',
-    boxShadow: '0 8px 18px rgba(29,78,216,0.28)',
+    boxShadow: '0 10px 20px rgba(246,98,110,0.32)',
   };
 
   const secondaryButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
-    backgroundColor: '#f8fafc',
-    color: '#0f172a',
-    border: '1px solid #cbd5e1',
+    background: `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+    color: '#ffffff',
+    border: '1px solid transparent',
+    boxShadow: '0 10px 20px rgba(246,98,110,0.28)',
   };
 
   const ghostButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
     height: 30,
     padding: '0 10px',
-    backgroundColor: '#eff6ff',
-    color: '#1d4ed8',
-    border: '1px solid #bfdbfe',
+    background: `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+    color: '#ffffff',
+    border: '1px solid transparent',
+    boxShadow: '0 8px 16px rgba(246,98,110,0.24)',
   };
 
   const inverseButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    background: `linear-gradient(135deg, ${brandPalette.sky}66 0%, ${brandPalette.violet}66 100%)`,
     color: '#ffffff',
     border: '1px solid rgba(255,255,255,0.28)',
     backdropFilter: 'blur(2px)',
@@ -415,43 +449,204 @@ export default function Dashboard() {
 
   return (
     <Page title="Dashboard" fullWidth>
+      <style>
+        {`
+          .dtfta-btn {
+            position: relative;
+            overflow: hidden;
+          }
+          .dtfta-btn::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -38%;
+            width: 30%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-18deg);
+            transition: transform 520ms ease;
+            pointer-events: none;
+          }
+          .dtfta-btn:hover {
+            transform: translateY(-2px);
+            filter: saturate(1.08) brightness(1.03);
+          }
+          .dtfta-btn:hover::after {
+            transform: translateX(420%) skewX(-18deg);
+          }
+        `}
+      </style>
       <BlockStack gap="500">
-        <Card>
+        <Card padding="0">
           <div
             style={{
               background:
-                'linear-gradient(135deg, rgba(17,24,39,1) 0%, rgba(30,58,138,0.96) 58%, rgba(14,116,144,0.92) 100%)',
-              borderRadius: 12,
-              padding: 24,
+                `linear-gradient(122deg, ${brandPalette.blue} 0%, ${brandPalette.pink} 100%)`,
+              backgroundSize: '170% 170%',
+              animation: 'dtftaHeroGradient 10s ease-in-out infinite',
+              borderRadius: 14,
+              padding: 30,
               color: '#ffffff',
+              position: 'relative',
+              overflow: 'hidden',
+              minHeight: 170,
             }}
           >
+            <style>
+              {`
+                @keyframes dtftaHeroFloat {
+                  0% { transform: translate3d(0, 0, 0) scale(0.85); opacity: 0.24; }
+                  25% { transform: translate3d(var(--dx), calc(var(--dy) * 0.65), 0) scale(1.08); opacity: 0.72; }
+                  50% { transform: translate3d(calc(var(--dx) * -0.55), var(--dy), 0) scale(1.2); opacity: 1; }
+                  75% { transform: translate3d(calc(var(--dx) * 0.4), calc(var(--dy) * -0.45), 0) scale(1.04); opacity: 0.6; }
+                  100% { transform: translate3d(0, 0, 0) scale(0.85); opacity: 0.24; }
+                }
+                @keyframes dtftaHeroSweep {
+                  0% { transform: translateX(-18%); opacity: 0; }
+                  35% { opacity: 0.26; }
+                  100% { transform: translateX(118%); opacity: 0; }
+                }
+                @keyframes dtftaHeroNebula {
+                  0% { transform: scale(1) rotate(0deg); opacity: 0.18; }
+                  50% { transform: scale(1.08) rotate(10deg); opacity: 0.3; }
+                  100% { transform: scale(1) rotate(0deg); opacity: 0.18; }
+                }
+                @keyframes dtftaHeroGradient {
+                  0% { background-position: 0% 50%; }
+                  50% { background-position: 100% 50%; }
+                  100% { background-position: 0% 50%; }
+                }
+              `}
+            </style>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  `radial-gradient(circle at 18% 22%, ${brandPalette.sky}33 0%, transparent 38%), radial-gradient(circle at 82% 76%, ${brandPalette.pink}2b 0%, transparent 42%)`,
+                animation: 'dtftaHeroNebula 9.6s ease-in-out infinite',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: '-20%',
+                width: '40%',
+                height: '100%',
+                background:
+                  'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0) 100%)',
+                animation: 'dtftaHeroSweep 3.1s ease-in-out infinite',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: -90,
+                right: -70,
+                width: 280,
+                height: 280,
+                borderRadius: '50%',
+                background: `radial-gradient(circle, ${brandPalette.sky}66 0%, ${brandPalette.sky}00 72%)`,
+                animation: 'dtftaHeroNebula 4.3s ease-in-out infinite',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: -110,
+                left: -60,
+                width: 320,
+                height: 320,
+                borderRadius: '50%',
+                background: `radial-gradient(circle, ${brandPalette.pink}66 0%, ${brandPalette.pink}00 70%)`,
+                animation: 'dtftaHeroNebula 4.9s ease-in-out infinite',
+              }}
+            />
+            {heroParticles.map((particle, index) => (
+              <div
+                key={`${particle.left}-${particle.top}-${index}`}
+                style={{
+                  ['--dx' as string]: `${particle.dx}px`,
+                  ['--dy' as string]: `${particle.dy}px`,
+                  position: 'absolute',
+                  left: particle.left,
+                  top: particle.top,
+                  width: particle.size,
+                  height: particle.size,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.35) 68%, rgba(255,255,255,0.08) 100%)',
+                  boxShadow: '0 0 20px rgba(255,255,255,0.95), 0 0 36px rgba(255,255,255,0.4)',
+                  animation: `dtftaHeroFloat ${particle.duration} ease-in-out ${particle.delay} infinite`,
+                  pointerEvents: 'none',
+                }}
+              />
+            ))}
             <BlockStack gap="400">
-              <InlineStack align="space-between" blockAlign="start" gap="400">
-                <BlockStack gap="100">
-                  <Text as="h1" variant="heading2xl" tone="text-inverse">
+              <BlockStack gap="200">
+                <Text as="h1" variant="headingXl" tone="text-inverse">
+                  <span style={{ color: '#ffffff', textShadow: '0 1px 10px rgba(15,23,42,0.32)' }}>
                     DTFTA Operations Dashboard
-                  </Text>
-                  <Text as="p" tone="text-inverse">
+                  </span>
+                </Text>
+                <Text as="p" tone="text-inverse" variant="bodyMd">
+                  <span style={{ color: '#ffffff', fontWeight: 500 }}>
                     Manage fulfillment, products, and order flow from one professional control
                     center.
-                  </Text>
-                </BlockStack>
-                <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="text-inverse">
-                    Active shop
-                  </Text>
-                  <Text as="p" fontWeight="semibold" tone="text-inverse">
+                  </span>
+                </Text>
+              </BlockStack>
+
+              <InlineStack align="space-between" blockAlign="center" gap="300">
+                <InlineStack gap="200" blockAlign="center">
+                  <Badge tone="attention">Live Operations</Badge>
+                  <Badge tone="success">{`${setupCompletionPercent}% setup complete`}</Badge>
+                </InlineStack>
+                <div
+                  style={{
+                    borderRadius: 999,
+                    padding: '6px 12px',
+                    backgroundColor: 'rgba(255,255,255,0.16)',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    backdropFilter: 'blur(2px)',
+                  }}
+                >
+                  <Text as="p" variant="bodySm" fontWeight="semibold" tone="text-inverse">
                     {loaderData.shop}
                   </Text>
-                </BlockStack>
+                </div>
               </InlineStack>
 
               <InlineStack gap="200">
-                <button type="button" style={inverseButtonStyle} onClick={handleProductClick}>
+                <button
+                  className="dtfta-btn"
+                  type="button"
+                  style={{
+                    ...primaryButtonStyle,
+                    height: 38,
+                    padding: '0 16px',
+                    fontSize: 14,
+                    fontWeight: 700,
+                  }}
+                  onClick={handleProductClick}
+                >
                   View Products
                 </button>
-                <button type="button" style={inverseButtonStyle} onClick={handleOrderClick}>
+                <button
+                  className="dtfta-btn"
+                  type="button"
+                  style={{
+                    ...inverseButtonStyle,
+                    height: 38,
+                    padding: '0 16px',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    border: '1px solid rgba(255,255,255,0.48)',
+                  }}
+                  onClick={handleOrderClick}
+                >
                   View Orders
                 </button>
               </InlineStack>
@@ -459,60 +654,309 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        {loaderData?.isConnected ? (
-          <Card>
-            <InlineStack align="space-between">
-              <Text as="p" fontWeight="semibold" tone="success">
-                Shopify connection healthy
-              </Text>
-              <Text as="p" tone="subdued">
-                Access token active for this session
+        <InlineGrid columns={{ xs: 1, md: 3 }} gap="300">
+          <div
+            onMouseEnter={() => setHoveredTopBox('growth')}
+            onMouseLeave={() => setHoveredTopBox(null)}
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              borderRadius: 14,
+              border: '1px solid #dbe7f3',
+              background: '#ffffff',
+              padding: 14,
+              boxShadow:
+                hoveredTopBox === 'growth'
+                  ? '0 14px 30px rgba(59,130,246,0.2)'
+                  : '0 6px 14px rgba(15,23,42,0.05)',
+              transform: hoveredTopBox === 'growth' ? 'translateY(-3px)' : 'translateY(0)',
+              backdropFilter: hoveredTopBox === 'growth' ? 'blur(2px)' : 'blur(0px)',
+              transition: 'all 180ms ease',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: '-30%',
+                width: '28%',
+                height: '100%',
+                background:
+                  'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%)',
+                transform:
+                  hoveredTopBox === 'growth' ? 'translateX(420%) skewX(-18deg)' : 'translateX(0) skewX(-18deg)',
+                transition: 'transform 520ms ease',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: -30,
+                right: -24,
+                width: 92,
+                height: 92,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(52,152,219,0.14) 0%, rgba(52,152,219,0) 72%)',
+                pointerEvents: 'none',
+              }}
+            />
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="050">
+                <Text as="h3" variant="headingSm">
+                  <span style={{ color: '#0f172a' }}>Growth Snapshot</span>
+                </Text>
+                <Text as="p" variant="bodySm">
+                  <span style={{ color: '#475569' }}>
+                    Orders and production are synced and ready for scaling.
+                  </span>
+                </Text>
+              </BlockStack>
+              <Text as="p" fontWeight="semibold">
+                <span style={{ color: brandPalette.blue }}>{dashboardStats.totalOrders} orders</span>
               </Text>
             </InlineStack>
-          </Card>
-        ) : null}
+          </div>
+          <div
+            onMouseEnter={() => setHoveredTopBox('pulse')}
+            onMouseLeave={() => setHoveredTopBox(null)}
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              borderRadius: 14,
+              border: '1px solid #dbe7e4',
+              background: '#ffffff',
+              padding: 14,
+              boxShadow:
+                hoveredTopBox === 'pulse'
+                  ? '0 14px 30px rgba(71,176,161,0.22)'
+                  : '0 6px 14px rgba(15,23,42,0.05)',
+              transform: hoveredTopBox === 'pulse' ? 'translateY(-3px)' : 'translateY(0)',
+              backdropFilter: hoveredTopBox === 'pulse' ? 'blur(2px)' : 'blur(0px)',
+              transition: 'all 180ms ease',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: '-30%',
+                width: '28%',
+                height: '100%',
+                background:
+                  'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%)',
+                transform:
+                  hoveredTopBox === 'pulse' ? 'translateX(420%) skewX(-18deg)' : 'translateX(0) skewX(-18deg)',
+                transition: 'transform 520ms ease',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: -28,
+                right: -20,
+                width: 88,
+                height: 88,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(71,176,161,0.14) 0%, rgba(71,176,161,0) 72%)',
+                pointerEvents: 'none',
+              }}
+            />
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="050">
+                <Text as="h3" variant="headingSm">
+                  <span style={{ color: '#0f172a' }}>Fulfillment Pulse</span>
+                </Text>
+                <Text as="p" variant="bodySm">
+                  <span style={{ color: '#475569' }}>
+                    Monitor production and shipment consistency across active orders.
+                  </span>
+                </Text>
+              </BlockStack>
+              <Text as="p" fontWeight="semibold">
+                <span style={{ color: brandPalette.teal }}>{dashboardStats.fulfillmentRate.toFixed(1)}%</span>
+              </Text>
+            </InlineStack>
+          </div>
+          <div
+            onMouseEnter={() => setHoveredTopBox('connection')}
+            onMouseLeave={() => setHoveredTopBox(null)}
+            style={{
+              borderRadius: 14,
+              padding: '14px 14px',
+              border: '1px solid #dbe7e4',
+              background: '#ffffff',
+              boxShadow:
+                hoveredTopBox === 'connection'
+                  ? '0 14px 30px rgba(71,176,161,0.2)'
+                  : '0 6px 14px rgba(15,23,42,0.05)',
+              transform: hoveredTopBox === 'connection' ? 'translateY(-3px)' : 'translateY(0)',
+              backdropFilter: hoveredTopBox === 'connection' ? 'blur(2px)' : 'blur(0px)',
+              transition: 'all 180ms ease',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: '-30%',
+                width: '28%',
+                height: '100%',
+                background:
+                  'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.48) 50%, rgba(255,255,255,0) 100%)',
+                transform:
+                  hoveredTopBox === 'connection'
+                    ? 'translateX(420%) skewX(-18deg)'
+                    : 'translateX(0) skewX(-18deg)',
+                transition: 'transform 520ms ease',
+                pointerEvents: 'none',
+              }}
+            />
+            <BlockStack gap="050">
+              <Text as="h3" variant="headingSm">
+                <span style={{ color: '#0f172a' }}>Connection Healthy</span>
+              </Text>
+              <Text as="p" variant="bodySm">
+                <span style={{ color: '#475569' }}>Access token active for this session</span>
+              </Text>
+            </BlockStack>
+          </div>
+        </InlineGrid>
 
         <InlineStack align="start" gap="500" blockAlign="start">
           <div style={{ flex: '1', minWidth: 0 }}>
             <BlockStack gap="500">
               <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
                 {statsCards.map((item) => (
-                  <Card key={item.label}>
+                  <div
+                    key={item.label}
+                    onMouseEnter={() => setHoveredStatCard(item.label)}
+                    onMouseLeave={() => setHoveredStatCard(null)}
+                    style={{
+                      position: 'relative',
+                      overflow: 'hidden',
+                      borderRadius: 16,
+                      padding: 18,
+                      minHeight: 150,
+                      background: item.accent,
+                      border: `1px solid ${item.tone}55`,
+                      boxShadow:
+                        hoveredStatCard === item.label
+                          ? `0 18px 36px ${item.tone}33`
+                          : '0 14px 28px rgba(15,23,42,0.12)',
+                      transform: hoveredStatCard === item.label ? 'translateY(-4px)' : 'translateY(0)',
+                      transition: 'all 200ms ease',
+                    }}
+                  >
                     <div
                       style={{
-                        borderRadius: 10,
-                        padding: 16,
-                        background: `linear-gradient(145deg, #ffffff 0%, ${item.accent} 100%)`,
+                        position: 'absolute',
+                        top: 0,
+                        left: '-34%',
+                        width: '30%',
+                        height: '100%',
+                        background:
+                          'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%)',
+                        transform:
+                          hoveredStatCard === item.label
+                            ? 'translateX(430%) skewX(-16deg)'
+                            : 'translateX(0) skewX(-16deg)',
+                        transition: 'transform 560ms ease',
+                        pointerEvents: 'none',
+                        zIndex: 0,
                       }}
-                    >
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: -30,
+                        right: -28,
+                        width: 108,
+                        height: 108,
+                        borderRadius: '50%',
+                        background: `radial-gradient(circle, ${item.tone}45 0%, ${item.tone}00 72%)`,
+                        zIndex: 0,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: -40,
+                        top: 14,
+                        width: 120,
+                        height: 120,
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 70%)',
+                        zIndex: 0,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: 4,
+                        background: `linear-gradient(90deg, ${item.tone} 0%, rgba(255,255,255,0.95) 100%)`,
+                        zIndex: 0,
+                      }}
+                    />
+                    <div style={{ position: 'relative', zIndex: 1 }}>
                       <BlockStack gap="150">
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          {item.label}
-                        </Text>
-                        <Text as="h2" variant="heading2xl" fontWeight="bold">
-                          {item.value}
-                        </Text>
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          {item.helper}
+                      <InlineStack align="space-between" blockAlign="center">
+                        <Text as="p" variant="bodySm" fontWeight="medium">
+                          <span style={{ color: '#334155' }}>{item.label}</span>
                         </Text>
                         <div
                           style={{
-                            width: 40,
-                            height: 4,
-                            borderRadius: 4,
-                            backgroundColor: item.tone,
+                            minWidth: 26,
+                            height: 26,
+                            borderRadius: 999,
+                            background: `${item.tone}20`,
+                            border: `1px solid ${item.tone}55`,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0 8px',
                           }}
-                        />
+                        >
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            {item.value.toString()}
+                          </Text>
+                        </div>
+                      </InlineStack>
+                      <Text as="h2" variant="heading2xl" fontWeight="bold">
+                          <span style={{ color: '#0f172a' }}>{item.value.toString()}</span>
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        <span style={{ color: '#475569' }}>{item.helper}</span>
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        <span style={{ color: item.tone, fontWeight: 700 }}>{item.highlight}</span>
+                      </Text>
                       </BlockStack>
                     </div>
-                  </Card>
+                  </div>
                 ))}
               </InlineGrid>
 
               <Card>
-                <BlockStack gap="400">
+                <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="center">
-                    <BlockStack gap="100">
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        borderLeft: `4px solid ${brandPalette.pink}`,
+                        paddingLeft: 10,
+                      }}
+                    >
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="h2" variant="headingMd">
                           Featured Products
@@ -522,41 +966,51 @@ export default function Dashboard() {
                       <Text as="p" tone="subdued">
                         Curated top products ready for design customization and publishing.
                       </Text>
-                    </BlockStack>
-                    <button type="button" style={primaryButtonStyle} onClick={handleProductClick}>
+                    </div>
+                    <button
+                      className="dtfta-btn"
+                      type="button"
+                      style={{
+                        ...primaryButtonStyle,
+                        height: 36,
+                        padding: '0 14px',
+                        fontWeight: 700,
+                      }}
+                      onClick={handleProductClick}
+                    >
                       View All Products
                     </button>
                   </InlineStack>
 
                   {hasFeaturedProducts ? (
-                    <div style={panelSurfaceStyle}>
+                    <div style={{ marginTop: 10 }}>
                       <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
-                        {featuredProducts.map((product) => (
-                          <ProductCard
-                            key={String(product.id)}
-                            product={product}
-                            onToggleFavorite={(pid) => {
-                              setProducts((prev) =>
-                                prev.map((p) =>
-                                  String(p.id) === String(pid)
-                                    ? { ...p, isFavorite: !p.isFavorite }
-                                    : p
-                                )
-                              );
-                            }}
-                            showFavorite={true}
-                            variant="default"
-                          />
-                        ))}
+                      {featuredProducts.map((product) => (
+                        <ProductCard
+                          key={String(product.id)}
+                          product={product}
+                          onToggleFavorite={(pid) => {
+                            setProducts((prev) =>
+                              prev.map((p) =>
+                                String(p.id) === String(pid)
+                                  ? { ...p, isFavorite: !p.isFavorite }
+                                  : p
+                              )
+                            );
+                          }}
+                          showFavorite={true}
+                          variant="default"
+                        />
+                      ))}
                       </InlineGrid>
                     </div>
                   ) : (
                     <div
                       style={{
                         borderRadius: 12,
-                        border: '1px dashed #cbd5e1',
+                        border: '1px dashed #d5dee8',
                         backgroundColor: '#f8fafc',
-                        padding: 20,
+                        padding: 24,
                       }}
                     >
                       <BlockStack gap="200" align="center">
@@ -574,11 +1028,34 @@ export default function Dashboard() {
 
               <Card>
                 <BlockStack gap="300">
-                  <InlineStack align="space-between">
-                    <Text as="h2" variant="headingMd">
-                      Recent Orders
-                    </Text>
-                    <button type="button" style={secondaryButtonStyle} onClick={handleOrderClick}>
+                  <InlineStack align="space-between" blockAlign="center">
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        borderLeft: `4px solid ${brandPalette.orange}`,
+                        paddingLeft: 10,
+                      }}
+                    >
+                      <Text as="h2" variant="headingMd">
+                        Recent Orders
+                      </Text>
+                      <Text as="p" tone="subdued" variant="bodySm">
+                        Latest customer activity and fulfillment status.
+                      </Text>
+                    </div>
+                    <button
+                      className="dtfta-btn"
+                      type="button"
+                      style={{
+                        ...primaryButtonStyle,
+                        height: 36,
+                        padding: '0 14px',
+                        fontWeight: 700,
+                      }}
+                      onClick={handleOrderClick}
+                    >
                       View All Orders
                     </button>
                   </InlineStack>
@@ -612,7 +1089,7 @@ export default function Dashboard() {
                               <Text as="p" tone="subdued" variant="bodySm">
                                 {order.date}
                               </Text>
-                              <button type="button" style={ghostButtonStyle} onClick={handleOrderClick}>
+                              <button className="dtfta-btn" type="button" style={ghostButtonStyle} onClick={handleOrderClick}>
                                 Open
                               </button>
                             </BlockStack>
@@ -624,9 +1101,9 @@ export default function Dashboard() {
                     <div
                       style={{
                         borderRadius: 12,
-                        border: '1px dashed #cbd5e1',
+                        border: '1px dashed #d5dee8',
                         backgroundColor: '#f8fafc',
-                        padding: 20,
+                        padding: 24,
                       }}
                     >
                       <BlockStack gap="200" align="center">
@@ -646,15 +1123,36 @@ export default function Dashboard() {
 
           <div style={{ minWidth: '280px', maxWidth: '320px', flexShrink: 0, marginBottom: 24 }}>
             <BlockStack gap="500">
-              <Card>
-                <div style={widgetSurfaceStyle}>
-                  <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text as="h2" variant="headingMd">
-                        Connection Health
-                      </Text>
-                      <Badge tone="success">Live</Badge>
-                    </InlineStack>
+              <div
+                style={{
+                  ...widgetSurfaceStyle,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: 16,
+                  border: `1px solid ${brandPalette.teal}50`,
+                  background: `linear-gradient(145deg, #ffffff 0%, ${brandPalette.teal}1a 100%)`,
+                  boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -30,
+                    right: -22,
+                    width: 96,
+                    height: 96,
+                    borderRadius: '50%',
+                    background: `radial-gradient(circle, ${brandPalette.teal}36 0%, ${brandPalette.teal}00 72%)`,
+                    pointerEvents: 'none',
+                  }}
+                />
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      Connection Health
+                    </Text>
+                    <Badge tone="success">Live</Badge>
+                  </InlineStack>
 
                   <InlineStack align="space-between">
                     <Text as="span">Shopify Account</Text>
@@ -684,23 +1182,43 @@ export default function Dashboard() {
                       {setupStatus.locationCreated ? 'Created' : 'Not Created'}
                     </Text>
                   </InlineStack>
-                  </BlockStack>
-                </div>
-              </Card>
+                </BlockStack>
+              </div>
 
-              <Card>
-                <div style={widgetSurfaceStyle}>
-                  <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text as="h2" variant="headingMd">
-                        Fulfillment Performance
-                      </Text>
-                      <Badge tone={dashboardStats.fulfillmentRate >= 80 ? 'success' : 'warning'}>
-                        {dashboardStats.fulfillmentRate >= 80 ? 'Healthy' : 'Needs attention'}
-                      </Badge>
-                    </InlineStack>
+              <div
+                style={{
+                  ...widgetSurfaceStyle,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: 16,
+                  border: `1px solid ${brandPalette.violet}4f`,
+                  background: `linear-gradient(145deg, #ffffff 0%, ${brandPalette.violet}16 48%, ${brandPalette.blue}12 100%)`,
+                  boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -26,
+                    left: -20,
+                    width: 88,
+                    height: 88,
+                    borderRadius: '50%',
+                    background: `radial-gradient(circle, ${brandPalette.violet}33 0%, ${brandPalette.violet}00 72%)`,
+                    pointerEvents: 'none',
+                  }}
+                />
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      Fulfillment Performance
+                    </Text>
+                    <Badge tone={dashboardStats.fulfillmentRate >= 80 ? 'success' : 'warning'}>
+                      {dashboardStats.fulfillmentRate >= 80 ? 'Healthy' : 'Needs attention'}
+                    </Badge>
+                  </InlineStack>
                   <Text as="h2" variant="headingLg">
-                    {dashboardStats.fulfillmentRate.toFixed(1)}%
+                    <span style={{ color: '#1e293b' }}>{dashboardStats.fulfillmentRate.toFixed(1)}%</span>
                   </Text>
                   <Text as="p" tone="subdued">
                     Fulfillment rate across current operational orders.
@@ -718,25 +1236,45 @@ export default function Dashboard() {
                       style={{
                         width: `${Math.max(0, Math.min(100, dashboardStats.fulfillmentRate))}%`,
                         height: '100%',
-                        backgroundColor: '#2563eb',
+                        background: `linear-gradient(90deg, ${brandPalette.blue} 0%, ${brandPalette.violet} 100%)`,
                       }}
                     />
                   </div>
-                  </BlockStack>
-                </div>
-              </Card>
+                </BlockStack>
+              </div>
 
-              <Card>
-                <div style={widgetSurfaceStyle}>
-                  <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text as="h2" variant="headingMd">
-                        Setup Checklist
-                      </Text>
-                      <Badge tone={setupCompletionPercent === 100 ? 'success' : 'warning'}>
-                        {setupCompletionPercent === 100 ? 'Complete' : 'In Progress'}
-                      </Badge>
-                    </InlineStack>
+              <div
+                style={{
+                  ...widgetSurfaceStyle,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: 16,
+                  border: `1px solid ${brandPalette.green}54`,
+                  background: `linear-gradient(145deg, #ffffff 0%, ${brandPalette.green}14 100%)`,
+                  boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -18,
+                    right: -12,
+                    width: 78,
+                    height: 78,
+                    borderRadius: '50%',
+                    background: `radial-gradient(circle, ${brandPalette.green}30 0%, ${brandPalette.green}00 72%)`,
+                    pointerEvents: 'none',
+                  }}
+                />
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      Setup Checklist
+                    </Text>
+                    <Badge tone={setupCompletionPercent === 100 ? 'success' : 'warning'}>
+                      {setupCompletionPercent === 100 ? 'Complete' : 'In Progress'}
+                    </Badge>
+                  </InlineStack>
                   <Text as="p" tone="subdued">
                     {setupCompletionPercent}% complete
                   </Text>
@@ -766,6 +1304,7 @@ export default function Dashboard() {
                   </BlockStack>
                   {!isBrandSettingsComplete ? (
                     <button
+                      className="dtfta-btn"
                       type="button"
                       style={secondaryButtonStyle}
                       onClick={() => navigate('/app/onboarding')}
@@ -777,32 +1316,51 @@ export default function Dashboard() {
                       Brand settings are fully configured.
                     </Text>
                   )}
-                  </BlockStack>
-                </div>
-              </Card>
+                </BlockStack>
+              </div>
 
-              <Card>
-                <div style={widgetSurfaceStyle}>
-                  <BlockStack gap="200">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text as="h2" variant="headingMd">
-                        Quick Tips
-                      </Text>
-                      <Badge tone="info">Ops</Badge>
-                    </InlineStack>
+              <div
+                style={{
+                  ...widgetSurfaceStyle,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: 16,
+                  border: `1px solid ${brandPalette.pink}55`,
+                  background: `linear-gradient(145deg, #ffffff 0%, ${brandPalette.pink}12 50%, ${brandPalette.orange}12 100%)`,
+                  boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: -20,
+                    right: -10,
+                    width: 76,
+                    height: 76,
+                    borderRadius: '50%',
+                    background: `radial-gradient(circle, ${brandPalette.pink}2d 0%, ${brandPalette.pink}00 72%)`,
+                    pointerEvents: 'none',
+                  }}
+                />
+                <BlockStack gap="200">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      Quick Tips
+                    </Text>
+                    <Badge tone="info">Ops</Badge>
+                  </InlineStack>
                   <Text as="p" tone="subdued">
                     Keep top products updated and monitor pending orders daily for better delivery
                     consistency.
                   </Text>
-                  <button type="button" style={secondaryButtonStyle} onClick={handleProductClick}>
+                  <button className="dtfta-btn" type="button" style={secondaryButtonStyle} onClick={handleProductClick}>
                     Manage catalog
                   </button>
-                  <button type="button" style={secondaryButtonStyle} onClick={handleOrderClick}>
+                  <button className="dtfta-btn" type="button" style={secondaryButtonStyle} onClick={handleOrderClick}>
                     Review order queue
                   </button>
-                  </BlockStack>
-                </div>
-              </Card>
+                </BlockStack>
+              </div>
             </BlockStack>
           </div>
         </InlineStack>

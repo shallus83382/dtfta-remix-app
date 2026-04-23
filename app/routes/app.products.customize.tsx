@@ -17,6 +17,7 @@ import {
 import CustomizeCanvasSection from "../components/product-customize/CustomizeCanvasSection";
 import ColorSelector from "../components/product-customize/ColorSelector";
 import ProductMeta from "../components/product-customize/ProductMeta";
+import AppHeroBanner from "../common/AppHeroBanner";
 import { useProductCustomize } from "../lib/product-customize/useProductCustomize";
 import {
   loadCustomizeProduct,
@@ -133,6 +134,40 @@ export default function ProductCustomize() {
     variants: product?.variants ?? [],
     defaultColor: product?.variants?.[0]?.colorCode ?? "",
   });
+
+  const infoPanelStyle: React.CSSProperties = {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 16,
+    border: "1px solid rgba(71,176,161,0.28)",
+    background: "linear-gradient(145deg, #ffffff 0%, rgba(71,176,161,0.12) 100%)",
+    padding: 14,
+    boxShadow: "0 14px 30px rgba(15,23,42,0.1)",
+  };
+
+  const rightPanelStyle: React.CSSProperties = {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 16,
+    border: "1px solid rgba(127,115,239,0.28)",
+    background: "linear-gradient(145deg, #ffffff 0%, rgba(127,115,239,0.12) 100%)",
+    padding: 14,
+    boxShadow: "0 14px 30px rgba(15,23,42,0.1)",
+  };
+
+  const actionButtonStyle: React.CSSProperties = {
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.22)",
+    height: 34,
+    padding: "0 12px",
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all 180ms ease",
+    background: "linear-gradient(135deg, #ff7a00 0%, #f6626e 55%, #ee5499 100%)",
+    color: "#ffffff",
+    boxShadow: "0 10px 18px rgba(246,98,110,0.28)",
+  };
 
   const loadArtworkLibrary = useCallback(async (opts?: { append?: boolean; cursor?: string }) => {
     setIsLoadingArtwork(true);
@@ -304,40 +339,27 @@ export default function ProductCustomize() {
           </Card>
         ) : null}
 
-        <Card>
-          <div
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(30,41,59,0.96) 0%, rgba(37,99,235,0.9) 55%, rgba(14,116,144,0.88) 100%)",
-              borderRadius: 12,
-              padding: 20,
-              color: "#ffffff",
-            }}
-          >
-            <BlockStack gap="200">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text as="h2" variant="headingMd" tone="text-inverse">
-                  Product Customizer Studio
-                </Text>
-                {/* <Badge tone="info">Advanced Editor</Badge> */}
-              </InlineStack>
-              <Text as="p" tone="text-inverse">
-                Fine-tune print placement, color variants, and composition before publishing to
-                your storefront.
-              </Text>
-            </BlockStack>
-          </div>
-        </Card>
+        <AppHeroBanner
+          title="Product Customizer Studio"
+          subtitle="Fine-tune print placement, color variants, and composition before publishing to your storefront."
+          minHeight={120}
+        />
 
         <InlineStack align="start" gap="400" blockAlign="start">
           <div style={{ minWidth: 260, maxWidth: 300, flexShrink: 0 }}>
-            <div
-              style={{
-                borderRadius: 10,
-                backgroundColor: "#ffffff",
-                padding: 12,
-              }}
-            >
+            <div style={infoPanelStyle}>
+              <div
+                style={{
+                  position: "absolute",
+                  top: -26,
+                  right: -20,
+                  width: 84,
+                  height: 84,
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(71,176,161,0.25) 0%, rgba(71,176,161,0) 72%)",
+                  pointerEvents: "none",
+                }}
+              />
               <BlockStack gap="300">
                 <InlineStack align="space-between" blockAlign="center">
                   <Text as="h3" variant="headingSm">
@@ -375,7 +397,16 @@ export default function ProductCustomize() {
               onRegionChange={handleRegionChange}
               onRegisterActions={setCanvasActions}
             />
-            <div style={{ marginTop: 10 }}>
+            <div
+              style={{
+                marginTop: 12,
+                borderRadius: 12,
+                border: "1px solid #dbe3ec",
+                background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+                padding: "10px 12px",
+                boxShadow: "0 8px 18px rgba(15,23,42,0.06)",
+              }}
+            >
               <InlineStack align="center" gap="200" blockAlign="center">
                 {printAreas.map((area) => {
                   const key = normalizePlacementKey(area.title);
@@ -387,17 +418,19 @@ export default function ProductCustomize() {
                       onClick={() => handlePlacementChange(key)}
                       style={{
                         borderRadius: 999,
-                        border: isActive ? "1px solid transparent" : "1px solid #cbd5e1",
-                        height: 32,
-                        padding: "0 14px",
+                        border: isActive ? "1px solid transparent" : "1px solid #cfd8e3",
+                        height: 30,
+                        padding: "0 12px",
                         fontSize: 12,
                         fontWeight: 600,
                         cursor: "pointer",
                         background: isActive
-                          ? "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)"
-                          : "#f8fafc",
+                          ? "linear-gradient(135deg, #ff7a00 0%, #f6626e 55%, #ee5499 100%)"
+                          : "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
                         color: isActive ? "#ffffff" : "#0f172a",
-                        boxShadow: isActive ? "0 8px 18px rgba(29,78,216,0.28)" : "none",
+                        boxShadow: isActive
+                          ? "0 10px 18px rgba(246,98,110,0.28)"
+                          : "0 2px 6px rgba(15,23,42,0.08)",
                         transition: "all 150ms ease",
                       }}
                     >
@@ -410,13 +443,19 @@ export default function ProductCustomize() {
           </div>
 
           <div style={{ minWidth: 300, maxWidth: 340, flexShrink: 0 }}>
-              <div
-                style={{
-                  borderRadius: 10,
-                  backgroundColor: "#ffffff",
-                  padding: 12,
-                }}
-              >
+              <div style={rightPanelStyle}>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -24,
+                    right: -18,
+                    width: 88,
+                    height: 88,
+                    borderRadius: "50%",
+                    background: "radial-gradient(circle, rgba(127,115,239,0.24) 0%, rgba(127,115,239,0) 72%)",
+                    pointerEvents: "none",
+                  }}
+                />
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="center">
                     <Text as="h3" variant="headingSm">
@@ -454,15 +493,8 @@ export default function ProductCustomize() {
                         onClick={() => canvasActions?.addText()}
                         disabled={!canvasActions}
                         style={{
-                          borderRadius: 10,
-                          border: "1px solid #cbd5e1",
-                          height: 34,
-                          padding: "0 12px",
-                          fontSize: 12,
-                          fontWeight: 600,
+                          ...actionButtonStyle,
                           cursor: !canvasActions ? "not-allowed" : "pointer",
-                          background: "#ffffff",
-                          color: "#0f172a",
                           opacity: !canvasActions ? 0.6 : 1,
                         }}
                       >
@@ -474,15 +506,8 @@ export default function ProductCustomize() {
                         onClick={() => setIsImageModalOpen(true)}
                         disabled={!canvasActions}
                         style={{
-                          borderRadius: 10,
-                          border: "1px solid #cbd5e1",
-                          height: 34,
-                          padding: "0 12px",
-                          fontSize: 12,
-                          fontWeight: 600,
+                          ...actionButtonStyle,
                           cursor: !canvasActions ? "not-allowed" : "pointer",
-                          background: "#ffffff",
-                          color: "#0f172a",
                           opacity: !canvasActions ? 0.6 : 1,
                         }}
                       >
@@ -494,15 +519,8 @@ export default function ProductCustomize() {
                         onClick={() => canvasActions?.deleteSelected()}
                         disabled={!canvasActions}
                         style={{
-                          borderRadius: 10,
-                          border: "1px solid #cbd5e1",
-                          height: 34,
-                          padding: "0 12px",
-                          fontSize: 12,
-                          fontWeight: 600,
+                          ...actionButtonStyle,
                           cursor: !canvasActions ? "not-allowed" : "pointer",
-                          background: "#ffffff",
-                          color: "#0f172a",
                           opacity: !canvasActions ? 0.6 : 1,
                         }}
                       >
@@ -514,15 +532,8 @@ export default function ProductCustomize() {
                         onClick={() => canvasActions?.clear()}
                         disabled={!canvasActions}
                         style={{
-                          borderRadius: 10,
-                          border: "1px solid #cbd5e1",
-                          height: 34,
-                          padding: "0 12px",
-                          fontSize: 12,
-                          fontWeight: 600,
+                          ...actionButtonStyle,
                           cursor: !canvasActions ? "not-allowed" : "pointer",
-                          background: "#ffffff",
-                          color: "#0f172a",
                           opacity: !canvasActions ? 0.6 : 1,
                         }}
                       >
@@ -538,22 +549,22 @@ export default function ProductCustomize() {
                     style={{
                       borderRadius: 10,
                       border: "1px solid transparent",
-                      height: 38,
+                      height: 40,
                       width: "100%",
                       padding: "0 14px",
                       fontSize: 13,
-                      fontWeight: 600,
+                      fontWeight: 700,
                       cursor: fetcher.state !== "idle" ? "not-allowed" : "pointer",
                       transition: "all 180ms ease",
                       background:
                         fetcher.state !== "idle"
                           ? "#cbd5e1"
-                          : "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)",
+                          : "linear-gradient(135deg, #ff7a00 0%, #f6626e 55%, #ee5499 100%)",
                       color: "#ffffff",
                       boxShadow:
                         fetcher.state !== "idle"
                           ? "none"
-                          : "0 8px 18px rgba(29,78,216,0.28)",
+                          : "0 10px 22px rgba(246,98,110,0.32)",
                     }}
                   >
                     {fetcher.state !== "idle" ? "Adding..." : "Add to Store"}

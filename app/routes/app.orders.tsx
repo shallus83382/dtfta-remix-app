@@ -13,6 +13,7 @@ import {
 import { authenticate } from '../shopify.server';
 import type { Order, OrderStatus } from '../types';
 import { createExternalApiHeaders } from '../lib/external-api.server';
+import AppHeroBanner from '../common/AppHeroBanner';
 
 function normalizeOrder(input: unknown): Order | null {
   if (!input || typeof input !== 'object') return null;
@@ -156,10 +157,11 @@ export default function Orders() {
     fontSize: 13,
     fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 180ms ease',
-    background: 'linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)',
+    transition: 'all 200ms ease',
+    transform: 'translateY(0)',
+    background: 'linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)',
     color: '#ffffff',
-    boxShadow: '0 8px 18px rgba(29,78,216,0.28)',
+    boxShadow: '0 10px 20px rgba(246,98,110,0.32)',
   } as const;
 
   const secondaryButtonStyle = {
@@ -170,9 +172,11 @@ export default function Orders() {
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 180ms ease',
-    backgroundColor: '#f8fafc',
+    transition: 'all 200ms ease',
+    transform: 'translateY(0)',
+    background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
     color: '#0f172a',
+    boxShadow: '0 2px 8px rgba(15,23,42,0.06)',
   } as const;
 
   const getOrderAccentColor = (status: OrderStatus) => {
@@ -193,41 +197,21 @@ export default function Orders() {
   return (
     <Page title="Orders" fullWidth>
       <BlockStack gap="500">
-        <Card>
-          <div
-            style={{
-              background:
-                'linear-gradient(135deg, rgba(17,24,39,1) 0%, rgba(30,58,138,0.96) 58%, rgba(14,116,144,0.92) 100%)',
-              borderRadius: 12,
-              padding: 24,
-              color: '#ffffff',
-            }}
-          >
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="start">
-                <BlockStack gap="100">
-                  <Text as="h2" variant="headingLg" tone="text-inverse">
-                    Order Operations
-                  </Text>
-                  <Text as="p" tone="text-inverse">
-                    Track production status, search customer orders, and prioritize fulfillment in
-                    one place.
-                  </Text>
-                </BlockStack>
-                <Badge tone="info">Live Queue</Badge>
-              </InlineStack>
-
-              <InlineStack gap="200">
-                <button type="button" style={secondaryButtonStyle}>
-                  Total: {orders.length}
-                </button>
-                <button type="button" style={secondaryButtonStyle}>
-                  Filter: {selectedOrderFilter}
-                </button>
-              </InlineStack>
-            </BlockStack>
-          </div>
-        </Card>
+        <AppHeroBanner
+          title="Order Operations"
+          subtitle="Track production status, search customer orders, and prioritize fulfillment in one place."
+          badges={<Badge tone="info">Live Queue</Badge>}
+          actions={
+            <>
+              <button type="button" style={secondaryButtonStyle}>
+                Total: {orders.length}
+              </button>
+              <button type="button" style={secondaryButtonStyle}>
+                Filter: {selectedOrderFilter}
+              </button>
+            </>
+          }
+        />
 
         <InlineStack align="start" gap="500" blockAlign="start">
           <div style={{ flex: '1', minWidth: 0 }}>
@@ -339,8 +323,29 @@ export default function Orders() {
           </div>
 
           <div style={{ minWidth: '320px', maxWidth: '360px', flexShrink: 0 }}>
-            <Card>
-              <div style={surfaceStyle}>
+              <div
+                style={{
+                  ...surfaceStyle,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: 16,
+                  border: '1px solid rgba(71,176,161,0.31)',
+                  background: 'linear-gradient(145deg, #ffffff 0%, rgba(71,176,161,0.10) 100%)',
+                  boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -30,
+                    right: -22,
+                    width: 96,
+                    height: 96,
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle, rgba(71,176,161,0.21) 0%, rgba(71,176,161,0) 72%)',
+                    pointerEvents: 'none',
+                  }}
+                />
                 <BlockStack gap="400">
                   <InlineStack align="space-between" blockAlign="center">
                     <Text as="h2" variant="headingMd">
@@ -392,7 +397,6 @@ export default function Orders() {
                   </BlockStack>
                 </BlockStack>
               </div>
-            </Card>
           </div>
         </InlineStack>
       </BlockStack>

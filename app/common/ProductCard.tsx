@@ -63,15 +63,18 @@ export default function ProductCard({
       tabIndex={0}
       style={{
         cursor: "pointer",
-        border: "none",
-        borderRadius: 0,
-        backgroundColor: isActiveVisual ? "#0f172a" : "transparent",
+        border: isActiveVisual ? "1px solid rgba(59,130,246,0.42)" : "1px solid #e2e8f0",
+        borderRadius: 14,
+        background:
+          isActiveVisual
+            ? "linear-gradient(145deg, #0f172a 0%, #1e293b 52%, #334155 100%)"
+            : "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
         boxShadow: isActiveVisual
-          ? "0 8px 16px rgba(15,23,42,0.08)"
-          : "none",
-        transform: isActiveVisual ? "translateY(-2px)" : "translateY(0)",
+          ? "0 16px 30px rgba(15,23,42,0.28)"
+          : "0 8px 18px rgba(15,23,42,0.08)",
+        transform: isActiveVisual ? "translateY(-3px)" : "translateY(0)",
         transition: "all 180ms ease",
-        padding: 0,
+        padding: 10,
       }}
     >
       <div style={{ position: "relative" }}>
@@ -81,11 +84,22 @@ export default function ProductCard({
             width: "100%",
             aspectRatio: "1",
             overflow: "hidden",
-            borderRadius: "0px",
-            backgroundColor: "#efefea",
-            marginBottom: "0.8rem",
+            borderRadius: "10px",
+            background:
+              "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.9) 0%, rgba(241,245,249,1) 58%, rgba(226,232,240,1) 100%)",
+            marginBottom: "0.7rem",
           }}
         >
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(140deg, rgba(59,130,246,0.08) 0%, rgba(236,72,153,0.05) 54%, rgba(255,255,255,0) 100%)",
+              pointerEvents: "none",
+              zIndex: 1,
+            }}
+          />
           <img
             src={product.image}
             alt={product.name}
@@ -94,8 +108,10 @@ export default function ProductCard({
               height: "100%",
               objectFit: "cover",
               display: "block",
-              transform: isHovered ? "scale(1.015)" : "scale(1)",
+              transform: isHovered ? "scale(1.03)" : "scale(1)",
               transition: "transform 200ms ease",
+              zIndex: 0,
+              position: "relative",
             }}
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = "none";
@@ -108,12 +124,13 @@ export default function ProductCard({
                 position: "absolute",
                 bottom: "10px",
                 left: "10px",
-                backgroundColor: "#d9be7e",
-                color: "#4b3a13",
-                borderRadius: 2,
-                padding: "2px 6px",
-                fontSize: 12,
+                background: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)",
+                color: "#ffffff",
+                borderRadius: 999,
+                padding: "3px 8px",
+                fontSize: 11,
                 fontWeight: 600,
+                zIndex: 2,
               }}
             >
               Bestseller
@@ -127,13 +144,15 @@ export default function ProductCard({
                 top: "10px",
                 right: "10px",
                 cursor: "pointer",
-                backgroundColor: "#ffffff",
-                borderRadius: 2,
+                backgroundColor: "rgba(255,255,255,0.92)",
+                border: "1px solid #dbe4ee",
+                borderRadius: 999,
                 width: "32px",
                 height: "32px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                zIndex: 2,
               }}
               onClick={handleFavoriteClick}
             >
@@ -154,14 +173,14 @@ export default function ProductCard({
           )}
         </div>
 
-        <div style={{ padding: "0 10px 10px" }}>
+        <div style={{ padding: "0 4px 4px" }}>
           <BlockStack gap="100">
             <Text
               as="p"
               variant={variant === "compact" ? "bodySm" : "headingSm"}
               fontWeight="semibold"
               tone={isActiveVisual ? "text-inverse" : "base"}
-              style={{ color: isActiveVisual ? "#ffffff" : undefined }}
+              style={{ color: isActiveVisual ? "#ffffff" : "#0f172a" }}
               truncate
             >
               {product.name}
@@ -170,7 +189,7 @@ export default function ProductCard({
               as="p"
               variant="bodySm"
               tone={isActiveVisual ? "text-inverse" : "subdued"}
-              style={{ color: isActiveVisual ? "#cbd5e1" : undefined }}
+              style={{ color: isActiveVisual ? "rgba(255,255,255,0.9)" : undefined }}
               truncate
             >
               By {product.brand} {product.model ? `・${product.model}` : ""}
@@ -180,7 +199,7 @@ export default function ProductCard({
               variant={variant === "compact" ? "bodyMd" : "headingSm"}
               fontWeight="semibold"
               tone={isActiveVisual ? "text-inverse" : "base"}
-              style={{ color: isActiveVisual ? "#ffffff" : undefined }}
+              style={{ color: isActiveVisual ? "#ffffff" : "#0f172a" }}
             >
               From {product?.currency} {formattedPrice}
             </Text>
@@ -188,7 +207,7 @@ export default function ProductCard({
               as="p"
               variant="bodySm"
               tone={isActiveVisual ? "text-inverse" : "subdued"}
-              style={{ color: isActiveVisual ? "#cbd5e1" : undefined }}
+              style={{ color: isActiveVisual ? "rgba(255,255,255,0.9)" : undefined }}
             >
               {product.colors?.length ?? 0} colors · {product.sizes?.length ?? 0} sizes
             </Text>

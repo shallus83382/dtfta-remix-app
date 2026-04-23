@@ -6,14 +6,13 @@ import {
   Page,
   Card,
   BlockStack,
-  Text,
   TextField,
   Badge,
-  InlineStack,
 } from "@shopify/polaris";
 
 import { login } from "../../shopify.server";
 import { loginErrorMessage } from "./error.server";
+import AppHeroBanner from "../../common/AppHeroBanner";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const errors = loginErrorMessage(await login(request));
@@ -39,31 +38,11 @@ export default function Auth() {
     <AppProvider embedded={false}>
       <Page title="Login" fullWidth>
         <BlockStack gap="500">
-          <Card>
-            <div
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(30,41,59,0.96) 0%, rgba(37,99,235,0.9) 55%, rgba(14,116,144,0.88) 100%)",
-                borderRadius: 12,
-                padding: 24,
-                color: "#ffffff",
-              }}
-            >
-              <BlockStack gap="300">
-                <InlineStack align="space-between" blockAlign="start">
-                  <BlockStack gap="100">
-                    <Text as="h2" variant="headingLg" tone="text-inverse">
-                      DTFTA Admin Access
-                    </Text>
-                    <Text as="p" tone="text-inverse">
-                      Log in with your Shopify store domain to access DTFTA operations.
-                    </Text>
-                  </BlockStack>
-                  <Badge tone="info">Secure Login</Badge>
-                </InlineStack>
-              </BlockStack>
-            </div>
-          </Card>
+          <AppHeroBanner
+            title="DTFTA Admin Access"
+            subtitle="Log in with your Shopify store domain to access DTFTA operations."
+            badges={<Badge tone="info">Secure Login</Badge>}
+          />
 
           <Card>
             <div
