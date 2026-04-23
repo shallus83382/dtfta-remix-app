@@ -3,7 +3,8 @@ import AppHeroBanner from "../common/AppHeroBanner";
 
 export default function AdditionalPage() {
   return (
-    <Page title="Additional" fullWidth>
+    <Page fullWidth>
+      <div style={{ maxWidth: 1420, margin: "0 auto", width: "100%" }}>
       <BlockStack gap="500">
         <AppHeroBanner
           title="Additional Page"
@@ -11,6 +12,7 @@ export default function AdditionalPage() {
           badges={<Badge tone="info">Design Updated</Badge>}
         />
       </BlockStack>
+      </div>
     </Page>
   );
 }

@@ -205,7 +205,8 @@ export default function Onboarding() {
   } as const;
 
   return (
-    <Page title="Welcome to DTFTA" fullWidth>
+    <Page fullWidth>
+      <div style={{ maxWidth: 1420, margin: '0 auto', width: '100%' }}>
       <BlockStack gap="500">
         <AppHeroBanner
           title="Welcome to DTFTA Onboarding"
@@ -419,6 +420,7 @@ export default function Onboarding() {
         </InlineStack>
         <div style={{ marginBottom: 32 }} />
       </BlockStack>
+      </div>
     </Page>
   );
 }

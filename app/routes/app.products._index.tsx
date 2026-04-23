@@ -182,7 +182,7 @@ export default function ProductsIndex() {
   };
 
   return (
-    <Page title="DTFTA Products" fullWidth>
+    <Page fullWidth>
       <style>
         {`
           .products-sidebar-btn {
@@ -234,6 +234,7 @@ export default function ProductsIndex() {
           }
         `}
       </style>
+      <div style={{ maxWidth: 1420, margin: "0 auto", width: "100%" }}>
       <BlockStack gap="500">
         <AppHeroBanner
           title="DTFTA Product Catalog"
@@ -611,6 +612,7 @@ export default function ProductsIndex() {
         </InlineStack>
         <div style={{ marginBottom: 32 }} />
       </BlockStack>
+      </div>
     </Page>
   );
 }

@@ -195,7 +195,8 @@ export default function Orders() {
   };
 
   return (
-    <Page title="Orders" fullWidth>
+    <Page fullWidth>
+      <div style={{ maxWidth: 1420, margin: '0 auto', width: '100%' }}>
       <BlockStack gap="500">
         <AppHeroBanner
           title="Order Operations"
@@ -400,6 +401,7 @@ export default function Orders() {
           </div>
         </InlineStack>
       </BlockStack>
+      </div>
     </Page>
   );
 }

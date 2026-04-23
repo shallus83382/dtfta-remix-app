@@ -239,7 +239,7 @@ export default function Settings() {
   };
 
   return (
-    <Page title="Settings" fullWidth>
+    <Page fullWidth>
       <style>
         {`
           .settings-save-btn {
@@ -267,6 +267,7 @@ export default function Settings() {
           }
         `}
       </style>
+      <div style={{ maxWidth: 1420, margin: '0 auto', width: '100%' }}>
       <BlockStack gap="500">
         <AppHeroBanner
           title="Brand & Fulfillment Settings"
@@ -565,6 +566,7 @@ export default function Settings() {
       </InlineStack>
       <div style={{ marginBottom: 32 }} />
       </BlockStack>
+      </div>
     </Page>
   );
 }

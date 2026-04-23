@@ -10,6 +10,11 @@ import {
   Badge,
   InlineGrid,
 } from '@shopify/polaris';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, Navigation, Pagination } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 import {
@@ -245,6 +250,7 @@ export default function Dashboard() {
   const [brandSettings] = useState<BrandSettings | null>(loaderData?.brandSetting || null);
   const [hoveredTopBox, setHoveredTopBox] = useState<string | null>(null);
   const [hoveredStatCard, setHoveredStatCard] = useState<string | null>(null);
+  const [newsActiveIndex, setNewsActiveIndex] = useState(0);
   const [setupStatus] = useState<SetupStatus>(
     loaderData?.fulfillmentStatus || {
       fulfillmentServiceConnected: false,
@@ -447,10 +453,91 @@ export default function Dashboard() {
     }
   };
 
+  const newsSlides = [
+    {
+      tag: 'New',
+      title: '80% of merchants who expand to Etsy increase their sales within 3 months.',
+      description:
+        "We will help you to connect, optimize and publish your created products to Etsy so you don't lose any opportunities.",
+      cta: 'Try Etsy',
+      image: '/assets/customizer/product/long-sleeve-tee.jpg',
+      leftSurface: '#f8963a',
+      buttonBg: '#2f3308',
+      icon: '✋',
+    },
+    {
+      tag: 'Trending',
+      title: 'Hoodies are performing strongly this month',
+      description:
+        'Create quick hoodie variants from your existing designs and publish them to capture seasonal demand.',
+      cta: 'Launch hoodie collection',
+      image: '/assets/customizer/product/heavy-blend-hoodie-front.png',
+      leftSurface: '#f7f7f2',
+      buttonBg: '#2f3308',
+      icon: '↗',
+    },
+    {
+      tag: 'Tip',
+      title: 'Improve conversions with lifestyle product previews',
+      description:
+        'Use polished mockups and clear descriptions to build trust and increase add-to-cart rates.',
+      cta: 'Optimize product pages',
+      image: '/assets/customizer/product/unisex-tee-front.png',
+      leftSurface: '#f7f7f2',
+      buttonBg: '#2f3308',
+      icon: '✓',
+    },
+  ] as const;
+
   return (
-    <Page title="Dashboard" fullWidth>
+    <Page fullWidth>
       <style>
         {`
+          .dtfta-news-swiper .swiper {
+            width: 100%;
+            overflow: hidden;
+          }
+          .dtfta-news-swiper {
+            position: relative;
+          }
+          .dtfta-news-swiper .swiper-button-prev,
+          .dtfta-news-swiper .swiper-button-next {
+            display: none !important;
+          }
+          .dtfta-news-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 6;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid #dbe3ec;
+            background: rgba(255,255,255,0.96);
+            color: #334155;
+            box-shadow: 0 6px 14px rgba(15,23,42,0.12);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            padding: 0;
+          }
+          .dtfta-news-nav-prev {
+            left: 8px;
+          }
+          .dtfta-news-nav-next {
+            right: 8px;
+          }
+          .dtfta-news-swiper .swiper-wrapper {
+            display: flex;
+            align-items: stretch;
+          }
+          .dtfta-news-swiper .swiper-slide {
+            flex-shrink: 0;
+            height: auto;
+          }
           .dtfta-btn {
             position: relative;
             overflow: hidden;
@@ -476,6 +563,7 @@ export default function Dashboard() {
           }
         `}
       </style>
+      <div style={{ maxWidth: 1420, margin: '0 auto', width: '100%' }}>
       <BlockStack gap="500">
         <Card padding="0">
           <div
@@ -826,6 +914,317 @@ export default function Dashboard() {
           </div>
         </InlineGrid>
 
+        <div style={{ marginTop: 20 }}>
+        <Card>
+          <div
+            style={{
+              borderRadius: 0,
+              padding: 0,
+            }}
+          >
+            <BlockStack gap="400">
+              <InlineGrid columns={{ xs: 1, md: 2 }} gap="300">
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: '1px solid #e2e8f0',
+                    background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
+                    padding: 24,
+                    boxShadow: '0 10px 24px rgba(15,23,42,0.06)',
+                  }}
+                >
+                  <BlockStack gap="200">
+                    <InlineStack gap="200" blockAlign="center">
+                      <Badge tone="info">New users</Badge>
+                      <Badge tone="success">Getting started</Badge>
+                    </InlineStack>
+                    <BlockStack gap="100">
+                      <Text as="h2" variant="heading2xl">
+                        Launch your print store in 4 simple steps
+                      </Text>
+                      <div style={{ marginBottom: 20 }}>
+                        <Text as="p" variant="bodyMd" tone="subdued">
+                          This landing guide helps you move from setup to publishing and order operations quickly.
+                        </Text>
+                      </div>
+                    </BlockStack>
+                    <InlineGrid columns={{ xs: 1, sm: 2 }} gap="300">
+                      {[
+                        {
+                          title: 'Business profile setup',
+                          detail: 'Add your brand name, return address, and support email.',
+                          tone: 'rgba(31,151,221,0.10)',
+                        },
+                        {
+                          title: 'Choose and customize products',
+                          detail: 'Pick products, upload artwork, and set print options.',
+                          tone: 'rgba(71,176,161,0.10)',
+                        },
+                        {
+                          title: 'Publish to Shopify store',
+                          detail: 'Push approved products live with your brand details.',
+                          tone: 'rgba(127,115,239,0.10)',
+                        },
+                        {
+                          title: 'Track order fulfillment',
+                          detail: 'Monitor statuses and handle exceptions from one dashboard.',
+                          tone: 'rgba(246,98,110,0.10)',
+                        },
+                      ].map((step, index) => (
+                        <div
+                          key={step.title}
+                          style={{
+                            borderRadius: 12,
+                            border: '1px solid #e2e8f0',
+                            background: '#ffffff',
+                            padding: '14px 14px',
+                            boxShadow: '0 6px 14px rgba(15,23,42,0.04)',
+                          }}
+                        >
+                          <InlineStack gap="200" blockAlign="start">
+                            <div
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 999,
+                                background: 'linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)',
+                                color: '#ffffff',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                flexShrink: 0,
+                                marginTop: 2,
+                                boxShadow: '0 8px 14px rgba(246,98,110,0.28)',
+                              }}
+                            >
+                              {`0${index + 1}`}
+                            </div>
+                            <BlockStack gap="050">
+                              <Text as="p" variant="bodyMd" fontWeight="semibold">
+                                <span style={{ color: '#111827' }}>{step.title}</span>
+                              </Text>
+                              <Text as="p" variant="bodySm">
+                                <span style={{ color: '#64748b' }}>{step.detail}</span>
+                              </Text>
+                            </BlockStack>
+                          </InlineStack>
+                          <div
+                            style={{
+                              marginTop: 10,
+                              width: '100%',
+                              height: 3,
+                              borderRadius: 999,
+                              background: `linear-gradient(90deg, ${step.tone} 0%, rgba(255,255,255,0) 100%)`,
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </InlineGrid>
+                    <div style={{ marginTop: 18 }}>
+                    <InlineStack gap="300">
+                      <button
+                        className="dtfta-btn"
+                        type="button"
+                        style={{
+                          ...primaryButtonStyle,
+                          height: 42,
+                          padding: '0 20px',
+                          fontWeight: 700,
+                        }}
+                        onClick={() => navigate('/app/onboarding')}
+                      >
+                        Start Setup
+                      </button>
+                      <button
+                        className="dtfta-btn"
+                        type="button"
+                        style={{
+                          ...secondaryButtonStyle,
+                          height: 42,
+                          padding: '0 20px',
+                          fontWeight: 700,
+                        }}
+                        onClick={handleProductClick}
+                      >
+                        Explore Products
+                      </button>
+                    </InlineStack>
+                    </div>
+                  </BlockStack>
+                </div>
+
+                <div
+                  style={{
+                    borderRadius: 14,
+                    border: '1px solid #dbe3ec',
+                    background: 'linear-gradient(145deg, #ffffff 0%, #f8fbff 100%)',
+                    padding: 12,
+                    boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
+                    minHeight: 260,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -30,
+                      right: -20,
+                      width: 110,
+                      height: 110,
+                      borderRadius: '50%',
+                      background: 'radial-gradient(circle, rgba(31,151,221,0.16) 0%, rgba(31,151,221,0) 72%)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <img
+                    src="/assets/customizer/product/unisex-tee-front.png"
+                    alt="Product customization preview"
+                    style={{
+                      width: '100%',
+                      height: 240,
+                      objectFit: 'contain',
+                      borderRadius: 10,
+                      background: '#ffffff',
+                    }}
+                  />
+                </div>
+              </InlineGrid>
+
+            </BlockStack>
+          </div>
+        </Card>
+        </div>
+
+        <div style={{ paddingTop: 28, paddingBottom: 28 }}>
+          <BlockStack gap="200">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h2" variant="headingLg">
+                  News, offers, trends and more
+                </Text>
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {newsSlides.length} updates
+                </Text>
+              </InlineStack>
+              <div className="dtfta-news-swiper" style={{ marginTop: 10 }}>
+                <button type="button" className="dtfta-news-nav dtfta-news-nav-prev" aria-label="Previous">
+                  ‹
+                </button>
+                <button type="button" className="dtfta-news-nav dtfta-news-nav-next" aria-label="Next">
+                  ›
+                </button>
+                <Swiper
+                  modules={[Autoplay, Navigation]}
+                  slidesPerView={1}
+                  spaceBetween={24}
+                  loop
+                  speed={700}
+                  navigation={{ prevEl: '.dtfta-news-nav-prev', nextEl: '.dtfta-news-nav-next' }}
+                  autoplay={{ delay: 3200, disableOnInteraction: false, pauseOnMouseEnter: true }}
+                  onSlideChange={(swiper) => setNewsActiveIndex(swiper.realIndex)}
+                  breakpoints={{
+                    1024: {
+                      slidesPerView: 1.5,
+                      spaceBetween: 24,
+                    },
+                  }}
+                >
+                  {newsSlides.map((slide) => (
+                    <SwiperSlide key={slide.title}>
+                      <div
+                        style={{
+                          borderRadius: 12,
+                          background: '#ffffff',
+                          padding: 12,
+                        }}
+                      >
+                        <InlineGrid columns={{ xs: 1, md: '2fr 3fr' }} gap="200">
+                          <div
+                            style={{
+                              borderRadius: 10,
+                              overflow: 'hidden',
+                              minHeight: 260,
+                              background: '#ffffff',
+                            }}
+                          >
+                            <img
+                              src={slide.image}
+                              alt={slide.title}
+                              style={{ width: '100%', height: 260, objectFit: 'cover' }}
+                            />
+                          </div>
+                          <div
+                            style={{
+                              borderRadius: 10,
+                              background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                              padding: 24,
+                              minHeight: 260,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              gap: 14,
+                            }}
+                          >
+                            <div>
+                              <Badge tone="info">{slide.tag}</Badge>
+                            </div>
+                            <Text as="h3" variant="headingXl">
+                              <span style={{ color: '#0f172a', letterSpacing: '-0.01em' }}>{slide.title}</span>
+                            </Text>
+                            <Text as="p" variant="bodyMd">
+                              <span style={{ color: '#475569', fontWeight: 500 }}>{slide.description}</span>
+                            </Text>
+                            <div>
+                              <button
+                                className="dtfta-btn"
+                                type="button"
+                                style={{
+                                  ...primaryButtonStyle,
+                                  height: 40,
+                                  padding: '0 18px',
+                                  fontWeight: 700,
+                                }}
+                                onClick={handleProductClick}
+                              >
+                                {slide.cta}
+                              </button>
+                            </div>
+                          </div>
+                        </InlineGrid>
+                      </div>
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+                <div
+                  style={{
+                    marginTop: 8,
+                    marginLeft: 6,
+                    width: 92,
+                    height: 6,
+                    borderRadius: 999,
+                    background: '#d1d5db',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${((newsActiveIndex + 1) / newsSlides.length) * 100}%`,
+                      height: '100%',
+                      borderRadius: 999,
+                      background: '#737373',
+                      transition: 'width 220ms ease',
+                    }}
+                  />
+                </div>
+              </div>
+          </BlockStack>
+        </div>
+
         <InlineStack align="start" gap="500" blockAlign="start">
           <div style={{ flex: '1', minWidth: 0 }}>
             <BlockStack gap="500">
@@ -945,26 +1344,61 @@ export default function Dashboard() {
                 ))}
               </InlineGrid>
 
-              <Card>
+              <div style={{ paddingTop: 12, paddingBottom: 12 }}>
                 <BlockStack gap="300">
+                  <div
+                    style={{
+                      borderRadius: 14,
+                      border: '1px solid #e5e7eb',
+                      background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                      boxShadow: '0 8px 18px rgba(15,23,42,0.05)',
+                      padding: '12px 14px',
+                    }}
+                  >
                   <InlineStack align="space-between" blockAlign="center">
                     <div
                       style={{
-                        display: 'inline-flex',
+                        position: 'relative',
+                        display: 'flex',
                         flexDirection: 'column',
-                        gap: 8,
-                        borderLeft: `4px solid ${brandPalette.pink}`,
-                        paddingLeft: 10,
+                        gap: 10,
+                        padding: '8px 10px 8px 16px',
                       }}
                     >
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: 10,
+                          bottom: 10,
+                          width: 4,
+                          borderRadius: 999,
+                          background: `linear-gradient(180deg, ${brandPalette.pink} 0%, ${brandPalette.orange} 100%)`,
+                        }}
+                      />
                       <InlineStack gap="200" blockAlign="center">
-                        <Text as="h2" variant="headingMd">
-                          Featured Products
+                        <Text as="h2" variant="headingLg">
+                          <span style={{ color: '#0f172a' }}>Featured Products</span>
                         </Text>
-                        <Badge tone="info">Catalog</Badge>
+                        <div
+                          style={{
+                            borderRadius: 999,
+                            border: '1px solid #bae6fd',
+                            background: '#e0f2fe',
+                            color: '#0c4a6e',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            padding: '2px 10px',
+                            lineHeight: '18px',
+                          }}
+                        >
+                          Catalog
+                        </div>
                       </InlineStack>
-                      <Text as="p" tone="subdued">
-                        Curated top products ready for design customization and publishing.
+                      <Text as="p" variant="bodyMd">
+                        <span style={{ color: '#64748b' }}>
+                          Curated top products ready for design customization and publishing.
+                        </span>
                       </Text>
                     </div>
                     <button
@@ -972,15 +1406,18 @@ export default function Dashboard() {
                       type="button"
                       style={{
                         ...primaryButtonStyle,
-                        height: 36,
-                        padding: '0 14px',
+                        height: 40,
+                        padding: '0 20px',
                         fontWeight: 700,
+                        borderRadius: 12,
+                        boxShadow: '0 12px 24px rgba(246,98,110,0.3)',
                       }}
                       onClick={handleProductClick}
                     >
                       View All Products
                     </button>
                   </InlineStack>
+                  </div>
 
                   {hasFeaturedProducts ? (
                     <div style={{ marginTop: 10 }}>
@@ -1024,7 +1461,7 @@ export default function Dashboard() {
                     </div>
                   )}
                 </BlockStack>
-              </Card>
+              </div>
 
               <Card>
                 <BlockStack gap="300">
@@ -1365,6 +1802,7 @@ export default function Dashboard() {
           </div>
         </InlineStack>
       </BlockStack>
+      </div>
     </Page>
   );
 }

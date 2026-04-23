@@ -292,7 +292,7 @@ export default function ProductCustomize() {
 
   if (!productKey || !product) {
     return (
-      <Page title="Customize product" backAction={{ url: "/app/products", content: "Products" }}>
+      <Page fullWidth backAction={{ url: "/app/products", content: "Products" }}>
         <Card>
           <div
             style={{
@@ -317,10 +317,9 @@ export default function ProductCustomize() {
   return (
     <Page
       fullWidth
-      title={`Customize: ${productName}`}
-      subtitle={`${product.brand ?? ""} ${product.model ?? ""}`.trim()}
       backAction={{ url: "/app/products", content: "Products" }}
     >
+      <div style={{ maxWidth: 1420, margin: "0 auto", width: "100%" }}>
       <BlockStack gap="400">
         {fetcher.data && !fetcher.data.ok ? (
           <Card>
@@ -575,6 +574,7 @@ export default function ProductCustomize() {
         </InlineStack>
         <div style={{ marginBottom: 36 }} />
       </BlockStack>
+      </div>
       <Modal
         open={isImageModalOpen}
         onClose={() => setIsImageModalOpen(false)}

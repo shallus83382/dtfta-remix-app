@@ -6,6 +6,7 @@ import {
   Page,
   Card,
   BlockStack,
+  Text,
   TextField,
   Badge,
 } from "@shopify/polaris";
