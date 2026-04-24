@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { LoaderFunctionArgs, ActionFunctionArgs } from 'react-router';
 import {
   Form,
@@ -21,6 +21,7 @@ import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 import type { BrandSettings } from '../types';
 import AppHeroBanner from '../common/AppHeroBanner';
+import { brandPalette } from '../lib/brand-theme';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -125,6 +126,23 @@ export default function Onboarding() {
     supportEmail: loaderData?.brandSettings?.supportContact?.email || '',
     supportPhone: loaderData?.brandSettings?.supportContact?.phone || '',
   });
+  const brandSectionRef = useRef<HTMLDivElement | null>(null);
+  const addressSectionRef = useRef<HTMLDivElement | null>(null);
+  const supportSectionRef = useRef<HTMLDivElement | null>(null);
+  const submitSectionRef = useRef<HTMLDivElement | null>(null);
+  const guideStepCardRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [selectedGuideStep, setSelectedGuideStep] = useState(0);
+  const [isGuidePopupOpen, setIsGuidePopupOpen] = useState(true);
+  const [guidePopupPosition, setGuidePopupPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const [activeStepRect, setActiveStepRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   useEffect(() => {
     if (actionData?.success && actionData.brandSettings) {
@@ -155,57 +173,198 @@ export default function Onboarding() {
     Boolean(formData.supportEmail.trim()),
   ].filter(Boolean).length;
   const completionPercent = Math.round((completedItems / 4) * 100);
+  const isBrandComplete = Boolean(formData.brandName.trim());
+  const isAddressComplete = Boolean(
+    formData.streetAddress.trim() &&
+      formData.city.trim() &&
+      formData.state.trim() &&
+      formData.zipCode.trim() &&
+      formData.country.trim(),
+  );
+  const isSupportComplete = Boolean(formData.supportEmail.trim());
+  const isPublishReady = isFormValid;
+  const stepItems = [
+    {
+      title: 'Business profile setup',
+      detail: 'Add your brand name and identity details.',
+      done: isBrandComplete,
+      cta: 'Go to Brand Information',
+    },
+    {
+      title: 'Return address configuration',
+      detail: 'Set your return address for operations.',
+      done: isAddressComplete,
+      cta: 'Go to Return Address',
+    },
+    {
+      title: 'Support contact setup',
+      detail: 'Add support email for customer communications.',
+      done: isSupportComplete,
+      cta: 'Go to Support Contact',
+    },
+    {
+      title: 'Publish-ready check',
+      detail: 'Review and save to complete onboarding.',
+      done: isPublishReady,
+      cta: 'Go to Final Review',
+    },
+  ] as const;
 
-  const panelStyle = {
+  const formSectionStyle = {
+    position: 'relative' as const,
+    overflow: 'hidden' as const,
     borderRadius: 14,
-    border: '1px solid #eef2f7',
-    background: '#fcfdff',
-    padding: 14,
-    boxShadow: '0 4px 12px rgba(15,23,42,0.03)',
+    border: '1px solid #dbe3ec',
+    background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
+    padding: 16,
+    boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
+  } as const;
+
+  const formSectionAccentBar = {
+    height: 3,
+    marginTop: -16,
+    marginLeft: -16,
+    marginRight: -16,
+    marginBottom: 13,
+    borderRadius: '14px 14px 0 0',
+    background: `linear-gradient(90deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+  } as const;
+
+  const sidebarSurfaceStyle = {
+    position: 'relative' as const,
+    overflow: 'hidden' as const,
+    borderRadius: 16,
+    border: '1px solid rgba(71,176,161,0.31)',
+    background: 'linear-gradient(145deg, #ffffff 0%, rgba(71,176,161,0.10) 100%)',
+    padding: 16,
+    boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
   } as const;
 
   const fieldLabelStyle = {
     display: 'block',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 600,
-    color: '#334155',
+    color: '#475569',
     marginBottom: 6,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.02em',
   } as const;
 
   const fieldInputStyle = {
     width: '100%',
-    height: 42,
-    borderRadius: 10,
-    border: '1px solid #d6deea',
+    height: 40,
+    borderRadius: 8,
+    border: '1px solid #d1d5db',
     backgroundColor: '#ffffff',
     padding: '0 12px',
     fontSize: 14,
     color: '#0f172a',
     outline: 'none',
     boxSizing: 'border-box' as const,
+    transition: 'border-color 150ms ease, box-shadow 150ms ease',
   };
 
-  const submitButtonStyle = {
+  const focusStepSection = (step: number) => {
+    const refs = [brandSectionRef, addressSectionRef, supportSectionRef, submitSectionRef] as const;
+    const targetRef = refs[step]?.current;
+    if (targetRef) {
+      const topOffset = 96;
+      const targetTop = targetRef.getBoundingClientRect().top + window.scrollY - topOffset;
+      window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+    }
+  };
+  useLayoutEffect(() => {
+    if (!isGuidePopupOpen) return;
+    let frameId = 0;
+    const updateGuidePopupPosition = () => {
+      const activeCard = guideStepCardRefs.current[selectedGuideStep];
+      if (!activeCard) return;
+      const rect = activeCard.getBoundingClientRect();
+      setActiveStepRect({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      });
+      const popupWidth = Math.min(520, window.innerWidth - 32);
+      const left = Math.max(
+        16,
+        Math.min(rect.left + rect.width / 2 - popupWidth / 2, window.innerWidth - popupWidth - 16),
+      );
+      const popupEstimatedHeight = 190;
+      const popupGap = 20;
+      const minTop = 24;
+      const aboveTop = rect.top - popupEstimatedHeight - popupGap;
+      const top = aboveTop < minTop ? rect.bottom + popupGap : aboveTop;
+      setGuidePopupPosition({ top, left });
+    };
+    frameId = window.requestAnimationFrame(updateGuidePopupPosition);
+    window.addEventListener('resize', updateGuidePopupPosition);
+    window.addEventListener('scroll', updateGuidePopupPosition, true);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', updateGuidePopupPosition);
+      window.removeEventListener('scroll', updateGuidePopupPosition, true);
+    };
+  }, [isGuidePopupOpen, selectedGuideStep]);
+
+  const ctaDisabled = !isFormValid || isSubmitting;
+  const submitButtonStyle: CSSProperties = {
     borderRadius: 10,
     border: '1px solid transparent',
-    height: 40,
-    padding: '0 16px',
+    height: 36,
+    padding: '0 14px',
     fontSize: 13,
     fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 180ms ease',
-    background: !isFormValid || isSubmitting
+    cursor: ctaDisabled ? 'not-allowed' : 'pointer',
+    transition: 'all 200ms ease',
+    transform: 'translateY(0)',
+    background: ctaDisabled
       ? '#cbd5e1'
-      : 'linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)',
+      : `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
     color: '#ffffff',
-    boxShadow: !isFormValid || isSubmitting
-      ? 'none'
-      : '0 8px 18px rgba(29,78,216,0.28)',
+    boxShadow: ctaDisabled ? 'none' : '0 10px 20px rgba(246,98,110,0.32)',
     width: 'fit-content',
-  } as const;
+  };
 
   return (
     <Page fullWidth>
+      <style>
+        {`
+          .dtfta-onboarding-cta {
+            position: relative;
+            overflow: hidden;
+            appearance: none;
+            -webkit-appearance: none;
+          }
+          .dtfta-onboarding-cta::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -38%;
+            width: 30%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-18deg);
+            transition: transform 520ms ease;
+            pointer-events: none;
+          }
+          .dtfta-onboarding-cta:hover:not(:disabled) {
+            transform: translateY(-2px);
+            filter: saturate(1.08) brightness(1.03);
+          }
+          .dtfta-onboarding-cta:hover:not(:disabled)::after {
+            transform: translateX(420%) skewX(-18deg);
+          }
+          .dtfta-onboarding-cta:disabled {
+            transform: none;
+            filter: none;
+          }
+          .dtfta-onboarding-cta:disabled::after {
+            display: none;
+          }
+        `}
+      </style>
       <div style={{ maxWidth: 1420, margin: '0 auto', width: '100%' }}>
       <BlockStack gap="500">
         <AppHeroBanner
@@ -215,12 +374,161 @@ export default function Onboarding() {
             <>
               <Badge tone="info">New Setup</Badge>
               <Badge tone={completionPercent === 100 ? 'success' : 'warning'}>
-                {completionPercent}% Complete
+                {`${completionPercent}% Complete`}
               </Badge>
               {hasExistingBranding ? <Badge tone="info">Existing profile detected</Badge> : null}
             </>
           }
         />
+
+        <Card>
+          <div
+            style={{
+              borderRadius: 14,
+              border: '1px solid #e2e8f0',
+              background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
+              padding: 22,
+              boxShadow: '0 10px 24px rgba(15,23,42,0.06)',
+            }}
+          >
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <InlineStack gap="200" blockAlign="center">
+                  <Text as="h2" variant="headingMd">
+                    Onboarding Step Guide
+                  </Text>
+                  <Badge tone="info">Interactive</Badge>
+                </InlineStack>
+                <Badge tone={completionPercent === 100 ? 'success' : 'attention'}>
+                  {`Active step: ${selectedGuideStep + 1}/4`}
+                </Badge>
+              </InlineStack>
+              <div
+                style={{
+                  width: '100%',
+                  height: 8,
+                  borderRadius: 999,
+                  background: '#e2e8f0',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${completionPercent}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #ff7a00 0%, #ff4da6 100%)',
+                    borderRadius: 999,
+                    transition: 'width 260ms ease',
+                  }}
+                />
+              </div>
+              <InlineStack gap="200" blockAlign="center">
+                <Badge tone="info">New users</Badge>
+                <Badge tone="success">Getting started</Badge>
+              </InlineStack>
+              <BlockStack gap="100">
+                <Text as="h2" variant="heading2xl">
+                  Launch your print store in 4 simple steps
+                </Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Complete each onboarding step to unlock a fully configured white-label workflow.
+                </Text>
+              </BlockStack>
+              <InlineGrid columns={{ xs: 1, sm: 2 }} gap="300">
+                {stepItems.map((step, index) => {
+                  const isActive = selectedGuideStep === index;
+                  return (
+                    <button
+                      key={step.title}
+                      ref={(node) => {
+                        guideStepCardRefs.current[index] = node;
+                      }}
+                      type="button"
+                      onClick={() => {
+                        if (isGuidePopupOpen) return;
+                        setSelectedGuideStep(index);
+                        setIsGuidePopupOpen(true);
+                      }}
+                      style={{
+                        position: 'relative',
+                        zIndex: isGuidePopupOpen && isActive ? 1302 : 1,
+                        borderRadius: 12,
+                        border: isGuidePopupOpen && isActive
+                          ? '2px solid rgba(255,255,255,0.98)'
+                          : isActive
+                            ? '1px solid #f9a8d4'
+                            : '1px solid #dbe4f0',
+                        background: isActive
+                          ? 'linear-gradient(180deg, #fff7fb 0%, #ffffff 48%, #fffaf5 100%)'
+                          : 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
+                        padding: 14,
+                        cursor: isGuidePopupOpen ? 'not-allowed' : 'pointer',
+                        textAlign: 'left',
+                        boxShadow: isGuidePopupOpen && isActive
+                          ? '0 0 0 4px rgba(255,255,255,0.25), 0 16px 36px rgba(2,6,23,0.45)'
+                          : isActive
+                            ? '0 12px 26px rgba(246,98,110,0.2)'
+                            : '0 8px 20px rgba(15,23,42,0.07)',
+                        transform: isActive ? 'translateY(-1px)' : 'translateY(0)',
+                        transition: 'all 180ms ease',
+                        outline: 'none',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 3,
+                          background: isActive
+                            ? 'linear-gradient(90deg, #ff7a00 0%, #ff4da6 100%)'
+                            : 'linear-gradient(90deg, #cbd5e1 0%, #e2e8f0 100%)',
+                          opacity: isActive ? 1 : 0.7,
+                        }}
+                      />
+                      <InlineStack gap="150" blockAlign="start">
+                        <div
+                          style={{
+                            width: 26,
+                            height: 26,
+                            borderRadius: 999,
+                            background: step.done
+                              ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                              : 'linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)',
+                            color: '#ffffff',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            flexShrink: 0,
+                            marginTop: 1,
+                            boxShadow: '0 8px 18px rgba(16,185,129,0.26)',
+                          }}
+                        >
+                          {step.done ? '✓' : `0${index + 1}`}
+                        </div>
+                        <BlockStack gap="050">
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {`Step ${index + 1} of ${stepItems.length}`}
+                          </Text>
+                          <Text as="p" variant="bodyMd" fontWeight="semibold">
+                            {step.title}
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {step.detail}
+                          </Text>
+                        </BlockStack>
+                      </InlineStack>
+                    </button>
+                  );
+                })}
+              </InlineGrid>
+            </BlockStack>
+          </div>
+        </Card>
 
         {actionData?.error ? (
           <Card>
@@ -242,16 +550,23 @@ export default function Onboarding() {
                     <Badge tone="info">Profile</Badge>
                   </InlineStack>
                 </InlineStack>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Add your brand and contact details so packing slips, returns, and customer support stay on-brand.
+                </Text>
 
                 <Form method="post">
                   <BlockStack gap="500">
-                    <Card>
-                      <div style={panelStyle}>
+                    <div ref={brandSectionRef}>
+                      <div style={formSectionStyle}>
+                        <div style={formSectionAccentBar} aria-hidden />
                         <BlockStack gap="400">
                           <InlineStack align="space-between" blockAlign="center">
                             <Text as="h3" variant="headingSm">Brand Information</Text>
                             <Badge tone="info">Required</Badge>
                           </InlineStack>
+                          <Text as="p" variant="bodyMd">
+                            This information appears on white-label packing slips and shipping labels.
+                          </Text>
                           <div>
                             <label style={fieldLabelStyle} htmlFor="brandName">Brand Name *</label>
                             <input
@@ -266,15 +581,19 @@ export default function Onboarding() {
                           </div>
                         </BlockStack>
                       </div>
-                    </Card>
+                    </div>
 
-                    <Card>
-                      <div style={panelStyle}>
+                    <div ref={addressSectionRef}>
+                      <div style={formSectionStyle}>
+                        <div style={formSectionAccentBar} aria-hidden />
                         <BlockStack gap="400">
                           <InlineStack align="space-between" blockAlign="center">
                             <Text as="h3" variant="headingSm">Return Address</Text>
                             <Badge tone="warning">Operations</Badge>
                           </InlineStack>
+                          <Text as="p" variant="bodyMd">
+                            Used on return labels and fulfillment documents.
+                          </Text>
                           <div>
                             <label style={fieldLabelStyle} htmlFor="streetAddress">Street Address</label>
                             <input
@@ -334,15 +653,19 @@ export default function Onboarding() {
                           </div>
                         </BlockStack>
                       </div>
-                    </Card>
+                    </div>
 
-                    <Card>
-                      <div style={panelStyle}>
+                    <div ref={supportSectionRef}>
+                      <div style={formSectionStyle}>
+                        <div style={formSectionAccentBar} aria-hidden />
                         <BlockStack gap="400">
                           <InlineStack align="space-between" blockAlign="center">
                             <Text as="h3" variant="headingSm">Support Contact</Text>
                             <Badge tone="success">Customer-facing</Badge>
                           </InlineStack>
+                          <Text as="p" variant="bodyMd">
+                            Shown to customers when they need help with their orders.
+                          </Text>
                           <InlineGrid columns={{ xs: 1, sm: 2 }} gap="300">
                             <div>
                               <label style={fieldLabelStyle} htmlFor="supportEmail">Support Email</label>
@@ -355,7 +678,7 @@ export default function Onboarding() {
                                 autoComplete="email"
                                 style={{
                                   ...fieldInputStyle,
-                                  borderColor: !formData.supportEmail ? '#fca5a5' : '#d6deea',
+                                  borderColor: !formData.supportEmail ? '#fca5a5' : '#d1d5db',
                                   backgroundColor: !formData.supportEmail ? '#fff7f7' : '#ffffff',
                                 }}
                               />
@@ -375,12 +698,13 @@ export default function Onboarding() {
                           </InlineGrid>
                         </BlockStack>
                       </div>
-                    </Card>
+                    </div>
 
-                    <div style={{ paddingBottom: 24 }}>
+                    <div ref={submitSectionRef} style={{ paddingBottom: 24 }}>
                       <button
                         type="submit"
-                        disabled={!isFormValid || isSubmitting}
+                        className="dtfta-onboarding-cta"
+                        disabled={ctaDisabled}
                         style={submitButtonStyle}
                       >
                         {isSubmitting
@@ -396,31 +720,202 @@ export default function Onboarding() {
             </Card>
           </div>
 
-          <div style={{ minWidth: '320px', maxWidth: '360px', flexShrink: 0 }}>
-            <Card>
-              <div style={panelStyle}>
-                <BlockStack gap="400">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text as="h2" variant="headingMd">How it works</Text>
-                    <Badge tone="info">Overview</Badge>
-                  </InlineStack>
-                  <Text as="p" variant="bodyMd">
-                    DTFTA handles production and shipping while your customer sees only your brand.
-                  </Text>
-                  <List type="bullet">
-                    <List.Item>Add DTFTA products to your Shopify store</List.Item>
-                    <List.Item>Customize products with your designs</List.Item>
-                    <List.Item>Orders are printed and shipped automatically</List.Item>
-                    <List.Item>Packaging remains fully white-label</List.Item>
-                  </List>
-                </BlockStack>
-              </div>
-            </Card>
+          <div style={{ minWidth: '280px', maxWidth: '320px', flexShrink: 0 }}>
+            <div style={sidebarSurfaceStyle}>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: -30,
+                  right: -22,
+                  width: 96,
+                  height: 96,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(71,176,161,0.21) 0%, rgba(71,176,161,0) 72%)',
+                  pointerEvents: 'none',
+                }}
+              />
+              <BlockStack gap="400">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h2" variant="headingMd">How it works</Text>
+                  <Badge tone="info">Overview</Badge>
+                </InlineStack>
+
+                <div
+                  style={{
+                    borderRadius: 10,
+                    border: 'none',
+                    backgroundColor: '#f8fafc',
+                    padding: 12,
+                  }}
+                >
+                  <BlockStack gap="300">
+                    <Text as="p" variant="bodyMd">
+                      DTFTA handles production and shipping while your customer sees only your brand.
+                    </Text>
+                    <List type="bullet">
+                      <List.Item>Add DTFTA products to your Shopify store</List.Item>
+                      <List.Item>Customize products with your designs</List.Item>
+                      <List.Item>Orders are printed and shipped automatically</List.Item>
+                      <List.Item>Packaging remains fully white-label</List.Item>
+                    </List>
+                  </BlockStack>
+                </div>
+
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Finish onboarding so packing slips, returns, and support details always match your store.
+                </Text>
+              </BlockStack>
+            </div>
           </div>
         </InlineStack>
         <div style={{ marginBottom: 32 }} />
       </BlockStack>
       </div>
+      {isGuidePopupOpen ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(2,6,23,0.72)',
+            zIndex: 1200,
+          }}
+        />
+      ) : null}
+      {isGuidePopupOpen && activeStepRect ? (
+        <div
+          style={{
+            position: 'fixed',
+            top: activeStepRect.top,
+            left: activeStepRect.left,
+            width: activeStepRect.width,
+            height: activeStepRect.height,
+            borderRadius: 12,
+            border: '2px solid rgba(255,255,255,0.98)',
+            background: 'linear-gradient(180deg, #fff7f8 0%, #ffffff 100%)',
+            boxShadow: '0 0 0 4px rgba(255,255,255,0.24), 0 18px 44px rgba(2,6,23,0.42)',
+            zIndex: 1550,
+            pointerEvents: 'none',
+            padding: 12,
+            boxSizing: 'border-box',
+            overflow: 'hidden',
+          }}
+        >
+          <InlineStack gap="150" blockAlign="start">
+            <div
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: 999,
+                background: stepItems[selectedGuideStep].done
+                  ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                  : 'linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)',
+                color: '#ffffff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 11,
+                fontWeight: 700,
+                flexShrink: 0,
+                marginTop: 1,
+              }}
+            >
+              {stepItems[selectedGuideStep].done ? '✓' : `0${selectedGuideStep + 1}`}
+            </div>
+            <BlockStack gap="050">
+              <Text as="p" variant="bodySm" tone="subdued">
+                {`Step ${selectedGuideStep + 1} of ${stepItems.length}`}
+              </Text>
+              <Text as="p" variant="bodyMd" fontWeight="semibold">
+                {stepItems[selectedGuideStep].title}
+              </Text>
+              <Text as="p" variant="bodySm" tone="subdued">
+                {stepItems[selectedGuideStep].detail}
+              </Text>
+            </BlockStack>
+          </InlineStack>
+        </div>
+      ) : null}
+      {isGuidePopupOpen && guidePopupPosition ? (
+        <div
+          style={{
+            position: 'fixed',
+            top: guidePopupPosition.top,
+            left: guidePopupPosition.left,
+            width: 'min(520px, calc(100vw - 32px))',
+            zIndex: 1600,
+            borderRadius: 12,
+            border: '1px solid #e2e8f0',
+            background: '#ffffff',
+            padding: 12,
+            boxShadow: '0 22px 54px rgba(2,6,23,0.38), 0 0 0 2px rgba(255,255,255,0.9)',
+          }}
+        >
+          <BlockStack gap="200">
+            <InlineStack align="start" blockAlign="center">
+              <Text as="h3" variant="headingMd">
+                Current step guide
+              </Text>
+            </InlineStack>
+            <Text as="p" variant="bodyMd" fontWeight="semibold">
+              {stepItems[selectedGuideStep].title}
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              {stepItems[selectedGuideStep].detail}
+            </Text>
+            <Badge tone={stepItems[selectedGuideStep].done ? 'success' : 'attention'}>
+              {`Step ${selectedGuideStep + 1} of ${stepItems.length}`}
+            </Badge>
+            <InlineStack align="space-between" blockAlign="center">
+              <button
+                type="button"
+                onClick={() => setSelectedGuideStep((prev) => Math.max(0, prev - 1))}
+                disabled={selectedGuideStep === 0}
+                style={{
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  height: 34,
+                  padding: '0 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: selectedGuideStep === 0 ? 'not-allowed' : 'pointer',
+                  background: '#ffffff',
+                  color: '#0f172a',
+                  opacity: selectedGuideStep === 0 ? 0.6 : 1,
+                }}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedGuideStep === stepItems.length - 1) {
+                    setIsGuidePopupOpen(false);
+                    window.requestAnimationFrame(() => {
+                      focusStepSection(0);
+                    });
+                    return;
+                  }
+                  setSelectedGuideStep((prev) => Math.min(prev + 1, stepItems.length - 1));
+                }}
+                style={{
+                  borderRadius: 8,
+                  border: '1px solid transparent',
+                  height: 34,
+                  padding: '0 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)',
+                  color: '#ffffff',
+                  boxShadow: '0 8px 18px rgba(246,98,110,0.28)',
+                }}
+              >
+                {selectedGuideStep === stepItems.length - 1 ? 'Finish' : 'Next'}
+              </button>
+            </InlineStack>
+          </BlockStack>
+        </div>
+      ) : null}
     </Page>
   );
 }

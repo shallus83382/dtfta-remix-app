@@ -23,6 +23,7 @@ import ProductCard from "../common/ProductCard";
 import AppHeroBanner from "../common/AppHeroBanner";
 import type { Product } from "../types";
 import {getProductDesignAssetUrl} from "../lib/design-assets";
+import { brandPalette } from "../lib/brand-theme";
 
 export type ProductWithKey = Product & {
   productKey?: string;
@@ -209,28 +210,48 @@ export default function ProductsIndex() {
             transform: translateX(420%) skewX(-18deg);
           }
 
-          @keyframes dtftaPlaceholderShimmer {
-            0% { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
-            35% { opacity: 0.38; }
-            100% { transform: translateX(280%) skewX(-18deg); opacity: 0; }
-          }
-          @keyframes dtftaPlaceholderFloat {
-            0% { transform: translateY(0px) scale(1); opacity: 0.72; }
-            50% { transform: translateY(-6px) scale(1.06); opacity: 1; }
-            100% { transform: translateY(0px) scale(1); opacity: 0.72; }
-          }
-          @keyframes dtftaPlaceholderBgShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+          @keyframes dtfta-filler-aurora {
+            0%, 100% { transform: translate(-4%, -3%) scale(1); opacity: 0.55; }
+            50% { transform: translate(5%, 4%) scale(1.06); opacity: 0.82; }
           }
           .dtfta-filler-card {
-            transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+            position: relative;
+            isolation: isolate;
+            transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 280ms ease,
+              border-color 280ms ease;
           }
           .dtfta-filler-card:hover {
-            transform: translateY(-4px);
-            border-color: #c7d2fe;
-            box-shadow: 0 18px 34px rgba(15,23,42,0.12);
+            transform: translateY(-3px);
+            border-color: rgba(71, 176, 161, 0.35);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.09);
+          }
+          .dtfta-filler-aurora {
+            position: absolute;
+            inset: -45%;
+            background:
+              radial-gradient(ellipse 55% 45% at 28% 22%, rgba(255, 122, 0, 0.16) 0%, transparent 55%),
+              radial-gradient(ellipse 50% 48% at 72% 78%, rgba(255, 77, 166, 0.14) 0%, transparent 52%),
+              radial-gradient(ellipse 45% 40% at 82% 28%, rgba(71, 176, 161, 0.13) 0%, transparent 50%);
+            animation: dtfta-filler-aurora 10s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+          }
+          .dtfta-filler-mesh {
+            position: absolute;
+            inset: 0;
+            border-radius: 14px;
+            opacity: 0.18;
+            background-image: radial-gradient(circle at center, #94a3b8 0.9px, transparent 1px);
+            background-size: 18px 18px;
+            pointer-events: none;
+            z-index: 0;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 55%, rgba(0,0,0,0.45) 100%);
+          }
+          .dtfta-filler-body {
+            position: relative;
+            z-index: 2;
+            width: 100%;
           }
         `}
       </style>
@@ -369,118 +390,77 @@ export default function ProductsIndex() {
                           key={`filler-${index}`}
                           className="dtfta-filler-card"
                           style={{
-                            position: "relative",
                             overflow: "hidden",
                             borderRadius: 14,
-                            border: "1px solid #d6def0",
-                            background:
-                              "linear-gradient(145deg, #ffffff 0%, #f1f6ff 38%, #eef2ff 68%, #f7fbff 100%)",
-                            backgroundSize: "180% 180%",
-                            animation: "dtftaPlaceholderBgShift 8.5s ease-in-out infinite",
+                            border: "1px solid #dbe3ec",
+                            background: `linear-gradient(165deg, #ffffff 0%, #f8fbff 50%, rgba(255, 122, 0, 0.03) 100%)`,
                             minHeight: 220,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            padding: 18,
-                            boxShadow: "0 12px 24px rgba(15,23,42,0.08)",
+                            padding: "28px 22px",
+                            boxShadow: "0 10px 24px rgba(15,23,42,0.07)",
                           }}
                         >
                           <div
-                            style={{
-                              position: "absolute",
-                              top: 0,
-                              left: "-34%",
-                              width: "28%",
-                              height: "100%",
-                              background:
-                                "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%)",
-                              animation: "dtftaPlaceholderShimmer 3.8s ease-in-out infinite",
-                              pointerEvents: "none",
-                            }}
+                            className="dtfta-filler-aurora"
+                            style={{ animationDelay: `${index * 0.35}s` }}
                           />
-                          <div
-                            style={{
-                              position: "absolute",
-                              inset: 0,
-                              background:
-                                "linear-gradient(120deg, rgba(56,189,248,0.08) 0%, rgba(255,255,255,0) 42%, rgba(129,140,248,0.10) 100%)",
-                              pointerEvents: "none",
-                            }}
-                          />
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: -24,
-                              right: -24,
-                              width: 88,
-                              height: 88,
-                              borderRadius: "50%",
-                              background:
-                                "radial-gradient(circle, rgba(127,115,239,0.26) 0%, rgba(127,115,239,0) 72%)",
-                              animation: "dtftaPlaceholderFloat 3.2s ease-in-out infinite",
-                              pointerEvents: "none",
-                            }}
-                          />
-                          <div
-                            style={{
-                              position: "absolute",
-                              bottom: -28,
-                              left: -18,
-                              width: 92,
-                              height: 92,
-                              borderRadius: "50%",
-                              background:
-                                "radial-gradient(circle, rgba(31,151,221,0.22) 0%, rgba(31,151,221,0) 72%)",
-                              animation: "dtftaPlaceholderFloat 4s ease-in-out 0.4s infinite",
-                              pointerEvents: "none",
-                            }}
-                          />
-                          <BlockStack gap="100" inlineAlign="center">
-                            <div
-                              style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 999,
-                                border: "1px solid #c7d2fe",
-                                background: "linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                margin: "0 auto 4px",
-                              }}
-                            >
-                              <Text as="span" variant="bodySm" fontWeight="semibold">
-                                +
-                              </Text>
-                            </div>
-                            <Text as="p" variant="bodySm" alignment="center">
-                              <span style={{ color: "#475569", fontWeight: 500 }}>
-                                More styles coming soon
-                              </span>
-                            </Text>
-                            <Text as="p" variant="bodySm" alignment="center">
-                              <span style={{ color: "#64748b", fontSize: 12 }}>
-                                New catalog drops will appear here.
-                              </span>
-                            </Text>
-                            <div
-                              style={{
-                                width: 56,
-                                height: 3,
-                                borderRadius: 999,
-                                background: "linear-gradient(90deg, #818cf8 0%, #38bdf8 100%)",
-                                margin: "2px auto 0",
-                              }}
-                            />
-                            <div style={{ marginTop: 2 }}>
-                              <Badge tone="attention">Catalog expanding</Badge>
-                            </div>
-                            <Text as="p" variant="bodySm" alignment="center">
-                              <span style={{ color: "#6366f1", fontWeight: 600, fontSize: 12 }}>
-                                Stay tuned
-                              </span>
-                            </Text>
-                          </BlockStack>
+                          <div className="dtfta-filler-mesh" />
+                          <div className="dtfta-filler-body">
+                            <BlockStack gap="400" inlineAlign="center">
+                              <div
+                                style={{
+                                  width: 44,
+                                  height: 44,
+                                  borderRadius: "50%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  background: "#ffffff",
+                                  border: `1px solid ${brandPalette.teal}35`,
+                                  boxShadow: "0 6px 16px rgba(15,23,42,0.06)",
+                                }}
+                              >
+                                <Text as="span" variant="headingMd" fontWeight="bold">
+                                  <span
+                                    style={{
+                                      background: `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+                                      WebkitBackgroundClip: "text",
+                                      backgroundClip: "text",
+                                      color: "transparent",
+                                      lineHeight: 1,
+                                    }}
+                                  >
+                                    +
+                                  </span>
+                                </Text>
+                              </div>
+
+                              <BlockStack gap="150" inlineAlign="center">
+                                <Text as="p" variant="bodyMd" alignment="center" fontWeight="semibold">
+                                  <span style={{ color: "#0f172a", letterSpacing: "-0.02em" }}>
+                                    More styles coming soon
+                                  </span>
+                                </Text>
+                                <Text as="p" variant="bodySm" alignment="center" tone="subdued">
+                                  <span style={{ maxWidth: 200, display: "inline-block", lineHeight: 1.45 }}>
+                                    New catalog items will appear here when available.
+                                  </span>
+                                </Text>
+                              </BlockStack>
+
+                              <div
+                                style={{
+                                  width: 48,
+                                  height: 3,
+                                  borderRadius: 999,
+                                  background: `linear-gradient(90deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+                                  opacity: 0.9,
+                                }}
+                              />
+                            </BlockStack>
+                          </div>
                         </div>
                       ))}
                     </InlineGrid>

@@ -143,10 +143,28 @@ export default function Orders() {
 
   const surfaceStyle = {
     borderRadius: 14,
-    border: '1px solid #d7e0ea',
-    background: 'linear-gradient(180deg, rgba(248,250,252,0.92) 0%, #ffffff 100%)',
+    border: '1px solid #dbe3ec',
+    background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
     padding: 16,
-    boxShadow: '0 10px 24px rgba(15,23,42,0.06)',
+    boxShadow: '0 10px 24px rgba(15,23,42,0.07)',
+  } as const;
+
+  const searchFiltersPanelStyle = {
+    borderRadius: 14,
+    border: '1px solid #dbe3ec',
+    background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
+    padding: 16,
+    boxShadow: '0 10px 24px rgba(15,23,42,0.07)',
+  } as const;
+
+  const searchPanelAccentBar = {
+    height: 3,
+    marginTop: -16,
+    marginLeft: -16,
+    marginRight: -16,
+    marginBottom: 14,
+    borderRadius: '14px 14px 0 0',
+    background: 'linear-gradient(90deg, #ff7a00 0%, #ff4da6 55%, #47b0a1 100%)',
   } as const;
 
   const primaryButtonStyle = {
@@ -194,8 +212,144 @@ export default function Orders() {
     }
   };
 
+  const orderGuideRows: { status: OrderStatus; detail: string }[] = [
+    { status: 'New', detail: 'Order received, awaiting processing.' },
+    { status: 'In Production', detail: 'Currently being printed.' },
+    { status: 'Shipped', detail: 'Order has been shipped with tracking.' },
+    { status: 'Artwork Needed', detail: 'Missing design files.' },
+    { status: 'Exception', detail: 'Issue with order that needs attention.' },
+  ];
+
   return (
     <Page fullWidth>
+      <style>
+        {`
+          @keyframes orders-accent-flow {
+            0%, 100% { opacity: 1; filter: brightness(1); }
+            50% { opacity: 0.92; filter: brightness(1.06); }
+          }
+          @keyframes orders-orb-drift {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(6px, -4px) scale(1.04); }
+          }
+          @keyframes orders-empty-shimmer {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+          }
+          .orders-search-panel {
+            position: relative;
+            overflow: hidden;
+          }
+          .orders-search-panel::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 14px;
+            opacity: 0.22;
+            background-image: radial-gradient(circle at center, #94a3b8 0.85px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.12) 45%, rgba(0,0,0,0.35) 100%);
+          }
+          .orders-search-accent {
+            animation: orders-accent-flow 5s ease-in-out infinite;
+          }
+          .orders-search-glow {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            right: -40px;
+            bottom: -50px;
+            background: radial-gradient(circle, rgba(255, 122, 0, 0.12) 0%, transparent 70%);
+            pointer-events: none;
+            animation: orders-orb-drift 12s ease-in-out infinite;
+          }
+          .orders-filter-chip {
+            transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+          }
+          .orders-filter-chip:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 122, 0, 0.35);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+          }
+          .orders-filter-active {
+            animation: orders-accent-flow 4s ease-in-out infinite;
+          }
+          .orders-order-card {
+            position: relative;
+            overflow: hidden;
+            transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 240ms ease;
+          }
+          .orders-order-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, rgba(255,122,0,0.2) 0%, rgba(255,77,166,0.2) 50%, rgba(71,176,161,0.2) 100%);
+            opacity: 0;
+            transition: opacity 240ms ease;
+            pointer-events: none;
+          }
+          .orders-order-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.1);
+          }
+          .orders-order-card:hover::before {
+            opacity: 1;
+          }
+          .orders-empty-canvas {
+            position: relative;
+            overflow: hidden;
+          }
+          .orders-empty-canvas::after {
+            content: "";
+            position: absolute;
+            inset: -1px;
+            border-radius: 14px;
+            background: linear-gradient(
+              120deg,
+              rgba(255, 122, 0, 0.06),
+              rgba(255, 77, 166, 0.05),
+              rgba(71, 176, 161, 0.06),
+              rgba(255, 122, 0, 0.06)
+            );
+            background-size: 200% 200%;
+            animation: orders-empty-shimmer 14s linear infinite;
+            opacity: 0.45;
+            pointer-events: none;
+            z-index: 0;
+          }
+          .orders-empty-inner {
+            position: relative;
+            z-index: 1;
+          }
+          .orders-sidebar-orb {
+            animation: orders-orb-drift 14s ease-in-out infinite;
+          }
+          .orders-sidebar-orb-2 {
+            animation: orders-orb-drift 16s ease-in-out infinite reverse;
+          }
+          .orders-hero-stat {
+            backdrop-filter: blur(6px);
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .orders-search-accent,
+            .orders-search-glow,
+            .orders-filter-active,
+            .orders-empty-canvas::after,
+            .orders-sidebar-orb,
+            .orders-sidebar-orb-2 {
+              animation: none !important;
+            }
+            .orders-order-card:hover {
+              transform: none;
+            }
+          }
+        `}
+      </style>
       <div style={{ maxWidth: 1420, margin: '0 auto', width: '100%' }}>
       <BlockStack gap="500">
         <AppHeroBanner
@@ -204,10 +358,10 @@ export default function Orders() {
           badges={<Badge tone="info">Live Queue</Badge>}
           actions={
             <>
-              <button type="button" style={secondaryButtonStyle}>
+              <button type="button" className="orders-hero-stat" style={secondaryButtonStyle}>
                 Total: {orders.length}
               </button>
-              <button type="button" style={secondaryButtonStyle}>
+              <button type="button" className="orders-hero-stat" style={secondaryButtonStyle}>
                 Filter: {selectedOrderFilter}
               </button>
             </>
@@ -228,37 +382,58 @@ export default function Orders() {
                     </InlineStack>
                   </InlineStack>
 
-                  <TextField
-                    label="Search Orders"
-                    placeholder="Search by order number, customer, or email"
-                    value={searchQuery}
-                    onChange={(value) => setSearchQuery(value)}
-                    autoComplete="off"
-                  />
-
-                  <InlineStack gap="200">
-                    {filters.map((filter) => (
-                      <button
-                        type="button"
-                        key={filter}
-                        style={selectedOrderFilter === filter ? primaryButtonStyle : secondaryButtonStyle}
-                        onClick={() => setSelectedOrderFilter(filter)}
-                      >
-                        {filter}
-                      </button>
-                    ))}
-                  </InlineStack>
+                  <div className="orders-search-panel" style={searchFiltersPanelStyle}>
+                    <div
+                      className="orders-search-accent"
+                      style={searchPanelAccentBar}
+                      aria-hidden
+                    />
+                    <div className="orders-search-glow" aria-hidden />
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                    <BlockStack gap="300">
+                      <TextField
+                        label="Search Orders"
+                        placeholder="Search by order number, customer, or email"
+                        value={searchQuery}
+                        onChange={(value) => setSearchQuery(value)}
+                        autoComplete="off"
+                      />
+                      <InlineStack gap="200">
+                        {filters.map((filter) => (
+                          <button
+                            type="button"
+                            key={filter}
+                            className={
+                              selectedOrderFilter === filter
+                                ? 'orders-filter-active'
+                                : 'orders-filter-chip'
+                            }
+                            style={
+                              selectedOrderFilter === filter ? primaryButtonStyle : secondaryButtonStyle
+                            }
+                            onClick={() => setSelectedOrderFilter(filter)}
+                          >
+                            {filter}
+                          </button>
+                        ))}
+                      </InlineStack>
+                    </BlockStack>
+                    </div>
+                  </div>
 
                   <BlockStack gap="300">
                     {filteredOrders.length === 0 ? (
                       <div
+                        className="orders-empty-canvas"
                         style={{
-                          borderRadius: 12,
-                          border: '1px dashed #cbd5e1',
-                          backgroundColor: '#f8fafc',
-                          padding: 20,
+                          borderRadius: 14,
+                          border: '1px solid #e2e8f0',
+                          background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                          padding: '32px 24px',
+                          boxShadow: '0 10px 28px rgba(15,23,42,0.06)',
                         }}
                       >
+                        <div className="orders-empty-inner">
                         <BlockStack gap="200" align="center">
                           <Text as="p" variant="bodyMd" alignment="center">
                             No orders found matching your criteria.
@@ -267,11 +442,13 @@ export default function Orders() {
                             Try changing filter or search by order number and customer email.
                           </Text>
                         </BlockStack>
+                        </div>
                       </div>
                     ) : (
                       filteredOrders.map((order) => (
                         <div
                           key={order.id}
+                          className="orders-order-card"
                           style={{
                             ...surfaceStyle,
                             borderLeft: `4px solid ${getOrderAccentColor(order.status)}`,
@@ -323,7 +500,7 @@ export default function Orders() {
             </BlockStack>
           </div>
 
-          <div style={{ minWidth: '320px', maxWidth: '360px', flexShrink: 0 }}>
+          <div style={{ minWidth: '280px', maxWidth: '320px', flexShrink: 0 }}>
               <div
                 style={{
                   ...surfaceStyle,
@@ -336,6 +513,7 @@ export default function Orders() {
                 }}
               >
                 <div
+                  className="orders-sidebar-orb"
                   style={{
                     position: 'absolute',
                     top: -30,
@@ -347,6 +525,19 @@ export default function Orders() {
                     pointerEvents: 'none',
                   }}
                 />
+                <div
+                  className="orders-sidebar-orb-2"
+                  style={{
+                    position: 'absolute',
+                    bottom: -24,
+                    left: -20,
+                    width: 88,
+                    height: 88,
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle, rgba(255,122,0,0.12) 0%, rgba(255,122,0,0) 72%)',
+                    pointerEvents: 'none',
+                  }}
+                />
                 <BlockStack gap="400">
                   <InlineStack align="space-between" blockAlign="center">
                     <Text as="h2" variant="headingMd">
@@ -354,52 +545,44 @@ export default function Orders() {
                     </Text>
                     <Badge tone="success">Reference</Badge>
                   </InlineStack>
-                  <BlockStack gap="300">
-                    <BlockStack gap="050">
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        New
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        Order received, awaiting processing.
-                      </Text>
+                  <div
+                    style={{
+                      borderRadius: 10,
+                      backgroundColor: '#f8fafc',
+                      padding: 12,
+                    }}
+                  >
+                    <BlockStack gap="300">
+                      {orderGuideRows.map((row) => (
+                        <InlineStack key={row.status} gap="200" blockAlign="start" wrap={false}>
+                          <div
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: 999,
+                              marginTop: 5,
+                              flexShrink: 0,
+                              background: getOrderAccentColor(row.status),
+                              boxShadow: '0 0 0 2px rgba(255,255,255,0.95)',
+                            }}
+                          />
+                          <BlockStack gap="050">
+                            <Text as="p" variant="bodyMd" fontWeight="semibold">
+                              {row.status}
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              {row.detail}
+                            </Text>
+                          </BlockStack>
+                        </InlineStack>
+                      ))}
                     </BlockStack>
-                    <BlockStack gap="050">
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        In Production
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        Currently being printed.
-                      </Text>
-                    </BlockStack>
-                    <BlockStack gap="050">
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        Shipped
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        Order has been shipped with tracking.
-                      </Text>
-                    </BlockStack>
-                    <BlockStack gap="050">
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        Artwork Needed
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        Missing design files.
-                      </Text>
-                    </BlockStack>
-                    <BlockStack gap="050">
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        Exception
-                      </Text>
-                      <Text as="p" variant="bodySm" tone="subdued">
-                        Issue with order that needs attention.
-                      </Text>
-                    </BlockStack>
-                  </BlockStack>
+                  </div>
                 </BlockStack>
               </div>
           </div>
         </InlineStack>
+        <div style={{ marginBottom: 32 }} />
       </BlockStack>
       </div>
     </Page>
