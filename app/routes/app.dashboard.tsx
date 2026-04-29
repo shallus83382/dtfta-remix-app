@@ -23,7 +23,7 @@ import {
   normalizeDtftaProduct,
 } from "../lib/dtfta-products.server";
 import ProductCard from '../common/ProductCard';
-import type { Order, Product, DashboardStats, BrandSettings, SetupStatus } from '../types';
+import type { Order, Product, DashboardStats, BrandSettings, SetupStatus, BillingStatus } from '../types';
 import {getProductDesignAssetUrl} from "../lib/design-assets";
 import { brandPalette } from '../lib/brand-theme';
 
@@ -258,6 +258,14 @@ export default function Dashboard() {
       locationCreated: false,
     }
   );
+  const [billingStatus, setBillingStatus] = useState<BillingStatus>({
+    status: 'inactive',
+    required: false,
+    lineItemId: null,
+  });
+  const [billingLoading, setBillingLoading] = useState(true);
+  const [billingError, setBillingError] = useState('');
+  const [isGeneratingBillingLink, setIsGeneratingBillingLink] = useState(false);
 
   const isBrandSettingsComplete = useMemo(() => {
     if (!brandSettings) return false;
@@ -278,12 +286,61 @@ export default function Dashboard() {
     }
   }, [isBrandSettingsComplete, navigate]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadBillingStatus = async () => {
+      setBillingLoading(true);
+      setBillingError('');
+      try {
+        const res = await fetch('/app/api/billing-status');
+        const payload = await res.json();
+        if (!res.ok || !payload?.ok) {
+          throw new Error(payload?.error || 'Failed to load billing status.');
+        }
+        if (!cancelled) {
+          setBillingStatus({
+            status: payload.billingStatus ?? 'inactive',
+            required: Boolean(payload.isBillingRequired),
+            lineItemId: payload.lineItemId ?? null,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setBillingError(error instanceof Error ? error.message : 'Failed to load billing status.');
+        }
+      } finally {
+        if (!cancelled) setBillingLoading(false);
+      }
+    };
+    loadBillingStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleProductClick = () => {
       navigate(`/app/products`);
   };
 
   const handleOrderClick = () => {
     navigate(`/app/orders`);
+  };
+
+  const handleActivateBilling = async () => {
+    setIsGeneratingBillingLink(true);
+    setBillingError('');
+    try {
+      const res = await fetch('/app/api/billing-approve', { method: 'POST' });
+      const payload = await res.json();
+      if (!res.ok || !payload?.ok || !payload?.confirmationUrl) {
+        throw new Error(payload?.error || 'Unable to generate billing approval link.');
+      }
+      window.open(payload.confirmationUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      setBillingError(error instanceof Error ? error.message : 'Unable to generate billing approval link.');
+    } finally {
+      setIsGeneratingBillingLink(false);
+    }
   };
 
   const recentOrders = orders.slice(0, 4);
@@ -726,7 +783,25 @@ export default function Dashboard() {
                 >
                   View Orders
                 </button>
+                <Badge tone={billingStatus.status === 'active' ? 'success' : billingStatus.status === 'blocked' ? 'critical' : 'attention'}>
+                  Billing: {billingLoading ? 'Loading...' : billingStatus.status}
+                </Badge>
+                {billingStatus.required && billingStatus.status !== 'active' ? (
+                  <button
+                    type="button"
+                    style={inverseButtonStyle}
+                    onClick={handleActivateBilling}
+                    disabled={isGeneratingBillingLink}
+                  >
+                    {isGeneratingBillingLink ? 'Preparing billing link...' : 'Activate Billing'}
+                  </button>
+                ) : null}
               </InlineStack>
+              {billingError ? (
+                <Text as="p" tone="critical">
+                  {billingError}
+                </Text>
+              ) : null}
             </BlockStack>
           </div>
         </Card>

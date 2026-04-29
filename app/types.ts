@@ -60,6 +60,12 @@ export interface SetupStatus {
   locationCreated: boolean;
 }
 
+export interface BillingStatus {
+  status: "active" | "inactive" | "blocked";
+  required: boolean;
+  lineItemId?: string | null;
+}
+
 /** Design payload sent to Laravel create-in-shopify endpoint */
 export interface CreateInShopifyPayload {
   shop: string;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
 import {
@@ -11,7 +11,7 @@ import {
   Badge,
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
-import type { Order, OrderStatus } from '../types';
+import type { BillingStatus, Order, OrderStatus } from '../types';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 import AppHeroBanner from '../common/AppHeroBanner';
 
@@ -73,8 +73,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
   const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
-  const headers = createExternalApiHeaders("", { "X-Shop": shop });
-  
+  const headers = createExternalApiHeaders('', { 'X-Shop': shop });
+
   try {
     const candidates = [
       `${API_BASE}/orders-signed?shop=${encodeURIComponent(shop)}`,
@@ -89,10 +89,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       break;
     }
 
-    const rows = Array.isArray(raw) ? raw : Array.isArray((raw as { data?: unknown[] })?.data) ? (raw as { data: unknown[] }).data : [];
+    const rows = Array.isArray(raw)
+      ? raw
+      : Array.isArray((raw as { data?: unknown[] })?.data)
+        ? (raw as { data: unknown[] }).data
+        : [];
+
     const orders = rows
       .map(normalizeOrder)
       .filter((order): order is Order => order !== null);
+
     return { orders };
   } catch {
     return { orders: [] };
@@ -123,13 +129,13 @@ export default function Orders() {
   };
 
   const filteredOrders = orders.filter((order) => {
-    const matchesFilter =
-      selectedOrderFilter === 'All' || order.status === selectedOrderFilter;
+    const matchesFilter = selectedOrderFilter === 'All' || order.status === selectedOrderFilter;
     const matchesSearch =
       searchQuery === '' ||
       order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer.email.toLowerCase().includes(searchQuery.toLowerCase());
+
     return matchesFilter && matchesSearch;
   });
 
@@ -368,19 +374,19 @@ export default function Orders() {
           }
         />
 
-        <InlineStack align="start" gap="500" blockAlign="start">
-          <div style={{ flex: '1', minWidth: 0 }}>
-            <BlockStack gap="500">
-              <Card>
-                <BlockStack gap="400">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <InlineStack gap="200" blockAlign="center">
-                      <Text as="h2" variant="headingMd">
-                        Order Management
-                      </Text>
-                      <Badge tone="info">Advanced</Badge>
+          <InlineStack align="start" gap="500" blockAlign="start">
+            <div style={{ flex: '1', minWidth: 0 }}>
+              <BlockStack gap="500">
+                <Card>
+                  <BlockStack gap="400">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="h2" variant="headingMd">
+                          Order Management
+                        </Text>
+                        <Badge tone="info">Advanced</Badge>
+                      </InlineStack>
                     </InlineStack>
-                  </InlineStack>
 
                   <div className="orders-search-panel" style={searchFiltersPanelStyle}>
                     <div
@@ -477,28 +483,28 @@ export default function Orders() {
                               </button> */}
                             </InlineStack>
 
-                            <BlockStack gap="100">
-                              {order.items.map((item, index) => (
-                                <Text key={index} as="p" variant="bodySm">
-                                  {item.quantity}x {item.name}
-                                </Text>
-                              ))}
-                            </BlockStack>
+                              <BlockStack gap="100">
+                                {order.items.map((item, index) => (
+                                  <Text key={index} as="p" variant="bodySm">
+                                    {item.quantity}x {item.name}
+                                  </Text>
+                                ))}
+                              </BlockStack>
 
-                            {order.tracking && (
-                              <Text as="p" variant="bodySm">
-                                Tracking: {order.tracking}
-                              </Text>
-                            )}
-                          </BlockStack>
-                        </div>
-                      ))
-                    )}
+                              {order.tracking && (
+                                <Text as="p" variant="bodySm">
+                                  Tracking: {order.tracking}
+                                </Text>
+                              )}
+                            </BlockStack>
+                          </div>
+                        ))
+                      )}
+                    </BlockStack>
                   </BlockStack>
-                </BlockStack>
-              </Card>
-            </BlockStack>
-          </div>
+                </Card>
+              </BlockStack>
+            </div>
 
           <div style={{ minWidth: '280px', maxWidth: '320px', flexShrink: 0 }}>
               <div
