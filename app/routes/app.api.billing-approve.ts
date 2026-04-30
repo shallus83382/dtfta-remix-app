@@ -25,6 +25,7 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     const payload = await response.json().catch(() => ({}));
+    
     if (!response.ok) {
       return Response.json(
         {

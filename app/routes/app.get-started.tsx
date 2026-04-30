@@ -160,9 +160,9 @@ export default function GetStarted() {
             <Link to="/app/dashboard" className="gs-btn-primary">
               Get Started
             </Link>
-            <p className="gs-login-hint">
+            {/* <p className="gs-login-hint">
               Already have an account? <Link to="/auth/login">Log in</Link>
-            </p>
+            </p> */}
           </div>
 
           <div className="gs-hiw">

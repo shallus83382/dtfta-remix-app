@@ -1,6 +1,6 @@
 import type { Canvas } from "fabric";
 import { buildPrintPlan } from "../dtfta-design";
-import { exportCanvasToDataUrl, extractCanvasArtworkSourceUrl } from "../../components/DesignCanvas";
+import { exportCanvasToDataUrl } from "../../components/DesignCanvas";
 import type { DtftaPrintArea, DtftaVariant } from "../dtfta-products.server";
 import type {
   PlacementCanvasStateMap,
@@ -12,10 +12,10 @@ import type {
 import {
   getRegionFromPrintArea,
   normalizePlacementKey,
-  buildColorPlacementKey,
-  parseColorPlacementKey,
 } from "./helpers";
 import { getProductDesignAssetUrl } from "../design-assets";
+
+const CANVAS_SIZE = 500;
 
 type BuildCustomizeSubmissionArgs = {
   productKey: string;
@@ -44,69 +44,183 @@ type BuildCustomizeSubmissionResult =
       error: string;
     };
 
-function buildPrintableAreasForColor({
-  colorCode,
+function getCanvasSize(canvas: Canvas | null) {
+  const anyCanvas = canvas as
+    | (Canvas & {
+        getWidth?: () => number;
+        getHeight?: () => number;
+      })
+    | null;
+
+  return {
+    width: anyCanvas?.getWidth?.() || CANVAS_SIZE,
+    height: anyCanvas?.getHeight?.() || CANVAS_SIZE,
+  };
+}
+
+function getScaledRegion({
+  region,
+  canvasWidth,
+  canvasHeight,
+}: {
+  region: { left: number; top: number; width: number; height: number };
+  canvasWidth: number;
+  canvasHeight: number;
+}) {
+  const scaleX = canvasWidth / CANVAS_SIZE;
+  const scaleY = canvasHeight / CANVAS_SIZE;
+
+  return {
+    left: region.left * scaleX,
+    top: region.top * scaleY,
+    width: region.width * scaleX,
+    height: region.height * scaleY,
+  };
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.crossOrigin = "anonymous";
+
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+
+    image.src = src;
+  });
+}
+
+/**
+ * Builds a product-media mockup for one color.
+ *
+ * This intentionally mirrors DesignCanvas preview behavior:
+ * - background is contained inside the editor canvas and centered
+ * - artwork crop is drawn into the selected print region
+ *
+ * This lets one shared print-only artwork be reused for every color background.
+ */
+async function composeMockupImage({
+  backgroundImageUrl,
+  artworkDataUrl,
+  region,
+  canvasWidth,
+  canvasHeight,
+  multiplier = 3,
+}: {
+  backgroundImageUrl: string;
+  artworkDataUrl: string;
+  region: { left: number; top: number; width: number; height: number };
+  canvasWidth: number;
+  canvasHeight: number;
+  multiplier?: number;
+}): Promise<string> {
+  const [backgroundImage, artworkImage] = await Promise.all([
+    loadImage(backgroundImageUrl),
+    loadImage(artworkDataUrl),
+  ]);
+
+  const output = document.createElement("canvas");
+  output.width = Math.max(1, Math.round(canvasWidth * multiplier));
+  output.height = Math.max(1, Math.round(canvasHeight * multiplier));
+
+  const ctx = output.getContext("2d");
+  if (!ctx) {
+    throw new Error("Unable to create canvas context");
+  }
+
+  ctx.scale(multiplier, multiplier);
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+  const bgWidth = backgroundImage.naturalWidth || backgroundImage.width || 1;
+  const bgHeight = backgroundImage.naturalHeight || backgroundImage.height || 1;
+  const bgScale = Math.min(canvasWidth / bgWidth, canvasHeight / bgHeight);
+  const bgDrawWidth = bgWidth * bgScale;
+  const bgDrawHeight = bgHeight * bgScale;
+  const bgLeft = canvasWidth / 2 - bgDrawWidth / 2;
+  const bgTop = canvasHeight / 2 - bgDrawHeight / 2;
+
+  ctx.drawImage(backgroundImage, bgLeft, bgTop, bgDrawWidth, bgDrawHeight);
+
+  const drawRegion = getScaledRegion({ region, canvasWidth, canvasHeight });
+
+  /**
+   * The artworkDataUrl is already a crop of this exact print region.
+   * Drawing it into the same region recreates the editor preview without
+   * shifting or changing the user's placement.
+   */
+  ctx.drawImage(
+    artworkImage,
+    drawRegion.left,
+    drawRegion.top,
+    drawRegion.width,
+    drawRegion.height
+  );
+
+  return output.toDataURL("image/png");
+}
+
+function buildPrintableAreasForSelectedColor({
+  selectedColor,
   printAreas,
   printSizes,
   regions,
-  finalArtworkByPlacement,
+  artworkUrls,
   canvasStateByPlacement,
 }: {
-  colorCode: string;
+  selectedColor: string;
   printAreas: DtftaPrintArea[];
   printSizes: PlacementPrintSizeMap;
   regions: PlacementRegionMap;
-  finalArtworkByPlacement: Record<string, string>;
+  artworkUrls: Record<string, ArtworkUrlPayload>;
   canvasStateByPlacement: PlacementCanvasStateMap;
 }): PrintableAreaPayload[] {
   return printAreas.map((area) => {
-    const placementKey = normalizePlacementKey(area.title);
-    const storageKey = buildColorPlacementKey(colorCode, placementKey);
-    const region = regions[storageKey] ?? getRegionFromPrintArea(area);
-    const size = printSizes[storageKey] ?? {
+    const placement = normalizePlacementKey(area.title);
+    const region = regions[placement] ?? getRegionFromPrintArea(area);
+    const size = printSizes[placement] ?? {
       width: Number(area.area_width || 250),
       height: Number(area.area_height || 250),
     };
 
+    const payloadKey = `${selectedColor}_${placement}`;
+
     return {
       id: area.id,
       title: area.title,
-      placement: placementKey,
-      artwork: finalArtworkByPlacement[storageKey] ?? "",
+      placement,
+      artwork: artworkUrls[payloadKey]?.artworkUrl ?? "",
       printSize: size,
       designableRegion: region,
       unit: area.unit ?? null,
-      backgroundImage: getProductDesignAssetUrl(area.image, colorCode) ?? null,
-      editorState: canvasStateByPlacement[storageKey] ?? null,
+      backgroundImage: getProductDesignAssetUrl(area.image, selectedColor) ?? null,
+      editorState: canvasStateByPlacement[placement] ?? null,
     };
   });
 }
 
-function buildPrintPlanForColor({
-  colorCode,
+function buildPrintPlanForSharedPlacements({
   printAreas,
   printSizes,
 }: {
-  colorCode: string;
   printAreas: DtftaPrintArea[];
   printSizes: PlacementPrintSizeMap;
 }) {
   const selectedPrintSizes: PlacementPrintSizeMap = {};
 
   for (const area of printAreas) {
-    const placementKey = normalizePlacementKey(area.title);
-    const storageKey = buildColorPlacementKey(colorCode, placementKey);
-    const size = printSizes[storageKey];
+    const placement = normalizePlacementKey(area.title);
+    const size = printSizes[placement];
 
     if (size) {
-      selectedPrintSizes[placementKey] = size;
+      selectedPrintSizes[placement] = size;
     }
   }
 
   return buildPrintPlan(selectedPrintSizes);
 }
 
-export function buildCustomizeSubmission({
+export async function buildCustomizeSubmission({
   productKey,
   productName,
   productId,
@@ -118,50 +232,34 @@ export function buildCustomizeSubmission({
   regions,
   selectedColor,
   variants,
-}: BuildCustomizeSubmissionArgs): BuildCustomizeSubmissionResult {
-  const finalArtworkByPlacement: Record<string, string> = {
+}: BuildCustomizeSubmissionArgs): Promise<BuildCustomizeSubmissionResult> {
+  const printOnlyArtworkByPlacement: Record<string, string> = {
     ...artworkByPlacement,
   };
-  const finalCustomArtworkByPlacement: Record<string, string> = {};
 
-  for (const [storageKey, canvas] of Object.entries(canvases)) {
+  const canvasSizeByPlacement: Record<string, { width: number; height: number }> = {};
+
+  /**
+   * Export one shared print-only artwork per placement.
+   * This artwork has no shirt/background and is reused for every color.
+   */
+  for (const area of printAreas) {
+    const placement = normalizePlacementKey(area.title);
+    const canvas = canvases[placement] ?? null;
     if (!canvas) continue;
 
-    const { placement } = parseColorPlacementKey(storageKey);
-    const placementArea = printAreas.find(
-      (area) => normalizePlacementKey(area.title) === placement
-    );
-    const regionForExport =
-      regions[storageKey] ??
-      (placementArea ? getRegionFromPrintArea(placementArea) : getRegionFromPrintArea(printAreas[0]));
+    const region = regions[placement] ?? getRegionFromPrintArea(area);
+    canvasSizeByPlacement[placement] = getCanvasSize(canvas);
 
-    const exportedCustomArtwork = exportCanvasToDataUrl(canvas, {
-      region: regionForExport,
+    const printOnlyArtwork = exportCanvasToDataUrl(canvas, {
+      region,
       includeBackground: false,
     });
-    const sourceArtworkUrl = exportCanvasToDataUrl(canvas);
-    if (sourceArtworkUrl) {
-      finalArtworkByPlacement[storageKey] = sourceArtworkUrl;
-    }
-    if (exportedCustomArtwork) {
-      finalCustomArtworkByPlacement[storageKey] = exportedCustomArtwork;
+
+    if (printOnlyArtwork) {
+      printOnlyArtworkByPlacement[placement] = printOnlyArtwork;
     }
   }
-
-  const printableAreas = buildPrintableAreasForColor({
-    colorCode: selectedColor,
-    printAreas,
-    printSizes,
-    regions,
-    finalArtworkByPlacement,
-    canvasStateByPlacement,
-  });
-
-  const printPlan = buildPrintPlanForColor({
-    colorCode: selectedColor,
-    printAreas,
-    printSizes,
-  });
 
   const allColorCodes = Array.from(
     new Set([
@@ -173,50 +271,84 @@ export function buildCustomizeSubmission({
     ])
   );
 
-  const artworkUrls = allColorCodes.reduce<Record<string, ArtworkUrlPayload>>((acc, colorCode) => {
+  const artworkUrls: Record<string, ArtworkUrlPayload> = {};
+
+  /**
+   * Generate one mockup image per color + placement:
+   * selected/shared artwork + that color's background image.
+   */
+  for (const colorCode of allColorCodes) {
     for (const area of printAreas) {
       const placement = normalizePlacementKey(area.title);
-      const colorKey = buildColorPlacementKey(colorCode, placement);
-      const selectedColorKey = buildColorPlacementKey(selectedColor, placement);
+      const region = regions[placement] ?? getRegionFromPrintArea(area);
+      const printSize = printSizes[placement] ?? {
+        width: Number(area.area_width || 250),
+        height: Number(area.area_height || 250),
+      };
 
-      const artworkUrl =
-        finalArtworkByPlacement[colorKey] ??
-        finalArtworkByPlacement[selectedColorKey] ??
-        "";
-      const customArtworkUrl =
-        finalCustomArtworkByPlacement[colorKey] ??
-        finalCustomArtworkByPlacement[selectedColorKey] ??
-        "";
+      const customArtworkUrl = printOnlyArtworkByPlacement[placement] ?? "";
+      if (!customArtworkUrl) continue;
 
-      if (!artworkUrl) continue;
+      const backgroundImageUrl = area.image
+        ? getProductDesignAssetUrl(area.image, colorCode)
+        : "";
 
-      const designableRegion =
-        regions[colorKey] ??
-        regions[selectedColorKey] ??
-        getRegionFromPrintArea(area);
+      const canvasSize = canvasSizeByPlacement[placement] ?? {
+        width: CANVAS_SIZE,
+        height: CANVAS_SIZE,
+      };
 
-      const printSize =
-        printSizes[colorKey] ??
-        printSizes[selectedColorKey] ?? {
-          width: Number(area.area_width || 250),
-          height: Number(area.area_height || 250),
-        };
+      let artworkUrl = "";
 
-      const payloadKey = `${colorCode}_${placement}`;
-      acc[payloadKey] = {
+      if (backgroundImageUrl) {
+        try {
+          artworkUrl = await composeMockupImage({
+            backgroundImageUrl,
+            artworkDataUrl: customArtworkUrl,
+            region,
+            canvasWidth: canvasSize.width,
+            canvasHeight: canvasSize.height,
+          });
+        } catch (error) {
+          console.error(
+            `Failed to compose mockup for ${colorCode} / ${placement}`,
+            error
+          );
+        }
+      }
+
+      /**
+       * artworkUrl = product variation media/mockup.
+       * customArtworkUrl = transparent print-only art.
+       */
+      artworkUrls[`${colorCode}_${placement}`] = {
         colorCode,
         placement,
         artworkUrl,
-        ...(customArtworkUrl ? { customArtworkUrl } : {}),
-        designableRegion,
+        customArtworkUrl,
+        designableRegion: region,
         printSize,
       };
     }
+  }
 
-    return acc;
-  }, {});
+  const printableAreas = buildPrintableAreasForSelectedColor({
+    selectedColor,
+    printAreas,
+    printSizes,
+    regions,
+    artworkUrls,
+    canvasStateByPlacement,
+  });
 
-  const hasArtwork = Object.values(finalArtworkByPlacement).some((artwork) => Boolean(artwork));
+  const printPlan = buildPrintPlanForSharedPlacements({
+    printAreas,
+    printSizes,
+  });
+
+  const hasArtwork = Object.values(artworkUrls).some(
+    (payload) => Boolean(payload.artworkUrl || payload.customArtworkUrl)
+  );
 
   const hasPrintPlan = Boolean(printPlan);
 
@@ -232,6 +364,7 @@ export function buildCustomizeSubmission({
   formData.set("title", `${productName}`);
   formData.set("productId", productId);
   formData.set("printPlan", printPlan);
+
   const printableAreasPayload = printableAreas.map((area) => ({
     id: area.id,
     title: area.title,
@@ -241,6 +374,7 @@ export function buildCustomizeSubmission({
     designableRegion: area.designableRegion,
     unit: area.unit,
   }));
+
   formData.set("printableAreas", JSON.stringify(printableAreasPayload));
   formData.set("selectedColor", selectedColor || "");
   formData.set("artworkUrls", JSON.stringify(artworkUrls));

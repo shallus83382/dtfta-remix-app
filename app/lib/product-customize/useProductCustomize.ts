@@ -33,6 +33,7 @@ export function useProductCustomize({
 
     for (const variant of variants) {
       if (!variant.is_active) continue;
+
       if (!map.has(variant.colorCode)) {
         map.set(variant.colorCode, {
           colorCode: variant.colorCode,
@@ -54,16 +55,20 @@ export function useProductCustomize({
     );
   }, [variants, selectedColor]);
 
+  /**
+   * Artwork and placement are shared by placement, not by color.
+   * When switching color, only the background preview changes.
+   */
   const handleColorChange = useCallback((colorCode: string) => {
-    editor.savePlacementSnapshot(editor.placement, selectedColor);
+    editor.savePlacementSnapshot(editor.placement);
     setSelectedColor(colorCode);
-  }, [editor, selectedColor]);
+  }, [editor]);
 
-  const buildFormData = useCallback(() => {
-    editor.savePlacementSnapshot(editor.placement, selectedColor);
-    editor.saveAllPlacements(selectedColor);
+  const buildFormData = useCallback(async () => {
+    editor.savePlacementSnapshot(editor.placement);
+    editor.saveAllPlacements();
 
-    const result = buildCustomizeSubmission({
+    const result = await buildCustomizeSubmission({
       productKey,
       productName,
       productId,

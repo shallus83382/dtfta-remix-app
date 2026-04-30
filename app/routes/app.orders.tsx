@@ -36,7 +36,19 @@ function normalizeOrder(input: unknown): Order | null {
       : typeof idRaw === 'string' || typeof idRaw === 'number'
         ? String(idRaw)
         : '';
-  const status = typeof statusRaw === 'string' ? (statusRaw as OrderStatus) : 'New';
+  const statusValue = typeof statusRaw === 'string' ? statusRaw.trim().toLowerCase() : '';
+  const status: OrderStatus =
+    statusValue === 'billing_pending' || statusValue === 'billing pending'
+      ? 'Billing Pending'
+      : statusValue === 'in_production' || statusValue === 'in production'
+        ? 'In Production'
+        : statusValue === 'artwork_needed' || statusValue === 'artwork needed'
+          ? 'Artwork Needed'
+          : statusValue === 'shipped'
+            ? 'Shipped'
+            : statusValue === 'exception'
+              ? 'Exception'
+              : 'New';
   const customerName = typeof customerRaw.name === 'string' ? customerRaw.name : 'Unknown';
   const customerEmail = typeof customerRaw.email === 'string' ? customerRaw.email : '';
   const date = typeof dateRaw === 'string' ? dateRaw : '';
@@ -110,6 +122,80 @@ export default function Orders() {
   const [orders] = useState<Order[]>((loaderData && loaderData.orders) || []);
   const [selectedOrderFilter, setSelectedOrderFilter] = useState<OrderStatus | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [billingStatus, setBillingStatus] = useState<BillingStatus>({
+    status: 'inactive',
+    required: false,
+    lineItemId: null,
+  });
+  const [billingLoading, setBillingLoading] = useState(true);
+  const [billingError, setBillingError] = useState('');
+  const [isGeneratingBillingLink, setIsGeneratingBillingLink] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBilling = async () => {
+      setBillingLoading(true);
+      setBillingError('');
+
+      try {
+        const res = await fetch('/app/api/billing-status');
+        const payload = await res.json();
+
+        const isOk = Boolean(payload?.ok ?? payload?.success);
+        if (!res.ok || !isOk) {
+          throw new Error(payload?.error || payload?.message || 'Failed to load billing status.');
+        }
+
+        const normalizedStatus =
+          payload?.billingStatus ?? payload?.data?.billing_status ?? payload?.billing_status ?? 'inactive';
+        const normalizedRequired =
+          payload?.isBillingRequired ?? payload?.data?.is_billing_required ?? payload?.is_billing_required ?? false;
+        const normalizedLineItemId =
+          payload?.lineItemId ?? payload?.data?.line_item_id ?? payload?.line_item_id ?? null;
+
+        if (!cancelled) {
+          setBillingStatus({
+            status: normalizedStatus,
+            required: Boolean(normalizedRequired),
+            lineItemId: normalizedLineItemId,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setBillingError(error instanceof Error ? error.message : 'Failed to load billing status.');
+        }
+      } finally {
+        if (!cancelled) setBillingLoading(false);
+      }
+    };
+
+    loadBilling();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleActivateBilling = async () => {
+    setIsGeneratingBillingLink(true);
+    setBillingError('');
+
+    try {
+      const res = await fetch('/app/api/billing-approve', { method: 'POST' });
+      const payload = await res.json();
+
+      if (!res.ok || !payload?.ok || !payload?.confirmationUrl) {
+        throw new Error(payload?.error || 'Unable to generate billing approval link.');
+      }
+
+      window.open(payload.confirmationUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      setBillingError(error instanceof Error ? error.message : 'Unable to generate billing approval link.');
+    } finally {
+      setIsGeneratingBillingLink(false);
+    }
+  };
 
   const getBadgeTone = (status: OrderStatus): 'success' | 'attention' | 'info' | 'critical' | 'warning' => {
     switch (status) {
@@ -121,6 +207,8 @@ export default function Orders() {
         return 'info';
       case 'Artwork Needed':
         return 'attention';
+      case 'Billing Pending':
+        return 'warning';
       case 'Exception':
         return 'critical';
       default:
@@ -142,6 +230,7 @@ export default function Orders() {
   const filters: (OrderStatus | 'All')[] = [
     'All',
     'New',
+    'Billing Pending',
     'In Production',
     'Shipped',
     'Artwork Needed',
@@ -207,6 +296,8 @@ export default function Orders() {
     switch (status) {
       case 'Shipped':
         return '#10b981';
+      case 'Billing Pending':
+        return '#b45309';
       case 'In Production':
         return '#f59e0b';
       case 'Artwork Needed':
@@ -220,6 +311,7 @@ export default function Orders() {
 
   const orderGuideRows: { status: OrderStatus; detail: string }[] = [
     { status: 'New', detail: 'Order received, awaiting processing.' },
+    { status: 'Billing Pending', detail: 'Waiting for merchant billing approval/charge.' },
     { status: 'In Production', detail: 'Currently being printed.' },
     { status: 'Shipped', detail: 'Order has been shipped with tracking.' },
     { status: 'Artwork Needed', detail: 'Missing design files.' },
@@ -356,23 +448,48 @@ export default function Orders() {
           }
         `}
       </style>
+
       <div style={{ maxWidth: 1420, margin: '0 auto', width: '100%' }}>
-      <BlockStack gap="500">
-        <AppHeroBanner
-          title="Order Operations"
-          subtitle="Track production status, search customer orders, and prioritize fulfillment in one place."
-          badges={<Badge tone="info">Live Queue</Badge>}
-          actions={
-            <>
-              <button type="button" className="orders-hero-stat" style={secondaryButtonStyle}>
-                Total: {orders.length}
-              </button>
-              <button type="button" className="orders-hero-stat" style={secondaryButtonStyle}>
-                Filter: {selectedOrderFilter}
-              </button>
-            </>
-          }
-        />
+        <BlockStack gap="500">
+          <AppHeroBanner
+            title="Order Operations"
+            subtitle="Track production status, search customer orders, and prioritize fulfillment in one place."
+            badges={
+              <InlineStack gap="200" blockAlign="center">
+                <Badge tone="info">Live Queue</Badge>
+                <Badge tone={billingStatus.status === 'active' ? 'success' : billingStatus.status === 'blocked' ? 'critical' : 'attention'}>
+                  {`Billing: ${billingLoading ? 'Loading...' : billingStatus.status}`}
+                </Badge>
+              </InlineStack>
+            }
+            actions={
+              <>
+                <button type="button" className="orders-hero-stat" style={secondaryButtonStyle}>
+                  Total: {orders.length}
+                </button>
+                <button type="button" className="orders-hero-stat" style={secondaryButtonStyle}>
+                  Filter: {selectedOrderFilter}
+                </button>
+                {billingStatus.required && billingStatus.status !== 'active' ? (
+                  <button
+                    type="button"
+                    className="orders-hero-stat"
+                    style={secondaryButtonStyle}
+                    onClick={handleActivateBilling}
+                    disabled={isGeneratingBillingLink}
+                  >
+                    {isGeneratingBillingLink ? 'Preparing...' : 'Activate Billing'}
+                  </button>
+                ) : null}
+              </>
+            }
+          />
+
+          {billingError ? (
+            <Text as="p" tone="critical">
+              {billingError}
+            </Text>
+          ) : null}
 
           <InlineStack align="start" gap="500" blockAlign="start">
             <div style={{ flex: '1', minWidth: 0 }}>
@@ -388,100 +505,99 @@ export default function Orders() {
                       </InlineStack>
                     </InlineStack>
 
-                  <div className="orders-search-panel" style={searchFiltersPanelStyle}>
-                    <div
-                      className="orders-search-accent"
-                      style={searchPanelAccentBar}
-                      aria-hidden
-                    />
-                    <div className="orders-search-glow" aria-hidden />
-                    <div style={{ position: 'relative', zIndex: 1 }}>
-                    <BlockStack gap="300">
-                      <TextField
-                        label="Search Orders"
-                        placeholder="Search by order number, customer, or email"
-                        value={searchQuery}
-                        onChange={(value) => setSearchQuery(value)}
-                        autoComplete="off"
-                      />
-                      <InlineStack gap="200">
-                        {filters.map((filter) => (
-                          <button
-                            type="button"
-                            key={filter}
-                            className={
-                              selectedOrderFilter === filter
-                                ? 'orders-filter-active'
-                                : 'orders-filter-chip'
-                            }
-                            style={
-                              selectedOrderFilter === filter ? primaryButtonStyle : secondaryButtonStyle
-                            }
-                            onClick={() => setSelectedOrderFilter(filter)}
-                          >
-                            {filter}
-                          </button>
-                        ))}
-                      </InlineStack>
-                    </BlockStack>
-                    </div>
-                  </div>
-
-                  <BlockStack gap="300">
-                    {filteredOrders.length === 0 ? (
+                    <div className="orders-search-panel" style={searchFiltersPanelStyle}>
                       <div
-                        className="orders-empty-canvas"
-                        style={{
-                          borderRadius: 14,
-                          border: '1px solid #e2e8f0',
-                          background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-                          padding: '32px 24px',
-                          boxShadow: '0 10px 28px rgba(15,23,42,0.06)',
-                        }}
-                      >
-                        <div className="orders-empty-inner">
-                        <BlockStack gap="200" align="center">
-                          <Text as="p" variant="bodyMd" alignment="center">
-                            No orders found matching your criteria.
-                          </Text>
-                          <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                            Try changing filter or search by order number and customer email.
-                          </Text>
+                        className="orders-search-accent"
+                        style={searchPanelAccentBar}
+                        aria-hidden
+                      />
+                      <div className="orders-search-glow" aria-hidden />
+                      <div style={{ position: 'relative', zIndex: 1 }}>
+                        <BlockStack gap="300">
+                          <TextField
+                            label="Search Orders"
+                            placeholder="Search by order number, customer, or email"
+                            value={searchQuery}
+                            onChange={(value) => setSearchQuery(value)}
+                            autoComplete="off"
+                          />
+                          <InlineStack gap="200">
+                            {filters.map((filter) => (
+                              <button
+                                type="button"
+                                key={filter}
+                                className={
+                                  selectedOrderFilter === filter
+                                    ? 'orders-filter-active'
+                                    : 'orders-filter-chip'
+                                }
+                                style={
+                                  selectedOrderFilter === filter
+                                    ? primaryButtonStyle
+                                    : secondaryButtonStyle
+                                }
+                                onClick={() => setSelectedOrderFilter(filter)}
+                              >
+                                {filter}
+                              </button>
+                            ))}
+                          </InlineStack>
                         </BlockStack>
-                        </div>
                       </div>
-                    ) : (
-                      filteredOrders.map((order) => (
+                    </div>
+
+                    <BlockStack gap="300">
+                      {filteredOrders.length === 0 ? (
                         <div
-                          key={order.id}
-                          className="orders-order-card"
+                          className="orders-empty-canvas"
                           style={{
-                            ...surfaceStyle,
-                            borderLeft: `4px solid ${getOrderAccentColor(order.status)}`,
+                            borderRadius: 14,
+                            border: '1px solid #e2e8f0',
+                            background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                            padding: '32px 24px',
+                            boxShadow: '0 10px 28px rgba(15,23,42,0.06)',
                           }}
                         >
-                          <BlockStack gap="300">
-                            <InlineStack align="space-between" blockAlign="start">
-                              <BlockStack gap="100">
-                                <InlineStack gap="200" blockAlign="center">
-                                  <Text as="p" variant="bodyMd" fontWeight="semibold">
-                                    Order #{order.orderNumber}
+                          <div className="orders-empty-inner">
+                            <BlockStack gap="200" align="center">
+                              <Text as="p" variant="bodyMd" alignment="center">
+                                No orders found matching your criteria.
+                              </Text>
+                              <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+                                Try changing filter or search by order number and customer email.
+                              </Text>
+                            </BlockStack>
+                          </div>
+                        </div>
+                      ) : (
+                        filteredOrders.map((order) => (
+                          <div
+                            key={order.id}
+                            className="orders-order-card"
+                            style={{
+                              ...surfaceStyle,
+                              borderLeft: `4px solid ${getOrderAccentColor(order.status)}`,
+                            }}
+                          >
+                            <BlockStack gap="300">
+                              <InlineStack align="space-between" blockAlign="start">
+                                <BlockStack gap="100">
+                                  <InlineStack gap="200" blockAlign="center">
+                                    <Text as="p" variant="bodyMd" fontWeight="semibold">
+                                      Order #{order.orderNumber}
+                                    </Text>
+                                    <Badge tone={getBadgeTone(order.status)}>
+                                      {order.status}
+                                    </Badge>
+                                  </InlineStack>
+                                  <Text as="p" variant="bodySm">
+                                    {order.customer.name}, {order.customer.email}
                                   </Text>
-                                  <Badge tone={getBadgeTone(order.status)}>
-                                    {order.status}
-                                  </Badge>
-                                </InlineStack>
-                                <Text as="p" variant="bodySm">
-                                  {order.customer.name}, {order.customer.email}
-                                </Text>
-                                <Text as="p" variant="bodySm" tone="subdued">
-                                  Date: {order.date}
-                                </Text>
-                              </BlockStack>
-                              {/* <button type="button" style={secondaryButtonStyle}>
-                                View Details
-                              </button> */}
-                            </InlineStack>
+                                  <Text as="p" variant="bodySm" tone="subdued">
+                                    Date: {order.date}
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
 
                               <BlockStack gap="100">
                                 {order.items.map((item, index) => (
@@ -506,7 +622,7 @@ export default function Orders() {
               </BlockStack>
             </div>
 
-          <div style={{ minWidth: '280px', maxWidth: '320px', flexShrink: 0 }}>
+            <div style={{ minWidth: '280px', maxWidth: '320px', flexShrink: 0 }}>
               <div
                 style={{
                   ...surfaceStyle,
@@ -586,10 +702,11 @@ export default function Orders() {
                   </div>
                 </BlockStack>
               </div>
-          </div>
-        </InlineStack>
-        <div style={{ marginBottom: 32 }} />
-      </BlockStack>
+            </div>
+          </InlineStack>
+
+          <div style={{ marginBottom: 32 }} />
+        </BlockStack>
       </div>
     </Page>
   );

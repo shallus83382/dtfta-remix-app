@@ -1221,7 +1221,7 @@ export default function DesignCanvas({
         </div>
       ) : null}
 
-      {/* <div style={{ marginTop: 12 }}>
+          {/* <div style={{ marginTop: 12 }}>
         <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 12 }}>Design area position (px)</div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -1321,7 +1321,8 @@ export default function DesignCanvas({
           }
           style={{ width: 56 }}
         />
-      </div> */}
+      </div> */}  
+
     </>
   );
 
@@ -1348,10 +1349,10 @@ export default function DesignCanvas({
 
 export function exportCanvasToDataUrl(
   canvas: Canvas | null,
-  options?: { region?: DesignableRegion; includeBackground?: boolean }
+  options?: { region?: DesignableRegion; includeBackground?: boolean; multiplier?: number }
 ): string | null {
   if (!canvas) return null;
-
+  const multiplier = options?.multiplier ?? 3;
   const extractFallbackArtworkSource = () => {
     try {
       const objects = canvas.getObjects();
@@ -1406,7 +1407,7 @@ export function exportCanvasToDataUrl(
 
       return anyCanvas.toDataURL({
         format: "png",
-        multiplier: 1,
+        multiplier: multiplier ?? 1,
         filter: isExportableObject,
         ...(region
           ? {

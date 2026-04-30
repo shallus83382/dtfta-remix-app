@@ -12,7 +12,6 @@ import {
   DEFAULT_DESIGN_REGION,
   getRegionFromPrintArea,
   normalizePlacementKey,
-  buildColorPlacementKey,
 } from "./helpers";
 import { exportCanvasToDataUrl } from "../../components/DesignCanvas";
 
@@ -58,10 +57,8 @@ export function useCustomizeEditorState({
 
       for (const area of printAreas) {
         const placementKey = normalizePlacementKey(area.title);
-        const storageKey = buildColorPlacementKey(selectedColor, placementKey);
-
-        if (!next[storageKey]) {
-          next[storageKey] = {
+        if (!next[placementKey]) {
+          next[placementKey] = {
             width: Number(area.area_width || 250),
             height: Number(area.area_height || 250),
           };
@@ -76,10 +73,8 @@ export function useCustomizeEditorState({
 
       for (const area of printAreas) {
         const placementKey = normalizePlacementKey(area.title);
-        const storageKey = buildColorPlacementKey(selectedColor, placementKey);
-
-        if (!next[storageKey]) {
-          next[storageKey] = getRegionFromPrintArea(area);
+        if (!next[placementKey]) {
+          next[placementKey] = getRegionFromPrintArea(area);
         }
       }
 
@@ -87,21 +82,19 @@ export function useCustomizeEditorState({
     });
 
     setPlacement((prev) => prev || normalizePlacementKey(printAreas[0].title));
-  }, [printAreas, selectedColor]);
+  }, [printAreas]);
 
   const selectedPrintArea = useMemo(
     () => printAreas.find((area) => normalizePlacementKey(area.title) === placement),
     [printAreas, placement]
   );
 
-  const selectedStorageKey = buildColorPlacementKey(selectedColor, placement);
-
   const selectedRegion = selectedPrintArea
-    ? regions[selectedStorageKey] ?? getRegionFromPrintArea(selectedPrintArea)
+    ? regions[placement] ?? getRegionFromPrintArea(selectedPrintArea)
     : DEFAULT_DESIGN_REGION;
 
   const selectedPrintSize = selectedPrintArea
-    ? printSizes[selectedStorageKey] ?? {
+    ? printSizes[placement] ?? {
         width: Number(selectedPrintArea.area_width || 250),
         height: Number(selectedPrintArea.area_height || 250),
       }
@@ -109,11 +102,11 @@ export function useCustomizeEditorState({
 
   const handleCanvasReady = useCallback(
     (placementKey: string, canvas: Canvas) => {
-      const storageKey = buildColorPlacementKey(selectedColorRef.current, placementKey);
+      const normalizedPlacement = normalizePlacementKey(placementKey);
 
       setCanvases((prev) => {
-        if (prev[storageKey] === canvas) return prev;
-        return { ...prev, [storageKey]: canvas };
+        if (prev[normalizedPlacement] === canvas) return prev;
+        return { ...prev, [normalizedPlacement]: canvas };
       });
     },
     []
@@ -121,12 +114,10 @@ export function useCustomizeEditorState({
 
   const handlePrintSizeChange = useCallback(
     (placementKey: string, w: number, h: number) => {
-      const storageKey = buildColorPlacementKey(selectedColorRef.current, placementKey);
-
       setPrintSizes((prev) => {
-        const current = prev[storageKey];
+        const current = prev[placementKey];
         if (current && current.width == w && current.height == h) return prev;
-        return { ...prev, [storageKey]: { width: w, height: h } };
+        return { ...prev, [placementKey]: { width: w, height: h } };
       });
     },
     []
@@ -134,10 +125,8 @@ export function useCustomizeEditorState({
 
   const handleRegionChange = useCallback(
     (placementKey: string, region: DesignableRegion) => {
-      const storageKey = buildColorPlacementKey(selectedColorRef.current, placementKey);
-
       setRegions((prev) => {
-        const current = prev[storageKey];
+        const current = prev[placementKey];
 
         if (
           current &&
@@ -149,19 +138,16 @@ export function useCustomizeEditorState({
           return prev;
         }
 
-        return { ...prev, [storageKey]: region };
+        return { ...prev, [placementKey]: region };
       });
     },
     []
   );
 
   const serializePlacementState = useCallback(
-    (placementKey: string, colorCode?: string) => {
-      const storageKey = buildColorPlacementKey(
-        colorCode ?? selectedColorRef.current,
-        placementKey
-      );
-      const canvas = canvases[storageKey];
+    (placementKey: string) => {
+      const normalizedPlacement = normalizePlacementKey(placementKey);
+      const canvas = canvases[normalizedPlacement];
       if (!canvas) return null;
 
       try {
@@ -191,32 +177,38 @@ export function useCustomizeEditorState({
   );
 
   const exportPlacementArtwork = useCallback(
-    (placementKey: string, colorCode?: string) => {
-      const storageKey = buildColorPlacementKey(
-        colorCode ?? selectedColorRef.current,
-        placementKey
-      );
-      const canvas = canvases[storageKey];
+    (placementKey: string) => {
+      const normalizedPlacement = normalizePlacementKey(placementKey);
+      const canvas = canvases[normalizedPlacement];
       if (!canvas) return "";
 
-      const dataUrl = exportCanvasToDataUrl(canvas);
+      const placementArea = printAreas.find(
+        (area) => normalizePlacementKey(area.title) === normalizedPlacement
+      );
+      const regionForExport =
+        regions[normalizedPlacement] ??
+        (placementArea ? getRegionFromPrintArea(placementArea) : getRegionFromPrintArea(printAreas[0]));
+
+      const dataUrl = exportCanvasToDataUrl(canvas, {
+        region: regionForExport,
+        includeBackground: false,
+      });
       return dataUrl || "";
     },
-    [canvases]
+    [canvases, printAreas, regions]
   );
 
   const savePlacementSnapshot = useCallback(
-    (placementKey: string, colorCode?: string) => {
-      const effectiveColor = colorCode ?? selectedColorRef.current;
-      const storageKey = buildColorPlacementKey(effectiveColor, placementKey);
+    (placementKey: string) => {
+      const normalizedPlacement = normalizePlacementKey(placementKey);
 
-      const nextCanvasState = serializePlacementState(placementKey, effectiveColor);
-      const nextArtwork = exportPlacementArtwork(placementKey, effectiveColor);
+      const nextCanvasState = serializePlacementState(normalizedPlacement);
+      const nextArtwork = exportPlacementArtwork(normalizedPlacement);
 
       if (nextCanvasState) {
         const mergedCanvasState = {
           ...canvasStateRef.current,
-          [storageKey]: nextCanvasState,
+          [normalizedPlacement]: nextCanvasState,
         };
         canvasStateRef.current = mergedCanvasState;
         flushSync(() => {
@@ -227,7 +219,7 @@ export function useCustomizeEditorState({
       if (nextArtwork) {
         const mergedArtwork = {
           ...artworkRef.current,
-          [storageKey]: nextArtwork,
+          [normalizedPlacement]: nextArtwork,
         };
         artworkRef.current = mergedArtwork;
         flushSync(() => {
@@ -236,20 +228,18 @@ export function useCustomizeEditorState({
       }
 
       return {
-        editorState: nextCanvasState ?? canvasStateRef.current[storageKey] ?? null,
-        artwork: nextArtwork || artworkRef.current[storageKey] || "",
+        editorState: nextCanvasState ?? canvasStateRef.current[normalizedPlacement] ?? null,
+        artwork: nextArtwork || artworkRef.current[normalizedPlacement] || "",
       };
     },
     [exportPlacementArtwork, serializePlacementState]
   );
 
   const saveAllPlacements = useCallback(
-    (colorCode?: string) => {
-      const effectiveColor = colorCode ?? selectedColorRef.current;
-
+    () => {
       for (const area of printAreas) {
         const placementKey = normalizePlacementKey(area.title);
-        savePlacementSnapshot(placementKey, effectiveColor);
+        savePlacementSnapshot(placementKey);
       }
     },
     [printAreas, savePlacementSnapshot]
@@ -258,19 +248,16 @@ export function useCustomizeEditorState({
   const handlePlacementChange = useCallback(
     (nextPlacement: string) => {
       if (nextPlacement == placementRef.current) return;
-      savePlacementSnapshot(placementRef.current, selectedColorRef.current);
+      savePlacementSnapshot(placementRef.current);
       setPlacement(nextPlacement);
     },
     [savePlacementSnapshot]
   );
 
   const getCanvasStateForPlacement = useCallback(
-    (placementKey: string, colorCode?: string) => {
-      const storageKey = buildColorPlacementKey(
-        colorCode ?? selectedColorRef.current,
-        placementKey
-      );
-      return canvasStateRef.current[storageKey];
+    (placementKey: string) => {
+      const normalizedPlacement = normalizePlacementKey(placementKey);
+      return canvasStateRef.current[normalizedPlacement];
     },
     []
   );

@@ -1,5 +1,11 @@
 // Shared types extracted from previous store implementation
-export type OrderStatus = 'New' | 'In Production' | 'Shipped' | 'Artwork Needed' | 'Exception';
+export type OrderStatus =
+  | 'New'
+  | 'In Production'
+  | 'Shipped'
+  | 'Artwork Needed'
+  | 'Billing Pending'
+  | 'Exception';
 
 export interface Order {
   id: string;

@@ -48,7 +48,19 @@ function normalizeOrder(input: unknown): Order | null {
       : typeof idRaw === 'string' || typeof idRaw === 'number'
         ? String(idRaw)
         : '';
-  const status = typeof statusRaw === 'string' ? statusRaw : 'New';
+  const statusValue = typeof statusRaw === 'string' ? statusRaw.trim().toLowerCase() : '';
+  const status: Order['status'] =
+    statusValue === 'billing_pending' || statusValue === 'billing pending'
+      ? 'Billing Pending'
+      : statusValue === 'in_production' || statusValue === 'in production'
+        ? 'In Production'
+        : statusValue === 'artwork_needed' || statusValue === 'artwork needed'
+          ? 'Artwork Needed'
+          : statusValue === 'shipped'
+            ? 'Shipped'
+            : statusValue === 'exception'
+              ? 'Exception'
+              : 'New';
   const customerName = typeof customerRaw.name === 'string' ? customerRaw.name : 'Unknown';
   const customerEmail = typeof customerRaw.email === 'string' ? customerRaw.email : '';
   const date = typeof dateRaw === 'string' ? dateRaw : '';
@@ -294,14 +306,23 @@ export default function Dashboard() {
       try {
         const res = await fetch('/app/api/billing-status');
         const payload = await res.json();
-        if (!res.ok || !payload?.ok) {
-          throw new Error(payload?.error || 'Failed to load billing status.');
+        const isOk = Boolean(payload?.ok ?? payload?.success);
+        if (!res.ok || !isOk) {
+          throw new Error(payload?.error || payload?.message || 'Failed to load billing status.');
         }
+
+        const normalizedStatus =
+          payload?.billingStatus ?? payload?.data?.billing_status ?? payload?.billing_status ?? 'inactive';
+        const normalizedRequired =
+          payload?.isBillingRequired ?? payload?.data?.is_billing_required ?? payload?.is_billing_required ?? false;
+        const normalizedLineItemId =
+          payload?.lineItemId ?? payload?.data?.line_item_id ?? payload?.line_item_id ?? null;
+
         if (!cancelled) {
           setBillingStatus({
-            status: payload.billingStatus ?? 'inactive',
-            required: Boolean(payload.isBillingRequired),
-            lineItemId: payload.lineItemId ?? null,
+            status: normalizedStatus,
+            required: Boolean(normalizedRequired),
+            lineItemId: normalizedLineItemId,
           });
         }
       } catch (error) {
@@ -362,6 +383,8 @@ export default function Dashboard() {
       case 'Shipped':
         return 'success';
       case 'In Production':
+        return 'warning';
+      case 'Billing Pending':
         return 'warning';
       case 'New':
         return 'info';
@@ -488,6 +511,8 @@ export default function Dashboard() {
     switch (status) {
       case 'Shipped':
         return '#10b981';
+      case 'Billing Pending':
+        return '#b45309';
       case 'In Production':
         return '#f59e0b';
       case 'Artwork Needed':
@@ -784,7 +809,7 @@ export default function Dashboard() {
                   View Orders
                 </button>
                 <Badge tone={billingStatus.status === 'active' ? 'success' : billingStatus.status === 'blocked' ? 'critical' : 'attention'}>
-                  Billing: {billingLoading ? 'Loading...' : billingStatus.status}
+                  {`Billing: ${billingLoading ? 'Loading...' : billingStatus.status}`}
                 </Badge>
                 {billingStatus.required && billingStatus.status !== 'active' ? (
                   <button

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { useLoaderData, useSearchParams } from "react-router";
 import {
+  AppProvider as PolarisAppProvider,
   Page,
   Card,
   BlockStack,
@@ -14,6 +15,7 @@ import {
   Thumbnail,
   Scrollable,
 } from "@shopify/polaris";
+import translations from "@shopify/polaris/locales/en.json";
 import CustomizeCanvasSection from "../components/product-customize/CustomizeCanvasSection";
 import ColorSelector from "../components/product-customize/ColorSelector";
 import ProductMeta from "../components/product-customize/ProductMeta";
@@ -292,33 +294,36 @@ export default function ProductCustomize() {
 
   if (!productKey || !product) {
     return (
-      <Page fullWidth backAction={{ url: "/app/products", content: "Products" }}>
-        <Card>
-          <div
-            style={{
-              borderRadius: 12,
-              border: "1px solid #fecaca",
-              backgroundColor: "#fff1f2",
-              padding: 14,
-            }}
-          >
-            <Text as="p" variant="bodyMd" fontWeight="semibold" tone="critical">
-              Product required
-            </Text>
-            <Text as="p" tone="critical">
-              Select a valid product from the Products page and click Customize.
-            </Text>
-          </div>
-        </Card>
-      </Page>
+      <PolarisAppProvider i18n={translations}>
+        <Page fullWidth backAction={{ url: "/app/products", content: "Products" }}>
+          <Card>
+            <div
+              style={{
+                borderRadius: 12,
+                border: "1px solid #fecaca",
+                backgroundColor: "#fff1f2",
+                padding: 14,
+              }}
+            >
+              <Text as="p" variant="bodyMd" fontWeight="semibold" tone="critical">
+                Product required
+              </Text>
+              <Text as="p" tone="critical">
+                Select a valid product from the Products page and click Customize.
+              </Text>
+            </div>
+          </Card>
+        </Page>
+      </PolarisAppProvider>
     );
   }
 
   return (
-    <Page
-      fullWidth
-      backAction={{ url: "/app/products", content: "Products" }}
-    >
+    <PolarisAppProvider i18n={translations}>
+      <Page
+        fullWidth
+        backAction={{ url: "/app/products", content: "Products" }}
+      >
       <div style={{ maxWidth: 1420, margin: "0 auto", width: "100%" }}>
       <BlockStack gap="400">
         {fetcher.data && !fetcher.data.ok ? (
@@ -772,6 +777,7 @@ export default function ProductCustomize() {
           </BlockStack>
         </Modal.Section>
       </Modal>
-    </Page>
+      </Page>
+    </PolarisAppProvider>
   );
 }

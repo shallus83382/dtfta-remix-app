@@ -4,9 +4,10 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import type { CustomizeSubmitResult } from "./types";
 
 type UseCustomizePublishArgs = {
-  buildFormData: () =>
+  buildFormData: () => Promise<
     | { ok: true; formData: FormData }
-    | { ok: false; error: string };
+    | { ok: false; error: string }
+  >;
 };
 
 export function useCustomizePublish({
@@ -15,16 +16,29 @@ export function useCustomizePublish({
   const fetcher = useFetcher<CustomizeSubmitResult>();
   const shopify = useAppBridge();
   const successHandled = useRef(false);
+  const isBuilding = useRef(false);
 
-  const handleSubmit = useCallback(() => {
-    const result = buildFormData();
+  const handleSubmit = useCallback(async () => {
+    if (isBuilding.current || fetcher.state !== "idle") return;
 
-    if (!result.ok) {
-      shopify.toast.show(result.error);
-      return;
+    isBuilding.current = true;
+
+    try {
+      const result = await buildFormData();
+
+      if (!result.ok) {
+        shopify.toast.show(result.error);
+        return;
+      }
+
+      fetcher.submit(result.formData, { method: "POST" });
+    } catch (error) {
+      shopify.toast.show(
+        error instanceof Error ? error.message : "Failed to prepare product"
+      );
+    } finally {
+      isBuilding.current = false;
     }
-
-    fetcher.submit(result.formData, { method: "POST" });
   }, [buildFormData, fetcher, shopify]);
 
   useEffect(() => {
