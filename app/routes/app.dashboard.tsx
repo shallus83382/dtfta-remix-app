@@ -348,7 +348,7 @@ export default function Dashboard() {
       inProduction: 0,
       shipped: 0,
       exceptions: 0,
-      fulfillmentRate: 0,
+      fulfillmentRate: 0, 
     }
   );
   const [brandSettings] = useState<BrandSettings | null>(loaderData?.brandSetting || null);
