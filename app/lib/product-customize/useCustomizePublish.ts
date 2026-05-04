@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useFetcher } from "react-router";
+import { useFetcher, useLocation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import type { CustomizeSubmitResult } from "./types";
 
@@ -14,8 +14,10 @@ export function useCustomizePublish({
   buildFormData,
 }: UseCustomizePublishArgs) {
   const fetcher = useFetcher<CustomizeSubmitResult>();
+  const routerLocation = useLocation();
   const shopify = useAppBridge();
   const successHandled = useRef(false);
+  const errorHandled = useRef(false);
   const isBuilding = useRef(false);
 
   const handleSubmit = useCallback(async () => {
@@ -31,7 +33,10 @@ export function useCustomizePublish({
         return;
       }
 
-      fetcher.submit(result.formData, { method: "POST" });
+      fetcher.submit(result.formData, {
+        method: "POST",
+        action: `${routerLocation.pathname}${routerLocation.search}`,
+      });
     } catch (error) {
       shopify.toast.show(
         error instanceof Error ? error.message : "Failed to prepare product"
@@ -39,13 +44,21 @@ export function useCustomizePublish({
     } finally {
       isBuilding.current = false;
     }
-  }, [buildFormData, fetcher, shopify]);
+  }, [buildFormData, fetcher, routerLocation.pathname, routerLocation.search, shopify]);
 
   useEffect(() => {
     if (fetcher.state === "idle") {
       successHandled.current = false;
+      errorHandled.current = false;
     }
   }, [fetcher.state]);
+
+  useEffect(() => {
+    if (fetcher.data && fetcher.data.ok === false && !errorHandled.current) {
+      errorHandled.current = true;
+      shopify.toast.show(fetcher.data.error || "Could not add product to store", { isError: true });
+    }
+  }, [fetcher.data, shopify]);
 
   useEffect(() => {
     if (fetcher.data?.ok && fetcher.data.productId && !successHandled.current) {

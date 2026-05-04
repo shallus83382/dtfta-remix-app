@@ -239,9 +239,12 @@ export function useCustomizeEditorState({
           setArtworkByPlacement(mergedArtwork);
         });
       } else {
-        const ids = { ...artworkLibraryIdRef.current };
-        delete ids[normalizedPlacement];
-        artworkLibraryIdRef.current = ids;
+        const activeCanvas = canvases[normalizedPlacement];
+        if (activeCanvas) {
+          const ids = { ...artworkLibraryIdRef.current };
+          delete ids[normalizedPlacement];
+          artworkLibraryIdRef.current = ids;
+        }
       }
 
       return {
@@ -249,7 +252,7 @@ export function useCustomizeEditorState({
         artwork: nextArtwork || artworkRef.current[normalizedPlacement] || "",
       };
     },
-    [exportPlacementArtwork, serializePlacementState]
+    [canvases, exportPlacementArtwork, serializePlacementState]
   );
 
   const saveAllPlacements = useCallback(

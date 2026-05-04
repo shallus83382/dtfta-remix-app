@@ -143,6 +143,13 @@ export default function ProductCustomize() {
     defaultColor: product?.variants?.[0]?.colorCode ?? "",
   });
 
+  const handleLibraryArtworkBindingChange = useCallback(
+    (libraryArtworkId: string | null) => {
+      setArtworkLibraryIdForPlacement(placement, libraryArtworkId);
+    },
+    [placement, setArtworkLibraryIdForPlacement]
+  );
+
   const infoPanelStyle: React.CSSProperties = {
     position: "relative",
     overflow: "hidden",
@@ -406,9 +413,7 @@ export default function ProductCustomize() {
               onPrintSizeChange={handlePrintSizeChange}
               onRegionChange={handleRegionChange}
               onRegisterActions={setCanvasActions}
-              onLibraryArtworkBindingChange={(libraryArtworkId) =>
-                setArtworkLibraryIdForPlacement(placement, libraryArtworkId)
-              }
+              onLibraryArtworkBindingChange={handleLibraryArtworkBindingChange}
             />
             <div
               style={{

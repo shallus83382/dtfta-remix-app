@@ -17,6 +17,12 @@ import { getProductDesignAssetUrl } from "../design-assets";
 
 const CANVAS_SIZE = 500;
 
+/** Laravel expects `productId` to be a DB integer; omit non-numeric template keys. */
+function sanitizeDbProductId(raw: string): string {
+  const s = String(raw ?? "").trim();
+  return /^\d+$/.test(s) ? s : "";
+}
+
 type BuildCustomizeSubmissionArgs = {
   productKey: string;
   productName: string;
@@ -368,7 +374,7 @@ export async function buildCustomizeSubmission({
   const formData = new FormData();
   formData.set("productKey", productKey);
   formData.set("title", `${productName}`);
-  formData.set("productId", productId);
+  formData.set("productId", sanitizeDbProductId(productId));
   formData.set("printPlan", printPlan);
 
   const printableAreasPayload = printableAreas.map((area) => ({

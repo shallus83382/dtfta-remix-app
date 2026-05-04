@@ -227,9 +227,23 @@ export async function publishCustomizeProduct({
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
+      let errorMessage =
+        (typeof data.message === "string" && data.message) ||
+        (typeof data.error === "string" && data.error) ||
+        `Request failed: ${res.status}`;
+      const errors = data.errors;
+      if (errors && typeof errors === "object" && !Array.isArray(errors)) {
+        const parts = Object.entries(errors as Record<string, unknown>).map(([key, val]) => {
+          const msg = Array.isArray(val) ? val.join(" ") : String(val);
+          return `${key}: ${msg}`;
+        });
+        if (parts.length) {
+          errorMessage = `${errorMessage} — ${parts.join("; ")}`;
+        }
+      }
       return {
         ok: false,
-        error: data.message || data.error || `Request failed: ${res.status}`,
+        error: errorMessage,
       };
     }
 

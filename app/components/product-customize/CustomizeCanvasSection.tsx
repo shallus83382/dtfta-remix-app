@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { Text } from "@shopify/polaris";
 import type { Canvas } from "fabric";
 import DesignCanvas, {
@@ -63,6 +64,29 @@ export default function CustomizeCanvasSection({
     ? getProductDesignAssetUrl(selectedPrintArea.image, selectedColor)
     : "";
 
+  const handleRegisterActions = useCallback(
+    (actions: CanvasActions | null) => {
+      if (!actions) {
+        onRegisterActions?.(null);
+        return;
+      }
+      onRegisterActions?.({
+        addText: actions.addText,
+        addImage: async (file) => {
+          await actions.addImage(file);
+          onLibraryArtworkBindingChange?.(null);
+        },
+        addImageFromUrl: actions.addImageFromUrl,
+        deleteSelected: actions.deleteSelected,
+        clear: () => {
+          actions.clear();
+          onLibraryArtworkBindingChange?.(null);
+        },
+      });
+    },
+    [onRegisterActions, onLibraryArtworkBindingChange]
+  );
+
   return (
     <>
       <div
@@ -85,25 +109,7 @@ export default function CustomizeCanvasSection({
               label={selectedPrintArea.title}
               fillWidth
               showInlineActions={false}
-              onRegisterActions={(actions) => {
-                if (!actions) {
-                  onRegisterActions?.(null);
-                  return;
-                }
-                onRegisterActions?.({
-                  addText: actions.addText,
-                  addImage: async (file) => {
-                    await actions.addImage(file);
-                    onLibraryArtworkBindingChange?.(null);
-                  },
-                  addImageFromUrl: actions.addImageFromUrl,
-                  deleteSelected: actions.deleteSelected,
-                  clear: () => {
-                    actions.clear();
-                    onLibraryArtworkBindingChange?.(null);
-                  },
-                });
-              }}
+              onRegisterActions={handleRegisterActions}
               onCanvasReady={(canvas) => onCanvasReady(placement, canvas)}
               printWidth={selectedPrintSize.width}
               printHeight={selectedPrintSize.height}

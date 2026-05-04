@@ -152,6 +152,7 @@ export default function DesignCanvas({
   const onCanvasReadyRef = useRef(onCanvasReady);
   const onPrintDimensionsChangeRef = useRef(onPrintDimensionsChange);
   const onDesignableRegionChangeRef = useRef(onDesignableRegionChange);
+  const onRegisterActionsRef = useRef(onRegisterActions);
 
   useEffect(() => {
     onCanvasReadyRef.current = onCanvasReady;
@@ -1007,7 +1008,7 @@ export default function DesignCanvas({
   }, []);
 
   useEffect(() => {
-    onRegisterActions?.({
+    onRegisterActionsRef.current?.({
       addText: handleAddText,
       addImage: handleAddImage,
       addImageFromUrl: handleAddImageFromUrl,
@@ -1016,7 +1017,7 @@ export default function DesignCanvas({
     });
 
     return () => {
-      onRegisterActions?.(null);
+      onRegisterActionsRef.current?.(null);
     };
   }, [
     handleAddImage,
@@ -1024,7 +1025,6 @@ export default function DesignCanvas({
     handleAddText,
     handleClear,
     handleDeleteSelected,
-    onRegisterActions,
   ]);
 
   const maxLeft = CANVAS_SIZE - 1;
