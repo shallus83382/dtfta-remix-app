@@ -90,22 +90,22 @@ export default function Index() {
   const fetcher = useFetcher<typeof action>();
 
   const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
+  // const isLoading =
+  //   ["loading", "submitting"].includes(fetcher.state) &&
+  //   fetcher.formMethod === "POST";
 
-  useEffect(() => {
-    if (fetcher.data?.product?.id) {
-      shopify.toast.show("Product created");
-    }
-  }, [fetcher.data?.product?.id, shopify]);
+  // useEffect(() => {
+  //   if (fetcher.data?.product?.id) {
+  //     shopify.toast.show("Product created");
+  //   }
+  // }, [fetcher.data?.product?.id, shopify]);
 
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+  // const generateProduct = () => fetcher.submit({}, { method: "POST" });
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    navigate('/app/dashboard');
+    navigate('/app/get-started');
   }, [navigate]);
 
   return null;

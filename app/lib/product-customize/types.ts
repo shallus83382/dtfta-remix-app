@@ -37,6 +37,8 @@ export type ArtworkUrlPayload = {
   placement: string;
   artworkUrl: string;
   customArtworkUrl?: string;
+  /** Stable id from `/app/api/artworks` when the merchant picked a library asset */
+  libraryArtworkId?: string;
   designableRegion: DesignableRegion;
   printSize: {
     width: number;

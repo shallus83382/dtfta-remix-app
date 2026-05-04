@@ -128,6 +128,7 @@ export default function ProductCustomize() {
     handlePlacementChange,
     handleColorChange,
     handleAddToStore,
+    setArtworkLibraryIdForPlacement,
   } = useProductCustomize({
     productKey,
     productName,
@@ -400,6 +401,9 @@ export default function ProductCustomize() {
               onPrintSizeChange={handlePrintSizeChange}
               onRegionChange={handleRegionChange}
               onRegisterActions={setCanvasActions}
+              onLibraryArtworkBindingChange={(libraryArtworkId) =>
+                setArtworkLibraryIdForPlacement(placement, libraryArtworkId)
+              }
             />
             <div
               style={{
@@ -726,6 +730,7 @@ export default function ProductCustomize() {
                       if (!canvasActions) return;
                       const proxiedUrl = `/app/api/artworks-image?url=${encodeURIComponent(image.url)}`;
                       await canvasActions.addImageFromUrl(proxiedUrl);
+                      setArtworkLibraryIdForPlacement(placement, image.id);
                       setIsImageModalOpen(false);
                     }}
                     style={{

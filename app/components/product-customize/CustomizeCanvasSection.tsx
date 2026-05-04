@@ -6,6 +6,14 @@ import DesignCanvas, {
 import type { DtftaPrintArea } from "../../lib/dtfta-products.server";
 import { getProductDesignAssetUrl } from "../../lib/design-assets";
 
+type CanvasActions = {
+  addText: () => void;
+  addImage: (file: File) => Promise<void>;
+  addImageFromUrl: (url: string) => Promise<void>;
+  deleteSelected: () => void;
+  clear: () => void;
+};
+
 type Props = {
   placement: string;
   selectedColor?: string;
@@ -16,13 +24,9 @@ type Props = {
   onCanvasReady: (placement: string, canvas: Canvas) => void;
   onPrintSizeChange: (placement: string, width: number, height: number) => void;
   onRegionChange: (placement: string, region: DesignableRegion) => void;
-  onRegisterActions?: (actions: {
-    addText: () => void;
-    addImage: (file: File) => Promise<void>;
-    addImageFromUrl: (url: string) => Promise<void>;
-    deleteSelected: () => void;
-    clear: () => void;
-  } | null) => void;
+  onRegisterActions?: (actions: CanvasActions | null) => void;
+  /** Called when canvas is cleared or a local file image is added (no library id). */
+  onLibraryArtworkBindingChange?: (libraryArtworkId: string | null) => void;
 };
 
 export default function CustomizeCanvasSection({
@@ -36,6 +40,7 @@ export default function CustomizeCanvasSection({
   onPrintSizeChange,
   onRegionChange,
   onRegisterActions,
+  onLibraryArtworkBindingChange,
 }: Props) {
   if (!selectedPrintArea) {
     return (
@@ -80,7 +85,25 @@ export default function CustomizeCanvasSection({
               label={selectedPrintArea.title}
               fillWidth
               showInlineActions={false}
-              onRegisterActions={onRegisterActions}
+              onRegisterActions={(actions) => {
+                if (!actions) {
+                  onRegisterActions?.(null);
+                  return;
+                }
+                onRegisterActions?.({
+                  addText: actions.addText,
+                  addImage: async (file) => {
+                    await actions.addImage(file);
+                    onLibraryArtworkBindingChange?.(null);
+                  },
+                  addImageFromUrl: actions.addImageFromUrl,
+                  deleteSelected: actions.deleteSelected,
+                  clear: () => {
+                    actions.clear();
+                    onLibraryArtworkBindingChange?.(null);
+                  },
+                });
+              }}
               onCanvasReady={(canvas) => onCanvasReady(placement, canvas)}
               printWidth={selectedPrintSize.width}
               printHeight={selectedPrintSize.height}

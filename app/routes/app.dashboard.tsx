@@ -52,11 +52,18 @@ function normalizeOrder(input: unknown): Order | null {
   const status: Order['status'] =
     statusValue === 'billing_pending' || statusValue === 'billing pending'
       ? 'Billing Pending'
-      : statusValue === 'in_production' || statusValue === 'in production'
+      : statusValue === 'in_production' ||
+          statusValue === 'in production' ||
+          statusValue === 'processing' ||
+          statusValue === 'production' ||
+          statusValue === 'printing'
         ? 'In Production'
         : statusValue === 'artwork_needed' || statusValue === 'artwork needed'
           ? 'Artwork Needed'
-          : statusValue === 'shipped'
+          : statusValue === 'shipped' ||
+              statusValue === 'fulfilled' ||
+              statusValue === 'completed' ||
+              statusValue === 'delivered'
             ? 'Shipped'
             : statusValue === 'exception'
               ? 'Exception'
@@ -112,6 +119,80 @@ export type ProductWithKey = Product & {
   }>;
 };
 
+function readStatNumber(row: Record<string, unknown>, camelKey: string, snakeKey: string): number {
+  const raw = row[camelKey] ?? row[snakeKey];
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    const n = Number(raw);
+    if (Number.isFinite(n)) return n;
+  }
+  return 0;
+}
+
+function normalizeDashboardStatsFromApi(raw: unknown): DashboardStats | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const top = raw as Record<string, unknown>;
+  const row =
+    top.data && typeof top.data === 'object' && !Array.isArray(top.data)
+      ? (top.data as Record<string, unknown>)
+      : top;
+
+  return {
+    totalOrders: readStatNumber(row, 'totalOrders', 'total_orders'),
+    pending: readStatNumber(row, 'pending', 'pending_orders'),
+    inProduction: readStatNumber(row, 'inProduction', 'in_production'),
+    shipped: readStatNumber(row, 'shipped', 'shipped_orders'),
+    exceptions: readStatNumber(row, 'exceptions', 'exceptions_count'),
+    fulfillmentRate: readStatNumber(row, 'fulfillmentRate', 'fulfillment_rate'),
+  };
+}
+
+/** Pipeline buckets aligned with dashboard cards: pre-production → Pending, active print → In Production, done → Shipped. */
+function buildDashboardStatsFromOrders(orders: Order[]): DashboardStats {
+  let pending = 0;
+  let inProduction = 0;
+  let shipped = 0;
+  let exceptions = 0;
+
+  for (const order of orders) {
+    switch (order.status) {
+      case 'In Production':
+        inProduction += 1;
+        break;
+      case 'Shipped':
+        shipped += 1;
+        break;
+      case 'Exception':
+        exceptions += 1;
+        break;
+      case 'New':
+      case 'Billing Pending':
+      case 'Artwork Needed':
+        pending += 1;
+        break;
+    }
+  }
+
+  const totalOrders = orders.length;
+  const fulfillmentRate = totalOrders > 0 ? (shipped / totalOrders) * 100 : 0;
+
+  return {
+    totalOrders,
+    pending,
+    inProduction,
+    shipped,
+    exceptions,
+    fulfillmentRate,
+  };
+}
+
+function resolveDashboardStats(apiRaw: unknown, orders: Order[]): DashboardStats {
+  if (orders.length > 0) {
+    return buildDashboardStatsFromOrders(orders);
+  }
+  return normalizeDashboardStatsFromApi(apiRaw) ?? buildDashboardStatsFromOrders(orders);
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
@@ -165,7 +246,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     .map(normalizeOrder)
     .filter((order): order is Order => order !== null);
   const rawProductsRes = productsRes.status === 'fulfilled' ? await safeJson(productsRes.value) : [];
-  const dashboardStats = statsRes.status === 'fulfilled' ? await safeJson(statsRes.value) : null;
+  const dashboardStatsRaw = statsRes.status === 'fulfilled' ? await safeJson(statsRes.value) : null;
+  const dashboardStats = resolveDashboardStats(dashboardStatsRaw, orders);
   const fulfillmentStatus =
     fulfillmentRes.status === 'fulfilled' ? await safeJson(fulfillmentRes.value) : null;
   const brandSetting = brandRes.status === 'fulfilled' ? await safeJson(brandRes.value) : null;

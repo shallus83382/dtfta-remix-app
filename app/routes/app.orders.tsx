@@ -40,11 +40,18 @@ function normalizeOrder(input: unknown): Order | null {
   const status: OrderStatus =
     statusValue === 'billing_pending' || statusValue === 'billing pending'
       ? 'Billing Pending'
-      : statusValue === 'in_production' || statusValue === 'in production'
+      : statusValue === 'in_production' ||
+          statusValue === 'in production' ||
+          statusValue === 'processing' ||
+          statusValue === 'production' ||
+          statusValue === 'printing'
         ? 'In Production'
         : statusValue === 'artwork_needed' || statusValue === 'artwork needed'
           ? 'Artwork Needed'
-          : statusValue === 'shipped'
+          : statusValue === 'shipped' ||
+              statusValue === 'fulfilled' ||
+              statusValue === 'completed' ||
+              statusValue === 'delivered'
             ? 'Shipped'
             : statusValue === 'exception'
               ? 'Exception'

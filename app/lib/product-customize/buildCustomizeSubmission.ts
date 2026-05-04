@@ -24,6 +24,8 @@ type BuildCustomizeSubmissionArgs = {
   canvases: Record<string, Canvas | null>;
   canvasStateByPlacement: PlacementCanvasStateMap;
   artworkByPlacement: Record<string, string>;
+  /** Optional library asset ids per placement (from artwork API). */
+  artworkLibraryIds?: Record<string, string>;
   printAreas: DtftaPrintArea[];
   printSizes: PlacementPrintSizeMap;
   regions: PlacementRegionMap;
@@ -227,6 +229,7 @@ export async function buildCustomizeSubmission({
   canvases,
   canvasStateByPlacement,
   artworkByPlacement,
+  artworkLibraryIds,
   printAreas,
   printSizes,
   regions,
@@ -317,6 +320,8 @@ export async function buildCustomizeSubmission({
         }
       }
 
+      const libraryArtworkId = artworkLibraryIds?.[placement]?.trim();
+
       /**
        * artworkUrl = product variation media/mockup.
        * customArtworkUrl = transparent print-only art.
@@ -328,6 +333,7 @@ export async function buildCustomizeSubmission({
         customArtworkUrl,
         designableRegion: region,
         printSize,
+        ...(libraryArtworkId ? { libraryArtworkId } : {}),
       };
     }
   }

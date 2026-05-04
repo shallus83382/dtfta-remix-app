@@ -38,6 +38,8 @@ export function useCustomizeEditorState({
 
   const canvasStateRef = useRef<PlacementCanvasStateMap>({});
   const artworkRef = useRef<Record<string, string>>({});
+  /** Library asset ids from the artwork API, keyed by normalized placement (shared across colors). */
+  const artworkLibraryIdRef = useRef<Record<string, string>>({});
   const placementRef = useRef<string>(defaultPlacement);
   const selectedColorRef = useRef<string>(selectedColor);
 
@@ -198,6 +200,17 @@ export function useCustomizeEditorState({
     [canvases, printAreas, regions]
   );
 
+  const setArtworkLibraryIdForPlacement = useCallback((placementKey: string, libraryArtworkId: string | null) => {
+    const normalizedPlacement = normalizePlacementKey(placementKey);
+    const next = { ...artworkLibraryIdRef.current };
+    if (libraryArtworkId == null || libraryArtworkId === "") {
+      delete next[normalizedPlacement];
+    } else {
+      next[normalizedPlacement] = libraryArtworkId;
+    }
+    artworkLibraryIdRef.current = next;
+  }, []);
+
   const savePlacementSnapshot = useCallback(
     (placementKey: string) => {
       const normalizedPlacement = normalizePlacementKey(placementKey);
@@ -216,7 +229,7 @@ export function useCustomizeEditorState({
         });
       }
 
-      if (nextArtwork) {
+      if (nextArtwork && nextArtwork.trim()) {
         const mergedArtwork = {
           ...artworkRef.current,
           [normalizedPlacement]: nextArtwork,
@@ -225,6 +238,10 @@ export function useCustomizeEditorState({
         flushSync(() => {
           setArtworkByPlacement(mergedArtwork);
         });
+      } else {
+        const ids = { ...artworkLibraryIdRef.current };
+        delete ids[normalizedPlacement];
+        artworkLibraryIdRef.current = ids;
       }
 
       return {
@@ -271,6 +288,8 @@ export function useCustomizeEditorState({
     regions,
     artworkByPlacement,
     artworkRef,
+    artworkLibraryIdRef,
+    setArtworkLibraryIdForPlacement,
     selectedPrintArea,
     selectedRegion,
     selectedPrintSize,

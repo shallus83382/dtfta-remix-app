@@ -75,6 +75,7 @@ export function useProductCustomize({
       canvases: editor.canvases,
       canvasStateByPlacement: editor.canvasStateRef.current,
       artworkByPlacement: editor.artworkRef.current,
+      artworkLibraryIds: editor.artworkLibraryIdRef.current,
       printAreas,
       printSizes: editor.printSizes,
       regions: editor.regions,
@@ -118,5 +119,6 @@ export function useProductCustomize({
     handlePlacementChange: editor.handlePlacementChange,
     handleColorChange,
     handleAddToStore: publish.handleSubmit,
+    setArtworkLibraryIdForPlacement: editor.setArtworkLibraryIdForPlacement,
   };
 }
