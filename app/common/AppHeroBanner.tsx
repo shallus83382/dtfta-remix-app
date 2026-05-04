@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { BlockStack, Card, InlineStack, Text } from "@shopify/polaris";
+import { brandPrimaryButtonBg, brandTextOnLightShadow } from "../lib/brand-theme";
 
 type Props = {
   title: string;
@@ -36,9 +37,7 @@ export default function AppHeroBanner({
     <Card padding="0">
       <div
         style={{
-          background: "linear-gradient(122deg, #3498db 0%, #ff4da6 100%)",
-          backgroundSize: "170% 170%",
-          animation: "dtftaHeroGradient 10s ease-in-out infinite",
+          background: brandPrimaryButtonBg,
           borderRadius: 14,
           padding: 30,
           color: "#ffffff",
@@ -66,11 +65,6 @@ export default function AppHeroBanner({
               50% { transform: scale(1.08) rotate(10deg); opacity: 0.3; }
               100% { transform: scale(1) rotate(0deg); opacity: 0.18; }
             }
-            @keyframes dtftaHeroGradient {
-              0% { background-position: 0% 50%; }
-              50% { background-position: 100% 50%; }
-              100% { background-position: 0% 50%; }
-            }
           `}
         </style>
 
@@ -79,7 +73,7 @@ export default function AppHeroBanner({
             position: "absolute",
             inset: 0,
             background:
-              "radial-gradient(circle at 18% 22%, rgba(31,151,221,0.2) 0%, transparent 38%), radial-gradient(circle at 82% 76%, rgba(255,77,166,0.17) 0%, transparent 42%)",
+              "radial-gradient(circle at 18% 22%, rgba(255,255,255,0.14) 0%, transparent 42%), radial-gradient(circle at 82% 76%, rgba(255,255,255,0.1) 0%, transparent 45%)",
             animation: "dtftaHeroNebula 9.6s ease-in-out infinite",
             pointerEvents: "none",
           }}
@@ -105,7 +99,7 @@ export default function AppHeroBanner({
             width: 280,
             height: 280,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(31,151,221,0.4) 0%, rgba(31,151,221,0) 72%)",
+            background: "radial-gradient(circle, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 72%)",
             animation: "dtftaHeroNebula 4.3s ease-in-out infinite",
           }}
         />
@@ -117,7 +111,7 @@ export default function AppHeroBanner({
             width: 320,
             height: 320,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(255,77,166,0.4) 0%, rgba(255,77,166,0) 70%)",
+            background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%)",
             animation: "dtftaHeroNebula 4.9s ease-in-out infinite",
           }}
         />
@@ -145,7 +139,7 @@ export default function AppHeroBanner({
         <BlockStack gap="400">
           <BlockStack gap="200">
             <Text as="h1" variant="headingXl" tone="text-inverse">
-              <span style={{ color: "#ffffff", textShadow: "0 1px 10px rgba(15,23,42,0.32)" }}>
+              <span style={{ color: "#ffffff", textShadow: brandTextOnLightShadow }}>
                 {title}
               </span>
             </Text>

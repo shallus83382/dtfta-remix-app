@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import { Select, InlineStack } from "@shopify/polaris";
+import { brandColors } from "../lib/brand-theme";
 import type { Canvas, FabricObject, Rect } from "fabric";
 
 const CANVAS_SIZE = 500;
@@ -1040,7 +1041,7 @@ export default function DesignCanvas({
     fontWeight: 600,
     cursor: "pointer",
     background: "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
-    color: "#0f172a",
+    color: brandColors.text,
     boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
   } as const;
 
@@ -1053,7 +1054,7 @@ export default function DesignCanvas({
     fontWeight: 600,
     cursor: "pointer",
     background: "#ffffff",
-    color: "#0f172a",
+    color: brandColors.text,
   } as const;
 
   const content = (
@@ -1066,7 +1067,7 @@ export default function DesignCanvas({
           background: "linear-gradient(145deg, #ffffff 0%, #f8fbff 100%)",
           padding: "8px 12px",
           fontWeight: 600,
-          color: "#0f172a",
+          color: brandColors.text,
           boxShadow: "0 8px 18px rgba(15,23,42,0.05)",
         }}
       >
@@ -1088,7 +1089,7 @@ export default function DesignCanvas({
         }}
       >
         <InlineStack gap="300" blockAlign="center">
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>Zoom:</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: brandColors.textSubtle }}>Zoom:</span>
 
         <button
           type="button"
@@ -1105,7 +1106,7 @@ export default function DesignCanvas({
           −
         </button>
 
-        <span style={{ minWidth: 48, textAlign: "center", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+        <span style={{ minWidth: 48, textAlign: "center", fontSize: 14, fontWeight: 700, color: brandColors.text }}>
           {Math.round(zoom * 100)}%
         </span>
 

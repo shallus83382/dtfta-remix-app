@@ -5,6 +5,11 @@ import {
   Text,
 } from "@shopify/polaris";
 import type { Product } from "../types";
+import {
+  brandCardDarkGradient,
+  brandColors,
+  brandPrimaryButtonBg,
+} from "../lib/brand-theme";
 
 interface ProductCardProps {
   product: Product;
@@ -63,15 +68,17 @@ export default function ProductCard({
       tabIndex={0}
       style={{
         cursor: "pointer",
-        border: isActiveVisual ? "1px solid rgba(59,130,246,0.42)" : "1px solid #e2e8f0",
+        border: isActiveVisual
+          ? "1px solid rgba(255, 106, 0, 0.45)"
+          : "1px solid #e2e8f0",
         borderRadius: 14,
         background:
           isActiveVisual
-            ? "linear-gradient(145deg, #0f172a 0%, #1e293b 52%, #334155 100%)"
+            ? brandCardDarkGradient
             : "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
         boxShadow: isActiveVisual
-          ? "0 16px 30px rgba(15,23,42,0.28)"
-          : "0 8px 18px rgba(15,23,42,0.08)",
+          ? "0 16px 30px rgba(22,22,31,0.28)"
+          : "0 8px 18px rgba(22,22,31,0.08)",
         transform: isActiveVisual ? "translateY(-3px)" : "translateY(0)",
         transition: "all 180ms ease",
         padding: 10,
@@ -95,7 +102,7 @@ export default function ProductCard({
               position: "absolute",
               inset: 0,
               background:
-                "linear-gradient(140deg, rgba(59,130,246,0.08) 0%, rgba(236,72,153,0.05) 54%, rgba(255,255,255,0) 100%)",
+                "linear-gradient(140deg, rgba(255, 106, 0, 0.07) 0%, rgba(255,255,255,0) 100%)",
               pointerEvents: "none",
               zIndex: 1,
             }}
@@ -124,7 +131,7 @@ export default function ProductCard({
                 position: "absolute",
                 bottom: "10px",
                 left: "10px",
-                background: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)",
+                background: brandPrimaryButtonBg,
                 color: "#ffffff",
                 borderRadius: 999,
                 padding: "3px 8px",
@@ -165,7 +172,7 @@ export default function ProductCard({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                style={{ color: product.isFavorite ? "#dc2626" : "#0f172a" }}
+                style={{ color: product.isFavorite ? "#dc2626" : brandColors.text }}
               >
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
@@ -180,7 +187,7 @@ export default function ProductCard({
               variant={variant === "compact" ? "bodySm" : "headingSm"}
               fontWeight="semibold"
               tone={isActiveVisual ? "text-inverse" : "base"}
-              style={{ color: isActiveVisual ? "#ffffff" : "#0f172a" }}
+              style={{ color: isActiveVisual ? "#ffffff" : brandColors.text }}
               truncate
             >
               {product.name}
@@ -199,7 +206,7 @@ export default function ProductCard({
               variant={variant === "compact" ? "bodyMd" : "headingSm"}
               fontWeight="semibold"
               tone={isActiveVisual ? "text-inverse" : "base"}
-              style={{ color: isActiveVisual ? "#ffffff" : "#0f172a" }}
+              style={{ color: isActiveVisual ? "#ffffff" : brandColors.text }}
             >
               From {product?.currency} {formattedPrice}
             </Text>

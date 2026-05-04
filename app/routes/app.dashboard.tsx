@@ -25,7 +25,16 @@ import {
 import ProductCard from '../common/ProductCard';
 import type { Order, Product, DashboardStats, BrandSettings, SetupStatus, BillingStatus } from '../types';
 import {getProductDesignAssetUrl} from "../lib/design-assets";
-import { brandPalette } from '../lib/brand-theme';
+import {
+  brandAccentTint,
+  brandColors,
+  brandHeroBadgePillStyle,
+  brandHeroBannerCtaStyle,
+  brandOrange,
+  brandPalette,
+  brandPrimaryButtonBg,
+  brandPrimaryCtaShadow,
+} from '../lib/brand-theme';
 
 function normalizeOrder(input: unknown): Order | null {
   if (!input || typeof input !== 'object') return null;
@@ -498,8 +507,8 @@ export default function Dashboard() {
       label: 'Total Orders',
       value: dashboardStats.totalOrders,
       helper: 'All-time tracked orders',
-      tone: brandPalette.blue,
-      accent: `linear-gradient(135deg, ${brandPalette.blue}20 0%, ${brandPalette.sky}1f 100%)`,
+      tone: brandPalette.orange,
+      accent: brandAccentTint,
       highlight: '+12% this week',
     },
     {
@@ -507,23 +516,23 @@ export default function Dashboard() {
       value: dashboardStats.pending,
       helper: 'Awaiting production start',
       tone: brandPalette.orange,
-      accent: `linear-gradient(135deg, ${brandPalette.orange}20 0%, ${brandPalette.coral}1f 100%)`,
+      accent: brandAccentTint,
       highlight: 'Prioritize these today',
     },
     {
       label: 'In Production',
       value: dashboardStats.inProduction,
       helper: 'Currently being fulfilled',
-      tone: brandPalette.violet,
-      accent: `linear-gradient(135deg, ${brandPalette.violet}20 0%, ${brandPalette.sky}1f 100%)`,
+      tone: brandPalette.orange,
+      accent: brandAccentTint,
       highlight: 'Running smoothly',
     },
     {
       label: 'Shipped',
       value: dashboardStats.shipped,
       helper: 'Completed and dispatched',
-      tone: brandPalette.green,
-      accent: `linear-gradient(135deg, ${brandPalette.green}20 0%, ${brandPalette.teal}1f 100%)`,
+      tone: brandPalette.orange,
+      accent: brandAccentTint,
       highlight: 'Delivery flow healthy',
     },
   ];
@@ -533,7 +542,7 @@ export default function Dashboard() {
     border: '1px solid #dbe3ec',
     padding: 16,
     background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
-    boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
+    boxShadow: '0 10px 24px rgba(22,22,31,0.08)',
   };
 
   const panelSurfaceStyle: React.CSSProperties = {
@@ -541,7 +550,7 @@ export default function Dashboard() {
     border: '1px solid #dbe3ec',
     background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
     padding: 18,
-    boxShadow: '0 12px 28px rgba(15,23,42,0.08)',
+    boxShadow: '0 12px 28px rgba(22,22,31,0.08)',
   };
 
   const buttonBaseStyle: React.CSSProperties = {
@@ -558,52 +567,32 @@ export default function Dashboard() {
 
   const primaryButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
-    background: `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+    background: brandPrimaryButtonBg,
     color: '#ffffff',
-    boxShadow: '0 10px 20px rgba(246,98,110,0.32)',
+    boxShadow: brandPrimaryCtaShadow,
   };
 
   const secondaryButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
-    background: `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+    background: brandPrimaryButtonBg,
     color: '#ffffff',
     border: '1px solid transparent',
-    boxShadow: '0 10px 20px rgba(246,98,110,0.28)',
+    boxShadow: brandPrimaryCtaShadow,
   };
 
   const ghostButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
     height: 30,
     padding: '0 10px',
-    background: `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+    background: brandPrimaryButtonBg,
     color: '#ffffff',
     border: '1px solid transparent',
-    boxShadow: '0 8px 16px rgba(246,98,110,0.24)',
-  };
-
-  const inverseButtonStyle: React.CSSProperties = {
-    ...buttonBaseStyle,
-    background: `linear-gradient(135deg, ${brandPalette.sky}66 0%, ${brandPalette.violet}66 100%)`,
-    color: '#ffffff',
-    border: '1px solid rgba(255,255,255,0.28)',
-    backdropFilter: 'blur(2px)',
+    boxShadow: brandPrimaryCtaShadow,
   };
 
   const getOrderAccentColor = (status: string) => {
-    switch (status) {
-      case 'Shipped':
-        return '#10b981';
-      case 'Billing Pending':
-        return '#b45309';
-      case 'In Production':
-        return '#f59e0b';
-      case 'Artwork Needed':
-        return '#f97316';
-      case 'Exception':
-        return '#ef4444';
-      default:
-        return '#3b82f6';
-    }
+    if (status === 'Exception') return brandColors.text;
+    return brandOrange;
   };
 
   const newsSlides = [
@@ -665,10 +654,10 @@ export default function Dashboard() {
             width: 32px;
             height: 32px;
             border-radius: 8px;
-            border: 1px solid #dbe3ec;
+            border: 1px solid ${brandColors.surfaceBorder};
             background: rgba(255,255,255,0.96);
-            color: #334155;
-            box-shadow: 0 6px 14px rgba(15,23,42,0.12);
+            color: ${brandColors.textSubtle};
+            box-shadow: 0 6px 14px rgba(22,22,31,0.12);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -714,6 +703,13 @@ export default function Dashboard() {
           .dtfta-btn:hover::after {
             transform: translateX(420%) skewX(-18deg);
           }
+          /* Polaris overrides; match orange-banner white chip CTAs */
+          button.dtfta-hero-cta {
+            background: #ffffff !important;
+            color: #16161f !important;
+            border: 2px solid #ff6a00 !important;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14) !important;
+          }
         `}
       </style>
       <div style={{ maxWidth: 1420, margin: '0 auto', width: '100%' }}>
@@ -721,10 +717,7 @@ export default function Dashboard() {
         <Card padding="0">
           <div
             style={{
-              background:
-                `linear-gradient(122deg, ${brandPalette.blue} 0%, ${brandPalette.pink} 100%)`,
-              backgroundSize: '170% 170%',
-              animation: 'dtftaHeroGradient 10s ease-in-out infinite',
+              background: brandPrimaryButtonBg,
               borderRadius: 14,
               padding: 30,
               color: '#ffffff',
@@ -752,11 +745,6 @@ export default function Dashboard() {
                   50% { transform: scale(1.08) rotate(10deg); opacity: 0.3; }
                   100% { transform: scale(1) rotate(0deg); opacity: 0.18; }
                 }
-                @keyframes dtftaHeroGradient {
-                  0% { background-position: 0% 50%; }
-                  50% { background-position: 100% 50%; }
-                  100% { background-position: 0% 50%; }
-                }
               `}
             </style>
             <div
@@ -764,7 +752,7 @@ export default function Dashboard() {
                 position: 'absolute',
                 inset: 0,
                 background:
-                  `radial-gradient(circle at 18% 22%, ${brandPalette.sky}33 0%, transparent 38%), radial-gradient(circle at 82% 76%, ${brandPalette.pink}2b 0%, transparent 42%)`,
+                  'radial-gradient(circle at 18% 22%, rgba(255,255,255,0.14) 0%, transparent 42%), radial-gradient(circle at 82% 76%, rgba(255,255,255,0.1) 0%, transparent 45%)',
                 animation: 'dtftaHeroNebula 9.6s ease-in-out infinite',
                 pointerEvents: 'none',
               }}
@@ -790,7 +778,7 @@ export default function Dashboard() {
                 width: 280,
                 height: 280,
                 borderRadius: '50%',
-                background: `radial-gradient(circle, ${brandPalette.sky}66 0%, ${brandPalette.sky}00 72%)`,
+                background: 'radial-gradient(circle, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 72%)',
                 animation: 'dtftaHeroNebula 4.3s ease-in-out infinite',
               }}
             />
@@ -802,7 +790,7 @@ export default function Dashboard() {
                 width: 320,
                 height: 320,
                 borderRadius: '50%',
-                background: `radial-gradient(circle, ${brandPalette.pink}66 0%, ${brandPalette.pink}00 70%)`,
+                background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%)',
                 animation: 'dtftaHeroNebula 4.9s ease-in-out infinite',
               }}
             />
@@ -828,7 +816,7 @@ export default function Dashboard() {
             <BlockStack gap="400">
               <BlockStack gap="200">
                 <Text as="h1" variant="headingXl" tone="text-inverse">
-                  <span style={{ color: '#ffffff', textShadow: '0 1px 10px rgba(15,23,42,0.32)' }}>
+                  <span style={{ color: '#ffffff', textShadow: '0 1px 10px rgba(22,22,31,0.32)' }}>
                     DTFTA Operations Dashboard
                   </span>
                 </Text>
@@ -842,61 +830,54 @@ export default function Dashboard() {
 
               <InlineStack align="space-between" blockAlign="center" gap="300">
                 <InlineStack gap="200" blockAlign="center">
-                  <Badge tone="attention">Live Operations</Badge>
-                  <Badge tone="success">{`${setupCompletionPercent}% setup complete`}</Badge>
+                  <span style={brandHeroBadgePillStyle}>Live Operations</span>
+                  <span style={brandHeroBadgePillStyle}>{`${setupCompletionPercent}% setup complete`}</span>
                 </InlineStack>
                 <div
+                  title={loaderData.shop}
                   style={{
-                    borderRadius: 999,
-                    padding: '6px 12px',
-                    backgroundColor: 'rgba(255,255,255,0.16)',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    backdropFilter: 'blur(2px)',
+                    ...brandHeroBadgePillStyle,
+                    maxWidth: 300,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontSize: 11,
+                    fontWeight: 600,
                   }}
                 >
-                  <Text as="p" variant="bodySm" fontWeight="semibold" tone="text-inverse">
-                    {loaderData.shop}
-                  </Text>
+                  {loaderData.shop}
                 </div>
               </InlineStack>
 
               <InlineStack gap="200">
                 <button
-                  className="dtfta-btn"
+                  className="dtfta-btn dtfta-hero-cta"
                   type="button"
-                  style={{
-                    ...primaryButtonStyle,
-                    height: 38,
-                    padding: '0 16px',
-                    fontSize: 14,
-                    fontWeight: 700,
-                  }}
+                  style={brandHeroBannerCtaStyle}
                   onClick={handleProductClick}
                 >
                   View Products
                 </button>
                 <button
-                  className="dtfta-btn"
+                  className="dtfta-btn dtfta-hero-cta"
                   type="button"
-                  style={{
-                    ...inverseButtonStyle,
-                    height: 38,
-                    padding: '0 16px',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    border: '1px solid rgba(255,255,255,0.48)',
-                  }}
+                  style={brandHeroBannerCtaStyle}
                   onClick={handleOrderClick}
                 >
                   View Orders
                 </button>
-                <Badge tone={billingStatus.status === 'active' ? 'success' : billingStatus.status === 'blocked' ? 'critical' : 'attention'}>
+                <span style={brandHeroBadgePillStyle}>
                   {`Billing: ${billingLoading ? 'Loading...' : billingStatus.status}`}
-                </Badge>
+                </span>
                 {billingStatus.required && billingStatus.status !== 'active' ? (
                   <button
                     type="button"
-                    style={inverseButtonStyle}
+                    className="dtfta-btn dtfta-hero-cta"
+                    style={{
+                      ...brandHeroBannerCtaStyle,
+                      opacity: isGeneratingBillingLink ? 0.7 : 1,
+                      cursor: isGeneratingBillingLink ? 'not-allowed' : 'pointer',
+                    }}
                     onClick={handleActivateBilling}
                     disabled={isGeneratingBillingLink}
                   >
@@ -905,9 +886,22 @@ export default function Dashboard() {
                 ) : null}
               </InlineStack>
               {billingError ? (
-                <Text as="p" tone="critical">
+                <div
+                  role="alert"
+                  style={{
+                    borderRadius: 10,
+                    padding: '10px 12px',
+                    maxWidth: 520,
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    border: `1px solid ${brandColors.text}`,
+                    color: brandColors.text,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    boxShadow: '0 6px 16px rgba(0, 0, 0, 0.12)',
+                  }}
+                >
                   {billingError}
-                </Text>
+                </div>
               ) : null}
             </BlockStack>
           </div>
@@ -927,7 +921,7 @@ export default function Dashboard() {
               boxShadow:
                 hoveredTopBox === 'growth'
                   ? '0 14px 30px rgba(59,130,246,0.2)'
-                  : '0 6px 14px rgba(15,23,42,0.05)',
+                  : '0 6px 14px rgba(22,22,31,0.05)',
               transform: hoveredTopBox === 'growth' ? 'translateY(-3px)' : 'translateY(0)',
               backdropFilter: hoveredTopBox === 'growth' ? 'blur(2px)' : 'blur(0px)',
               transition: 'all 180ms ease',
@@ -963,10 +957,10 @@ export default function Dashboard() {
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="050">
                 <Text as="h3" variant="headingSm">
-                  <span style={{ color: '#0f172a' }}>Growth Snapshot</span>
+                  <span style={{ color: brandColors.text }}>Growth Snapshot</span>
                 </Text>
                 <Text as="p" variant="bodySm">
-                  <span style={{ color: '#475569' }}>
+                  <span style={{ color: brandColors.textMuted }}>
                     Orders and production are synced and ready for scaling.
                   </span>
                 </Text>
@@ -989,7 +983,7 @@ export default function Dashboard() {
               boxShadow:
                 hoveredTopBox === 'pulse'
                   ? '0 14px 30px rgba(71,176,161,0.22)'
-                  : '0 6px 14px rgba(15,23,42,0.05)',
+                  : '0 6px 14px rgba(22,22,31,0.05)',
               transform: hoveredTopBox === 'pulse' ? 'translateY(-3px)' : 'translateY(0)',
               backdropFilter: hoveredTopBox === 'pulse' ? 'blur(2px)' : 'blur(0px)',
               transition: 'all 180ms ease',
@@ -1025,10 +1019,10 @@ export default function Dashboard() {
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="050">
                 <Text as="h3" variant="headingSm">
-                  <span style={{ color: '#0f172a' }}>Fulfillment Pulse</span>
+                  <span style={{ color: brandColors.text }}>Fulfillment Pulse</span>
                 </Text>
                 <Text as="p" variant="bodySm">
-                  <span style={{ color: '#475569' }}>
+                  <span style={{ color: brandColors.textMuted }}>
                     Monitor production and shipment consistency across active orders.
                   </span>
                 </Text>
@@ -1049,7 +1043,7 @@ export default function Dashboard() {
               boxShadow:
                 hoveredTopBox === 'connection'
                   ? '0 14px 30px rgba(71,176,161,0.2)'
-                  : '0 6px 14px rgba(15,23,42,0.05)',
+                  : '0 6px 14px rgba(22,22,31,0.05)',
               transform: hoveredTopBox === 'connection' ? 'translateY(-3px)' : 'translateY(0)',
               backdropFilter: hoveredTopBox === 'connection' ? 'blur(2px)' : 'blur(0px)',
               transition: 'all 180ms ease',
@@ -1076,10 +1070,10 @@ export default function Dashboard() {
             />
             <BlockStack gap="050">
               <Text as="h3" variant="headingSm">
-                <span style={{ color: '#0f172a' }}>Connection Healthy</span>
+                <span style={{ color: brandColors.text }}>Connection Healthy</span>
               </Text>
               <Text as="p" variant="bodySm">
-                <span style={{ color: '#475569' }}>Access token active for this session</span>
+                <span style={{ color: brandColors.textMuted }}>Access token active for this session</span>
               </Text>
             </BlockStack>
           </div>
@@ -1158,10 +1152,10 @@ export default function Dashboard() {
                               <Badge tone="info">{slide.tag}</Badge>
                             </div>
                             <Text as="h3" variant="headingXl">
-                              <span style={{ color: '#0f172a', letterSpacing: '-0.01em' }}>{slide.title}</span>
+                              <span style={{ color: brandColors.text, letterSpacing: '-0.01em' }}>{slide.title}</span>
                             </Text>
                             <Text as="p" variant="bodyMd">
-                              <span style={{ color: '#475569', fontWeight: 500 }}>{slide.description}</span>
+                              <span style={{ color: brandColors.textMuted, fontWeight: 500 }}>{slide.description}</span>
                             </Text>
                             <div>
                               <button
@@ -1229,7 +1223,7 @@ export default function Dashboard() {
                       boxShadow:
                         hoveredStatCard === item.label
                           ? `0 18px 36px ${item.tone}33`
-                          : '0 14px 28px rgba(15,23,42,0.12)',
+                          : '0 14px 28px rgba(22,22,31,0.12)',
                       transform: hoveredStatCard === item.label ? 'translateY(-4px)' : 'translateY(0)',
                       transition: 'all 200ms ease',
                     }}
@@ -1293,7 +1287,7 @@ export default function Dashboard() {
                       <BlockStack gap="150">
                       <InlineStack align="space-between" blockAlign="center">
                         <Text as="p" variant="bodySm" fontWeight="medium">
-                          <span style={{ color: '#334155' }}>{item.label}</span>
+                          <span style={{ color: brandColors.textSubtle }}>{item.label}</span>
                         </Text>
                         <div
                           style={{
@@ -1314,10 +1308,10 @@ export default function Dashboard() {
                         </div>
                       </InlineStack>
                       <Text as="h2" variant="heading2xl" fontWeight="bold">
-                          <span style={{ color: '#0f172a' }}>{item.value.toString()}</span>
+                          <span style={{ color: brandColors.text }}>{item.value.toString()}</span>
                       </Text>
                       <Text as="p" variant="bodySm">
-                        <span style={{ color: '#475569' }}>{item.helper}</span>
+                        <span style={{ color: brandColors.textMuted }}>{item.helper}</span>
                       </Text>
                       <Text as="p" variant="bodySm">
                         <span style={{ color: item.tone, fontWeight: 700 }}>{item.highlight}</span>
@@ -1335,7 +1329,7 @@ export default function Dashboard() {
                       borderRadius: 14,
                       border: '1px solid #e5e7eb',
                       background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-                      boxShadow: '0 8px 18px rgba(15,23,42,0.05)',
+                      boxShadow: '0 8px 18px rgba(22,22,31,0.05)',
                       padding: '12px 14px',
                     }}
                   >
@@ -1357,19 +1351,19 @@ export default function Dashboard() {
                           bottom: 10,
                           width: 4,
                           borderRadius: 999,
-                          background: `linear-gradient(180deg, ${brandPalette.pink} 0%, ${brandPalette.orange} 100%)`,
+                          background: brandPrimaryButtonBg,
                         }}
                       />
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="h2" variant="headingLg">
-                          <span style={{ color: '#0f172a' }}>Featured Products</span>
+                          <span style={{ color: brandColors.text }}>Featured Products</span>
                         </Text>
                         <div
                           style={{
                             borderRadius: 999,
                             border: '1px solid #bae6fd',
                             background: '#e0f2fe',
-                            color: '#0c4a6e',
+                            color: brandColors.linkOnLight,
                             fontSize: 12,
                             fontWeight: 600,
                             padding: '2px 10px',
@@ -1380,7 +1374,7 @@ export default function Dashboard() {
                         </div>
                       </InlineStack>
                       <Text as="p" variant="bodyMd">
-                        <span style={{ color: '#64748b' }}>
+                        <span style={{ color: brandColors.textSoft }}>
                           Curated top products ready for design customization and publishing.
                         </span>
                       </Text>
@@ -1490,7 +1484,7 @@ export default function Dashboard() {
                             border: '1px solid #dbe2ea',
                             borderRadius: 12,
                             padding: 16,
-                            boxShadow: '0 4px 14px rgba(15,23,42,0.05)',
+                            boxShadow: '0 4px 14px rgba(22,22,31,0.05)',
                             backgroundColor: '#ffffff',
                             borderLeft: `4px solid ${getOrderAccentColor(order.status)}`,
                           }}
@@ -1551,8 +1545,8 @@ export default function Dashboard() {
                   overflow: 'hidden',
                   borderRadius: 16,
                   border: `1px solid ${brandPalette.teal}50`,
-                  background: `linear-gradient(145deg, #ffffff 0%, ${brandPalette.teal}1a 100%)`,
-                  boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+                  background: 'linear-gradient(145deg, #ffffff 0%, rgba(255, 106, 0, 0.1) 100%)',
+                  boxShadow: '0 14px 30px rgba(22,22,31,0.1)',
                 }}
               >
                 <div
@@ -1613,8 +1607,8 @@ export default function Dashboard() {
                   overflow: 'hidden',
                   borderRadius: 16,
                   border: `1px solid ${brandPalette.violet}4f`,
-                  background: `linear-gradient(145deg, #ffffff 0%, ${brandPalette.violet}16 48%, ${brandPalette.blue}12 100%)`,
-                  boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+                  background: 'linear-gradient(145deg, #ffffff 0%, rgba(255, 106, 0, 0.09) 100%)',
+                  boxShadow: '0 14px 30px rgba(22,22,31,0.1)',
                 }}
               >
                 <div
@@ -1639,7 +1633,7 @@ export default function Dashboard() {
                     </Badge>
                   </InlineStack>
                   <Text as="h2" variant="headingLg">
-                    <span style={{ color: '#1e293b' }}>{dashboardStats.fulfillmentRate.toFixed(1)}%</span>
+                    <span style={{ color: brandColors.text }}>{dashboardStats.fulfillmentRate.toFixed(1)}%</span>
                   </Text>
                   <Text as="p" tone="subdued">
                     Fulfillment rate across current operational orders.
@@ -1657,7 +1651,7 @@ export default function Dashboard() {
                       style={{
                         width: `${Math.max(0, Math.min(100, dashboardStats.fulfillmentRate))}%`,
                         height: '100%',
-                        background: `linear-gradient(90deg, ${brandPalette.blue} 0%, ${brandPalette.violet} 100%)`,
+                        background: brandPrimaryButtonBg,
                       }}
                     />
                   </div>
@@ -1671,8 +1665,8 @@ export default function Dashboard() {
                   overflow: 'hidden',
                   borderRadius: 16,
                   border: `1px solid ${brandPalette.green}54`,
-                  background: `linear-gradient(145deg, #ffffff 0%, ${brandPalette.green}14 100%)`,
-                  boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+                  background: 'linear-gradient(145deg, #ffffff 0%, rgba(255, 106, 0, 0.08) 100%)',
+                  boxShadow: '0 14px 30px rgba(22,22,31,0.1)',
                 }}
               >
                 <div
@@ -1747,8 +1741,8 @@ export default function Dashboard() {
                   overflow: 'hidden',
                   borderRadius: 16,
                   border: `1px solid ${brandPalette.pink}55`,
-                  background: `linear-gradient(145deg, #ffffff 0%, ${brandPalette.pink}12 50%, ${brandPalette.orange}12 100%)`,
-                  boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+                  background: 'linear-gradient(145deg, #ffffff 0%, rgba(255, 106, 0, 0.08) 100%)',
+                  boxShadow: '0 14px 30px rgba(22,22,31,0.1)',
                 }}
               >
                 <div

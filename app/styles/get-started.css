@@ -2,9 +2,9 @@
 .gs-landing {
   --gs-orange: #ff6a00;
   --gs-orange-hover: #e65f00;
-  --gs-bg: #ffffff;
-  --gs-text: #1a1a1a;
-  --gs-muted: #6b6b6b;
+  --gs-bg: #f6f5fb;
+  --gs-text: #16161f;
+  --gs-muted: #5a5a6e;
   --gs-card: #ffffff;
   --gs-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
   --gs-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -79,8 +79,8 @@
   width: 200px;
   height: 200px;
   border-radius: 50%;
-  background: #d9c8ff;
-  opacity: 0.45;
+  background: rgba(255, 106, 0, 0.18);
+  opacity: 0.9;
 }
 
 .gs-bg-pink {
@@ -90,8 +90,8 @@
   width: 180px;
   height: 180px;
   border-radius: 50%;
-  background: #f7b6c9;
-  opacity: 0.3;
+  background: rgba(255, 106, 0, 0.12);
+  opacity: 0.9;
 }
 
 .gs-bg-peach {
@@ -101,8 +101,8 @@
   width: 140px;
   height: 140px;
   border-radius: 50%;
-  background: #f3c9a8;
-  opacity: 0.2;
+  background: rgba(22, 22, 31, 0.06);
+  opacity: 1;
 }
 
 .gs-bg-white {

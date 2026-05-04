@@ -26,6 +26,11 @@ import {
   publishCustomizeProduct,
 } from "../lib/product-customize/customize-product.server";
 import { normalizePlacementKey } from "../lib/product-customize/helpers";
+import {
+  brandColors,
+  brandPrimaryButtonBg,
+  brandPrimaryCtaShadow,
+} from "../lib/brand-theme";
 
 export const loader = async (args: LoaderFunctionArgs) => {
   return loadCustomizeProduct(args);
@@ -142,34 +147,34 @@ export default function ProductCustomize() {
     position: "relative",
     overflow: "hidden",
     borderRadius: 16,
-    border: "1px solid rgba(71,176,161,0.28)",
-    background: "linear-gradient(145deg, #ffffff 0%, rgba(71,176,161,0.12) 100%)",
+    border: "1px solid rgba(255, 106, 0, 0.28)",
+    background: "linear-gradient(145deg, #ffffff 0%, rgba(255, 106, 0, 0.08) 100%)",
     padding: 14,
-    boxShadow: "0 14px 30px rgba(15,23,42,0.1)",
+    boxShadow: "0 14px 30px rgba(22,22,31,0.1)",
   };
 
   const rightPanelStyle: React.CSSProperties = {
     position: "relative",
     overflow: "hidden",
     borderRadius: 16,
-    border: "1px solid rgba(127,115,239,0.28)",
-    background: "linear-gradient(145deg, #ffffff 0%, rgba(127,115,239,0.12) 100%)",
+    border: "1px solid rgba(255, 106, 0, 0.28)",
+    background: "linear-gradient(145deg, #ffffff 0%, rgba(255, 106, 0, 0.08) 100%)",
     padding: 14,
-    boxShadow: "0 14px 30px rgba(15,23,42,0.1)",
+    boxShadow: "0 14px 30px rgba(22,22,31,0.1)",
   };
 
   const actionButtonStyle: React.CSSProperties = {
     borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.22)",
+    border: "1px solid transparent",
     height: 34,
     padding: "0 12px",
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
     transition: "all 180ms ease",
-    background: "linear-gradient(135deg, #ff7a00 0%, #f6626e 55%, #ee5499 100%)",
+    background: brandPrimaryButtonBg,
     color: "#ffffff",
-    boxShadow: "0 10px 18px rgba(246,98,110,0.28)",
+    boxShadow: brandPrimaryCtaShadow,
   };
 
   const loadArtworkLibrary = useCallback(async (opts?: { append?: boolean; cursor?: string }) => {
@@ -412,7 +417,7 @@ export default function ProductCustomize() {
                 border: "1px solid #dbe3ec",
                 background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
                 padding: "10px 12px",
-                boxShadow: "0 8px 18px rgba(15,23,42,0.06)",
+                boxShadow: "0 8px 18px rgba(22,22,31,0.06)",
               }}
             >
               <InlineStack align="center" gap="200" blockAlign="center">
@@ -433,12 +438,12 @@ export default function ProductCustomize() {
                         fontWeight: 600,
                         cursor: "pointer",
                         background: isActive
-                          ? "linear-gradient(135deg, #ff7a00 0%, #f6626e 55%, #ee5499 100%)"
+                          ? brandPrimaryButtonBg
                           : "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
-                        color: isActive ? "#ffffff" : "#0f172a",
+                        color: isActive ? "#ffffff" : brandColors.text,
                         boxShadow: isActive
-                          ? "0 10px 18px rgba(246,98,110,0.28)"
-                          : "0 2px 6px rgba(15,23,42,0.08)",
+                          ? brandPrimaryCtaShadow
+                          : "0 2px 6px rgba(22,22,31,0.08)",
                         transition: "all 150ms ease",
                       }}
                     >
@@ -460,7 +465,7 @@ export default function ProductCustomize() {
                     width: 88,
                     height: 88,
                     borderRadius: "50%",
-                    background: "radial-gradient(circle, rgba(127,115,239,0.24) 0%, rgba(127,115,239,0) 72%)",
+                    background: "radial-gradient(circle, rgba(255, 106, 0, 0.2) 0%, rgba(255, 106, 0, 0) 72%)",
                     pointerEvents: "none",
                   }}
                 />
@@ -567,12 +572,12 @@ export default function ProductCustomize() {
                       background:
                         fetcher.state !== "idle"
                           ? "#cbd5e1"
-                          : "linear-gradient(135deg, #ff7a00 0%, #f6626e 55%, #ee5499 100%)",
+                          : brandPrimaryButtonBg,
                       color: "#ffffff",
                       boxShadow:
                         fetcher.state !== "idle"
                           ? "none"
-                          : "0 10px 22px rgba(246,98,110,0.32)",
+                          : brandPrimaryCtaShadow,
                     }}
                   >
                     {fetcher.state !== "idle" ? "Adding..." : "Add to Store"}

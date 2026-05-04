@@ -1,6 +1,10 @@
 import { InlineStack } from "@shopify/polaris";
 import type { DtftaPrintArea } from "../../lib/dtfta-products.server";
 import { normalizePlacementKey } from "../../lib/product-customize/helpers";
+import {
+  brandAccentSelectionGradient,
+  brandColors,
+} from "../../lib/brand-theme";
 
 type Props = {
   printAreas: DtftaPrintArea[];
@@ -33,13 +37,11 @@ export default function PlacementSelector({
               cursor: "pointer",
               transition: "all 180ms ease",
               background:
-                placement === key
-                  ? "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)"
-                  : "#f8fafc",
-              color: placement === key ? "#ffffff" : "#0f172a",
+                placement === key ? brandAccentSelectionGradient : brandColors.canvas,
+              color: placement === key ? "#ffffff" : brandColors.text,
               boxShadow:
                 placement === key
-                  ? "0 8px 18px rgba(29,78,216,0.28)"
+                  ? "0 8px 18px rgba(255, 106, 0, 0.32)"
                   : "none",
             }}
           >

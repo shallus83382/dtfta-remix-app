@@ -14,9 +14,9 @@ export default function ProductMeta({ product, selectedColorName }: Props) {
     <div
       style={{
         borderRadius: 12,
-        border: "1px solid #dbe7ff",
+        border: "1px solid rgba(255, 106, 0, 0.22)",
         background:
-          "linear-gradient(135deg, rgba(239,246,255,0.92) 0%, rgba(255,255,255,1) 100%)",
+          "linear-gradient(135deg, rgba(255, 106, 0, 0.06) 0%, rgba(255,255,255,1) 100%)",
         padding: 12,
       }}
     >

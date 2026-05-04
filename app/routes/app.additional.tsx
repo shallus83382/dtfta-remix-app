@@ -1,6 +1,6 @@
 import { Badge, BlockStack, Card, InlineStack, List, Page, Text } from "@shopify/polaris";
 import AppHeroBanner from "../common/AppHeroBanner";
-import { brandPalette } from "../lib/brand-theme";
+import { brandPrimaryButtonBg, brandPrimaryCtaShadow } from "../lib/brand-theme";
 
 export default function AdditionalPage() {
   const surfaceStyle = {
@@ -15,8 +15,8 @@ export default function AdditionalPage() {
     position: "relative" as const,
     overflow: "hidden" as const,
     borderRadius: 16,
-    border: "1px solid rgba(71,176,161,0.31)",
-    background: "linear-gradient(145deg, #ffffff 0%, rgba(71,176,161,0.10) 100%)",
+    border: "1px solid rgba(255, 106, 0, 0.28)",
+    background: "linear-gradient(145deg, #ffffff 0%, rgba(255, 106, 0, 0.08) 100%)",
     padding: 16,
     boxShadow: "0 14px 30px rgba(15,23,42,0.1)",
   } as const;
@@ -69,7 +69,7 @@ export default function AdditionalPage() {
                     width: 96,
                     height: 96,
                     borderRadius: "50%",
-                    background: "radial-gradient(circle, rgba(71,176,161,0.21) 0%, rgba(71,176,161,0) 72%)",
+                    background: "radial-gradient(circle, rgba(255, 106, 0, 0.18) 0%, rgba(255, 106, 0, 0) 72%)",
                     pointerEvents: "none",
                   }}
                 />
@@ -86,10 +86,10 @@ export default function AdditionalPage() {
                   <div
                     style={{
                       borderRadius: 10,
-                      background: `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+                      background: brandPrimaryButtonBg,
                       color: "#ffffff",
                       padding: "10px 12px",
-                      boxShadow: "0 10px 20px rgba(246,98,110,0.22)",
+                      boxShadow: brandPrimaryCtaShadow,
                     }}
                   >
                     <Text as="p" variant="bodySm" fontWeight="semibold">

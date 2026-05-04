@@ -16,6 +16,11 @@ import translations from "@shopify/polaris/locales/en.json";
 import { login } from "../../shopify.server";
 import { loginErrorMessage } from "./error.server";
 import AppHeroBanner from "../../common/AppHeroBanner";
+import {
+  brandColors,
+  brandPrimaryButtonBg,
+  brandPrimaryCtaShadow,
+} from "../../lib/brand-theme";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const errors = loginErrorMessage(await login(request));
@@ -54,10 +59,10 @@ export default function Auth() {
                   maxWidth: 560,
                   margin: "0 auto",
                   borderRadius: 14,
-                  border: "1px solid #eef2f7",
-                  background: "#fcfdff",
+                  border: `1px solid ${brandColors.surfaceBorder}`,
+                  background: brandColors.canvas,
                   padding: 16,
-                  boxShadow: "0 4px 12px rgba(15,23,42,0.03)",
+                  boxShadow: "0 4px 12px rgba(22,22,31,0.06)",
                 }}
               >
                 <Form method="post">
@@ -87,9 +92,9 @@ export default function Auth() {
                         fontWeight: 600,
                         cursor: "pointer",
                         transition: "all 180ms ease",
-                        background: "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)",
+                        background: brandPrimaryButtonBg,
                         color: "#ffffff",
-                        boxShadow: "0 8px 18px rgba(29,78,216,0.28)",
+                        boxShadow: brandPrimaryCtaShadow,
                         width: "fit-content",
                       }}
                     >

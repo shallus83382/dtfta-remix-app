@@ -23,7 +23,15 @@ import ProductCard from "../common/ProductCard";
 import AppHeroBanner from "../common/AppHeroBanner";
 import type { Product } from "../types";
 import {getProductDesignAssetUrl} from "../lib/design-assets";
-import { brandPalette } from "../lib/brand-theme";
+import {
+  brandColors,
+  brandHeroBadgePillStyle,
+  brandHeroStatChipStyle,
+  brandOrange,
+  brandPalette,
+  brandPrimaryButtonBg,
+  brandPrimaryCtaShadow,
+} from "../lib/brand-theme";
 
 export type ProductWithKey = Product & {
   productKey?: string;
@@ -139,7 +147,7 @@ export default function ProductsIndex() {
     border: "1px solid #d7e0ea",
     background: "linear-gradient(180deg, rgba(248,250,252,0.92) 0%, #ffffff 100%)",
     padding: 16,
-    boxShadow: "0 10px 24px rgba(15,23,42,0.06)",
+    boxShadow: "0 10px 24px rgba(22,22,31,0.06)",
   };
 
   const primaryButtonStyle = {
@@ -152,9 +160,9 @@ export default function ProductsIndex() {
     cursor: "pointer",
     transition: "all 200ms ease",
     transform: "translateY(0)",
-    background: "linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)",
+    background: brandPrimaryButtonBg,
     color: "#ffffff",
-    boxShadow: "0 10px 20px rgba(246,98,110,0.32)",
+    boxShadow: brandPrimaryCtaShadow,
   } as const;
 
   const secondaryButtonStyle = {
@@ -167,9 +175,9 @@ export default function ProductsIndex() {
     cursor: "pointer",
     transition: "all 200ms ease",
     transform: "translateY(0)",
-    background: "linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)",
+    background: brandPrimaryButtonBg,
     color: "#ffffff",
-    boxShadow: "0 10px 20px rgba(246,98,110,0.28)",
+    boxShadow: brandPrimaryCtaShadow,
   } as const;
 
   const sidebarSurfaceStyle = {
@@ -179,7 +187,7 @@ export default function ProductsIndex() {
     border: "1px solid rgba(71,176,161,0.31)",
     background: "linear-gradient(145deg, #ffffff 0%, rgba(71,176,161,0.10) 100%)",
     padding: 16,
-    boxShadow: "0 14px 30px rgba(15,23,42,0.1)",
+    boxShadow: "0 14px 30px rgba(22,22,31,0.1)",
   };
 
   return (
@@ -260,15 +268,23 @@ export default function ProductsIndex() {
         <AppHeroBanner
           title="DTFTA Product Catalog"
           subtitle="Browse, shortlist, and customize top print-on-demand products with a clean production-ready workflow."
-          badges={<Badge tone="info">Advanced Catalog</Badge>}
+          badges={
+            <span style={brandHeroBadgePillStyle}>Advanced Catalog</span>
+          }
           actions={
             <>
-              <button type="button" style={secondaryButtonStyle}>
+              <span
+                role="status"
+                style={brandHeroStatChipStyle}
+              >
                 Available: {products.length}
-              </button>
-              <button type="button" style={secondaryButtonStyle}>
+              </span>
+              <span
+                role="status"
+                style={brandHeroStatChipStyle}
+              >
                 Favorites: {products.filter((p) => p.isFavorite).length}
-              </button>
+              </span>
             </>
           }
         />
@@ -286,7 +302,7 @@ export default function ProductsIndex() {
                     border: "1px solid #dbe4f4",
                     background: "#ffffff",
                     padding: "12px 14px",
-                    boxShadow: "0 10px 22px rgba(15,23,42,0.06)",
+                    boxShadow: "0 10px 22px rgba(22,22,31,0.06)",
                   }}
                 >
                   <div
@@ -297,7 +313,7 @@ export default function ProductsIndex() {
                       width: 90,
                       height: 90,
                       borderRadius: "50%",
-                      background: "radial-gradient(circle, rgba(127,115,239,0.24) 0%, rgba(127,115,239,0) 72%)",
+                      background: "radial-gradient(circle, rgba(255, 106, 0, 0.2) 0%, rgba(255, 106, 0, 0) 72%)",
                       pointerEvents: "none",
                     }}
                   />
@@ -344,7 +360,7 @@ export default function ProductsIndex() {
                         borderRadius: 12,
                         border: "1px solid #dbe7ff",
                         background:
-                          "linear-gradient(135deg, rgba(239,246,255,0.9) 0%, rgba(255,255,255,1) 100%)",
+                          "linear-gradient(135deg, rgba(255, 106, 0, 0.06) 0%, rgba(255,255,255,1) 100%)",
                         padding: 12,
                         marginBottom: 16,
                       }}
@@ -393,13 +409,13 @@ export default function ProductsIndex() {
                             overflow: "hidden",
                             borderRadius: 14,
                             border: "1px solid #dbe3ec",
-                            background: `linear-gradient(165deg, #ffffff 0%, #f8fbff 50%, rgba(255, 122, 0, 0.03) 100%)`,
+                            background: `linear-gradient(165deg, #ffffff 0%, #fafafa 50%, rgba(255, 106, 0, 0.04) 100%)`,
                             minHeight: 220,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             padding: "28px 22px",
-                            boxShadow: "0 10px 24px rgba(15,23,42,0.07)",
+                            boxShadow: "0 10px 24px rgba(22,22,31,0.07)",
                           }}
                         >
                           <div
@@ -419,13 +435,13 @@ export default function ProductsIndex() {
                                   justifyContent: "center",
                                   background: "#ffffff",
                                   border: `1px solid ${brandPalette.teal}35`,
-                                  boxShadow: "0 6px 16px rgba(15,23,42,0.06)",
+                                  boxShadow: "0 6px 16px rgba(22,22,31,0.06)",
                                 }}
                               >
                                 <Text as="span" variant="headingMd" fontWeight="bold">
                                   <span
                                     style={{
-                                      background: `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+                                      background: brandPrimaryButtonBg,
                                       WebkitBackgroundClip: "text",
                                       backgroundClip: "text",
                                       color: "transparent",
@@ -439,7 +455,7 @@ export default function ProductsIndex() {
 
                               <BlockStack gap="150" inlineAlign="center">
                                 <Text as="p" variant="bodyMd" alignment="center" fontWeight="semibold">
-                                  <span style={{ color: "#0f172a", letterSpacing: "-0.02em" }}>
+                                  <span style={{ color: brandColors.text, letterSpacing: "-0.02em" }}>
                                     More styles coming soon
                                   </span>
                                 </Text>
@@ -455,7 +471,7 @@ export default function ProductsIndex() {
                                   width: 48,
                                   height: 3,
                                   borderRadius: 999,
-                                  background: `linear-gradient(90deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+                                  background: brandOrange,
                                   opacity: 0.9,
                                 }}
                               />
@@ -498,7 +514,7 @@ export default function ProductsIndex() {
                 <Badge tone="success">On-demand</Badge>
               </InlineStack>
 
-              <Text as="p" variant="bodyMd" style={{ color: "#334155" }}>
+              <Text as="p" variant="bodyMd" style={{ color: brandColors.textSubtle }}>
                 Products are made-to-order after purchase, so there is no inventory overhead.
               </Text>
 
@@ -515,7 +531,7 @@ export default function ProductsIndex() {
                     borderRadius: 12,
                     border: "1px solid #cfe0ff",
                     background:
-                      "linear-gradient(135deg, rgba(239,246,255,0.96) 0%, rgba(245,243,255,0.92) 100%)",
+                      "linear-gradient(135deg, rgba(255, 106, 0, 0.05) 0%, rgba(255,255,255,0.96) 100%)",
                     padding: "12px 12px",
                   }}
                 >
@@ -564,7 +580,7 @@ export default function ProductsIndex() {
                     width: "100%",
                     fontWeight: 700,
                     border: "1px solid transparent",
-                    background: "linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)",
+                    background: brandPrimaryButtonBg,
                     color: "#ffffff",
                     boxShadow: "0 8px 18px rgba(246,98,110,0.24)",
                   opacity: 1,

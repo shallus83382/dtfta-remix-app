@@ -1,4 +1,5 @@
 import { InlineStack } from "@shopify/polaris";
+import { brandColors, brandPalette } from "../../lib/brand-theme";
 
 type ColorOption = {
   colorCode: string;
@@ -73,7 +74,7 @@ function textColorForBackground(bg: string) {
   if (!bg.startsWith("#")) return "#ffffff";
   const { r, g, b } = hexToRgb(bg);
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.65 ? "#0f172a" : "#ffffff";
+  return luminance > 0.65 ? brandColors.text : "#ffffff";
 }
 
 export default function ColorSelector({
@@ -97,7 +98,9 @@ export default function ColorSelector({
             onClick={() => onChange(color.colorCode)}
             style={{
               borderRadius: 10,
-              border: isSelected ? "1px solid #1d4ed8" : "1px solid rgba(15,23,42,0.14)",
+              border: isSelected
+              ? `1px solid ${brandPalette.teal}`
+              : `1px solid ${brandColors.surfaceBorder}`,
               height: 34,
               padding: "0 12px",
               fontSize: 12,

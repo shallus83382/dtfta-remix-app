@@ -14,6 +14,14 @@ import { authenticate } from '../shopify.server';
 import type { BillingStatus, Order, OrderStatus } from '../types';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 import AppHeroBanner from '../common/AppHeroBanner';
+import {
+  brandColors,
+  brandHeroBannerCtaStyle,
+  brandHeroStatChipStyle,
+  brandOrange,
+  brandPrimaryButtonBg,
+  brandPrimaryCtaShadow,
+} from '../lib/brand-theme';
 
 function normalizeOrder(input: unknown): Order | null {
   if (!input || typeof input !== 'object') return null;
@@ -248,7 +256,7 @@ export default function Orders() {
     border: '1px solid #dbe3ec',
     background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
     padding: 16,
-    boxShadow: '0 10px 24px rgba(15,23,42,0.07)',
+    boxShadow: '0 10px 24px rgba(22,22,31,0.07)',
   } as const;
 
   const searchFiltersPanelStyle = {
@@ -256,7 +264,7 @@ export default function Orders() {
     border: '1px solid #dbe3ec',
     background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
     padding: 16,
-    boxShadow: '0 10px 24px rgba(15,23,42,0.07)',
+    boxShadow: '0 10px 24px rgba(22,22,31,0.07)',
   } as const;
 
   const searchPanelAccentBar = {
@@ -266,7 +274,7 @@ export default function Orders() {
     marginRight: -16,
     marginBottom: 14,
     borderRadius: '14px 14px 0 0',
-    background: 'linear-gradient(90deg, #ff7a00 0%, #ff4da6 55%, #47b0a1 100%)',
+    background: brandOrange,
   } as const;
 
   const primaryButtonStyle = {
@@ -279,9 +287,9 @@ export default function Orders() {
     cursor: 'pointer',
     transition: 'all 200ms ease',
     transform: 'translateY(0)',
-    background: 'linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)',
+    background: brandPrimaryButtonBg,
     color: '#ffffff',
-    boxShadow: '0 10px 20px rgba(246,98,110,0.32)',
+    boxShadow: brandPrimaryCtaShadow,
   } as const;
 
   const secondaryButtonStyle = {
@@ -295,8 +303,8 @@ export default function Orders() {
     transition: 'all 200ms ease',
     transform: 'translateY(0)',
     background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-    color: '#0f172a',
-    boxShadow: '0 2px 8px rgba(15,23,42,0.06)',
+    color: brandColors.text,
+    boxShadow: '0 2px 8px rgba(22,22,31,0.06)',
   } as const;
 
   const getOrderAccentColor = (status: OrderStatus) => {
@@ -393,7 +401,7 @@ export default function Orders() {
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, rgba(255,122,0,0.2) 0%, rgba(255,77,166,0.2) 50%, rgba(71,176,161,0.2) 100%);
+            background: linear-gradient(90deg, rgba(255,106,0,0.15) 0%, rgba(255,106,0,0.08) 100%);
             opacity: 0;
             transition: opacity 240ms ease;
             pointer-events: none;
@@ -440,6 +448,13 @@ export default function Orders() {
           .orders-hero-stat {
             backdrop-filter: blur(6px);
           }
+          /* Polaris can override <button> fills; match dashboard orange-banner CTAs */
+          button.orders-hero-stat--cta {
+            background: #ffffff !important;
+            color: #16161f !important;
+            border: 2px solid #ff6a00 !important;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14) !important;
+          }
           @media (prefers-reduced-motion: reduce) {
             .orders-search-accent,
             .orders-search-glow,
@@ -471,17 +486,21 @@ export default function Orders() {
             }
             actions={
               <>
-                <button type="button" className="orders-hero-stat" style={secondaryButtonStyle}>
+                <span role="status" className="orders-hero-stat" style={brandHeroStatChipStyle}>
                   Total: {orders.length}
-                </button>
-                <button type="button" className="orders-hero-stat" style={secondaryButtonStyle}>
+                </span>
+                <span role="status" className="orders-hero-stat" style={brandHeroStatChipStyle}>
                   Filter: {selectedOrderFilter}
-                </button>
+                </span>
                 {billingStatus.required && billingStatus.status !== 'active' ? (
                   <button
                     type="button"
-                    className="orders-hero-stat"
-                    style={secondaryButtonStyle}
+                    className="orders-hero-stat orders-hero-stat--cta"
+                    style={{
+                      ...brandHeroBannerCtaStyle,
+                      cursor: isGeneratingBillingLink ? 'not-allowed' : 'pointer',
+                      opacity: isGeneratingBillingLink ? 0.75 : 1,
+                    }}
                     onClick={handleActivateBilling}
                     disabled={isGeneratingBillingLink}
                   >
@@ -562,7 +581,7 @@ export default function Orders() {
                             border: '1px solid #e2e8f0',
                             background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
                             padding: '32px 24px',
-                            boxShadow: '0 10px 28px rgba(15,23,42,0.06)',
+                            boxShadow: '0 10px 28px rgba(22,22,31,0.06)',
                           }}
                         >
                           <div className="orders-empty-inner">
@@ -636,9 +655,9 @@ export default function Orders() {
                   position: 'relative',
                   overflow: 'hidden',
                   borderRadius: 16,
-                  border: '1px solid rgba(71,176,161,0.31)',
-                  background: 'linear-gradient(145deg, #ffffff 0%, rgba(71,176,161,0.10) 100%)',
-                  boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+                  border: '1px solid rgba(255, 106, 0, 0.28)',
+                  background: 'linear-gradient(145deg, #ffffff 0%, rgba(255, 106, 0, 0.08) 100%)',
+                  boxShadow: '0 14px 30px rgba(22,22,31,0.1)',
                 }}
               >
                 <div
@@ -650,7 +669,7 @@ export default function Orders() {
                     width: 96,
                     height: 96,
                     borderRadius: '50%',
-                    background: 'radial-gradient(circle, rgba(71,176,161,0.21) 0%, rgba(71,176,161,0) 72%)',
+                    background: 'radial-gradient(circle, rgba(255, 106, 0, 0.18) 0%, rgba(255, 106, 0, 0) 72%)',
                     pointerEvents: 'none',
                   }}
                 />

@@ -21,7 +21,12 @@ import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
 import type { BrandSettings } from '../types';
 import AppHeroBanner from '../common/AppHeroBanner';
-import { brandPalette } from '../lib/brand-theme';
+import {
+  brandColors,
+  brandOrange,
+  brandPrimaryButtonBg,
+  brandPrimaryCtaShadow,
+} from '../lib/brand-theme';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -217,7 +222,7 @@ export default function Onboarding() {
     border: '1px solid #dbe3ec',
     background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
     padding: 16,
-    boxShadow: '0 10px 24px rgba(15,23,42,0.08)',
+    boxShadow: '0 10px 24px rgba(22,22,31,0.08)',
   } as const;
 
   const formSectionAccentBar = {
@@ -227,24 +232,24 @@ export default function Onboarding() {
     marginRight: -16,
     marginBottom: 13,
     borderRadius: '14px 14px 0 0',
-    background: `linear-gradient(90deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+    background: brandOrange,
   } as const;
 
   const sidebarSurfaceStyle = {
     position: 'relative' as const,
     overflow: 'hidden' as const,
     borderRadius: 16,
-    border: '1px solid rgba(71,176,161,0.31)',
-    background: 'linear-gradient(145deg, #ffffff 0%, rgba(71,176,161,0.10) 100%)',
+    border: '1px solid rgba(255, 106, 0, 0.28)',
+    background: 'linear-gradient(145deg, #ffffff 0%, rgba(255, 106, 0, 0.08) 100%)',
     padding: 16,
-    boxShadow: '0 14px 30px rgba(15,23,42,0.1)',
+    boxShadow: '0 14px 30px rgba(22,22,31,0.1)',
   } as const;
 
   const fieldLabelStyle = {
     display: 'block',
     fontSize: 12,
     fontWeight: 600,
-    color: '#475569',
+    color: brandColors.textMuted,
     marginBottom: 6,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.02em',
@@ -258,7 +263,7 @@ export default function Onboarding() {
     backgroundColor: '#ffffff',
     padding: '0 12px',
     fontSize: 14,
-    color: '#0f172a',
+    color: brandColors.text,
     outline: 'none',
     boxSizing: 'border-box' as const,
     transition: 'border-color 150ms ease, box-shadow 150ms ease',
@@ -319,11 +324,9 @@ export default function Onboarding() {
     cursor: ctaDisabled ? 'not-allowed' : 'pointer',
     transition: 'all 200ms ease',
     transform: 'translateY(0)',
-    background: ctaDisabled
-      ? '#cbd5e1'
-      : `linear-gradient(135deg, ${brandPalette.orange} 0%, ${brandPalette.pink} 100%)`,
+    background: ctaDisabled ? '#cbd5e1' : brandPrimaryButtonBg,
     color: '#ffffff',
-    boxShadow: ctaDisabled ? 'none' : '0 10px 20px rgba(246,98,110,0.32)',
+    boxShadow: ctaDisabled ? 'none' : brandPrimaryCtaShadow,
     width: 'fit-content',
   };
 
@@ -416,7 +419,7 @@ export default function Onboarding() {
                   style={{
                     width: `${completionPercent}%`,
                     height: '100%',
-                    background: 'linear-gradient(90deg, #ff7a00 0%, #ff4da6 100%)',
+                    background: brandOrange,
                     borderRadius: 999,
                     transition: 'width 260ms ease',
                   }}
@@ -456,7 +459,7 @@ export default function Onboarding() {
                         border: isGuidePopupOpen && isActive
                           ? '2px solid rgba(255,255,255,0.98)'
                           : isActive
-                            ? '1px solid #f9a8d4'
+                            ? '1px solid rgba(255, 106, 0, 0.45)'
                             : '1px solid #dbe4f0',
                         background: isActive
                           ? 'linear-gradient(180deg, #fff7fb 0%, #ffffff 48%, #fffaf5 100%)'
@@ -467,7 +470,7 @@ export default function Onboarding() {
                         boxShadow: isGuidePopupOpen && isActive
                           ? '0 0 0 4px rgba(255,255,255,0.25), 0 16px 36px rgba(2,6,23,0.45)'
                           : isActive
-                            ? '0 12px 26px rgba(246,98,110,0.2)'
+                            ? '0 12px 26px rgba(255, 106, 0, 0.22)'
                             : '0 8px 20px rgba(15,23,42,0.07)',
                         transform: isActive ? 'translateY(-1px)' : 'translateY(0)',
                         transition: 'all 180ms ease',
@@ -483,7 +486,7 @@ export default function Onboarding() {
                           right: 0,
                           height: 3,
                           background: isActive
-                            ? 'linear-gradient(90deg, #ff7a00 0%, #ff4da6 100%)'
+                            ? brandOrange
                             : 'linear-gradient(90deg, #cbd5e1 0%, #e2e8f0 100%)',
                           opacity: isActive ? 1 : 0.7,
                         }}
@@ -494,9 +497,7 @@ export default function Onboarding() {
                             width: 26,
                             height: 26,
                             borderRadius: 999,
-                            background: step.done
-                              ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                              : 'linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)',
+                            background: step.done ? brandColors.text : brandOrange,
                             color: '#ffffff',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -505,7 +506,9 @@ export default function Onboarding() {
                             fontWeight: 700,
                             flexShrink: 0,
                             marginTop: 1,
-                            boxShadow: '0 8px 18px rgba(16,185,129,0.26)',
+                            boxShadow: step.done
+                              ? '0 8px 18px rgba(22,22,31,0.22)'
+                              : brandPrimaryCtaShadow,
                           }}
                         >
                           {step.done ? '✓' : `0${index + 1}`}
@@ -807,8 +810,8 @@ export default function Onboarding() {
                 height: 26,
                 borderRadius: 999,
                 background: stepItems[selectedGuideStep].done
-                  ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                  : 'linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)',
+                  ? brandColors.text
+                  : brandOrange,
                 color: '#ffffff',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -879,7 +882,7 @@ export default function Onboarding() {
                   fontWeight: 600,
                   cursor: selectedGuideStep === 0 ? 'not-allowed' : 'pointer',
                   background: '#ffffff',
-                  color: '#0f172a',
+                  color: brandColors.text,
                   opacity: selectedGuideStep === 0 ? 0.6 : 1,
                 }}
               >
@@ -905,9 +908,9 @@ export default function Onboarding() {
                   fontSize: 12,
                   fontWeight: 600,
                   cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #ff7a00 0%, #ff4da6 100%)',
+                  background: brandPrimaryButtonBg,
                   color: '#ffffff',
-                  boxShadow: '0 8px 18px rgba(246,98,110,0.28)',
+                  boxShadow: brandPrimaryCtaShadow,
                 }}
               >
                 {selectedGuideStep === stepItems.length - 1 ? 'Finish' : 'Next'}
