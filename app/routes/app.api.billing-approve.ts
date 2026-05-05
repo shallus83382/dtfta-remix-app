@@ -11,9 +11,11 @@ export async function action({ request }: ActionFunctionArgs) {
   const shop = session.shop;
   const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
   const endpoint = `${API_BASE.replace(/\/$/, "")}/billing/approve`;
+  const appUrl = (process.env.SHOPIFY_APP_URL || "").replace(/\/$/, "");
+  const returnUrl = appUrl ? `${appUrl}/billing/return` : "";
   const body = {
     shop,
-    returnUrl: process.env.SHOPIFY_APP_URL || "",
+    returnUrl,
   };
   const headers = createExternalApiHeaders(body, { "X-Shop": shop });
 
