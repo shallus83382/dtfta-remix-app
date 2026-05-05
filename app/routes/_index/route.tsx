@@ -142,6 +142,17 @@ export default function App() {
 
         <footer className={styles.footer}>
           <span className={styles.footerMark}>DTF Transfer Authority</span>
+          <div className={styles.footerLinks}>
+            <a href="/privacy-policy" className={styles.footerLink}>
+              Privacy Policy
+            </a>
+            <span aria-hidden className={styles.footerDivider}>
+              |
+            </span>
+            <a href="/terms-of-service" className={styles.footerLink}>
+              Terms of Use
+            </a>
+          </div>
         </footer>
       </main>
     </div>

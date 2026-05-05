@@ -308,6 +308,30 @@
   padding-top: 0.5rem;
 }
 
+.footerLinks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-top: 0.4rem;
+}
+
+.footerLink {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.footerLink:hover {
+  color: var(--accent-orange);
+  text-decoration: underline;
+}
+
+.footerDivider {
+  font-size: 0.75rem;
+  color: rgba(90, 90, 110, 0.5);
+}
+
 .footerMark {
   font-size: 0.75rem;
   font-weight: 600;
@@ -426,6 +450,15 @@
   .footer {
     padding-top: 0.15rem;
     flex-shrink: 0;
+  }
+
+  .footerLinks {
+    margin-top: 0.25rem;
+  }
+
+  .footerLink,
+  .footerDivider {
+    font-size: 0.6875rem;
   }
 
   .footerMark {
