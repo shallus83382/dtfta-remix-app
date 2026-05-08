@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import type { CSSProperties } from "react";
 import type { LoaderFunctionArgs, MetaFunction } from "react-router";
-import { Link, useLoaderData, useNavigate } from "react-router";
+import { Link, redirect, useLoaderData, useNavigate } from "react-router";
 
 type BillingReturnLoaderData = {
   status: "approved" | "cancelled";
+  embeddedReturnUrl: string | null;
 };
 
 export const meta: MetaFunction = () => {
@@ -17,12 +18,40 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+function buildEmbeddedDashboardUrl(shop: string, status: string) {
+  const apiKey = process.env.SHOPIFY_API_KEY || "";
+  if (!shop || !apiKey) return null;
+
+  const storeHandle = shop.replace(/\.myshopify\.com$/i, "").trim();
+  if (!storeHandle) return null;
+
+  // Deep-link into the embedded app dashboard inside Shopify admin so the
+  // merchant lands back on the dashboard instead of the standalone app URL.
+  // See: https://shopify.dev/docs/apps/build/authentication-authorization/session-tokens/getting-started#deep-link-to-an-embedded-app
+  return `https://admin.shopify.com/store/${encodeURIComponent(
+    storeHandle,
+  )}/apps/${encodeURIComponent(apiKey)}/app/dashboard?billing=${status}`;
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const chargeId = url.searchParams.get("charge_id");
+  const shop = url.searchParams.get("shop") || "";
+  const status: "approved" | "cancelled" = chargeId ? "approved" : "cancelled";
+
+  const embeddedReturnUrl = buildEmbeddedDashboardUrl(shop, status);
+
+  // If we know the shop, redirect straight back into the embedded dashboard
+  // inside Shopify admin instead of leaving the merchant on the public app
+  // URL. We still render a fallback page below in case redirect cannot be
+  // built (e.g. shop param missing).
+  if (embeddedReturnUrl) {
+    return redirect(embeddedReturnUrl);
+  }
 
   const data: BillingReturnLoaderData = {
-    status: chargeId ? "approved" : "cancelled",
+    status,
+    embeddedReturnUrl,
   };
 
   return Response.json(data);
@@ -78,7 +107,7 @@ export default function BillingReturnPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate("/app/orders");
+      navigate("/app/dashboard");
     }, 1800);
     return () => clearTimeout(timer);
   }, [navigate]);
@@ -93,11 +122,11 @@ export default function BillingReturnPage() {
         </h1>
         <p style={textStyle}>
           {isApproved
-            ? "Your billing was approved successfully. Redirecting you back to Orders..."
-            : "We could not confirm billing approval from Shopify. You can return to Orders and try again."}
+            ? "Your billing was approved successfully. Redirecting you back to the dashboard..."
+            : "We could not confirm billing approval from Shopify. You can return to the dashboard and try again."}
         </p>
-        <Link to="/app/orders" style={linkStyle}>
-          Go to Orders
+        <Link to="/app/dashboard" style={linkStyle}>
+          Go to Dashboard
         </Link>
       </section>
     </main>

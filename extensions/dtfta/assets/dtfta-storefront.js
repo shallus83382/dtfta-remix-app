@@ -1,4 +1,4 @@
-//console.log("[DTFTA] JS file loaded");
+console.log("[DTFTA] JS file loaded");
 
 (function () {
   const config = window.DTFTA;
@@ -76,18 +76,61 @@
   }
 
   async function buildPodLineItem(payload) {
-    const res = await fetch(config.proxyPath, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    let res;
+    try {
+      res = await fetch(config.proxyPath, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (networkError) {
+      console.error("[DTFTA] Network error calling proxy", networkError);
+      throw new Error(
+        "Network error while contacting the app proxy. Check your internet connection or that the storefront is opened via the dev preview URL.",
+      );
+    }
 
-    const data = await res.json().catch(() => ({}));
+    const rawText = await res.text();
+    let data = {};
+    try {
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch (parseError) {
+      console.error(
+        "[DTFTA] Proxy returned non-JSON",
+        res.status,
+        rawText.slice(0, 1000),
+      );
+    }
+
     if (!res.ok || !data.ok) {
-      throw new Error(data.error || "Failed to build POD cart data");
+      console.error("[DTFTA] Proxy responded with error", {
+        status: res.status,
+        statusText: res.statusText,
+        url: config.proxyPath,
+        responseBody: rawText.slice(0, 1000),
+        parsed: data,
+      });
+
+      // Prefer the structured error from our action; otherwise surface status
+      // and a snippet of the raw body so the merchant can debug what actually
+      // came back from the proxy (HTML error page, gateway timeout, etc.).
+      var errorMessage = data && data.error;
+      if (!errorMessage) {
+        var snippet = rawText
+          ? " — " + rawText.replace(/\s+/g, " ").trim().slice(0, 200)
+          : "";
+        errorMessage =
+          "Failed to build POD cart data (HTTP " +
+          res.status +
+          " " +
+          (res.statusText || "") +
+          ")" +
+          snippet;
+      }
+      throw new Error(errorMessage);
     }
 
     return data;
