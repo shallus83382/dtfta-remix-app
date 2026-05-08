@@ -1428,14 +1428,14 @@ export function exportCanvasToDataUrl(
   } catch (error) {
     const fallbackSource = extractFallbackArtworkSource();
     if (fallbackSource) {
-      console.warn(
-        "Canvas export failed; falling back to artwork source URL.",
-        error
-      );
+      // console.warn(
+      //   "Canvas export failed; falling back to artwork source URL.",
+      //   error
+      // );
       return fallbackSource;
     }
 
-    console.error("Canvas export failed. The canvas is likely tainted by a cross-origin image.", error);
+    //console.error("Canvas export failed. The canvas is likely tainted by a cross-origin image.", error);
     return null;
   }
 }

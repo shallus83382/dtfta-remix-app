@@ -1,8 +1,17 @@
 import { useCallback, useMemo, useState } from "react";
+import type { Canvas } from "fabric";
 import type { DtftaPrintArea, DtftaVariant } from "../dtfta-products.server";
 import { buildCustomizeSubmission } from "./buildCustomizeSubmission";
 import { useCustomizeEditorState } from "./useCustomizeEditorState";
 import { useCustomizePublish } from "./useCustomizePublish";
+import {
+  buildPlacementMockups,
+  type ColorMockupOption,
+  type MultiPlacementPreview,
+  type PlacementPreviewEntry,
+} from "./mockup-composer";
+import { getRegionFromPrintArea, normalizePlacementKey } from "./helpers";
+import { getProductDesignAssetUrl } from "../design-assets";
 
 type UseProductCustomizeArgs = {
   productKey: string;
@@ -75,6 +84,7 @@ export function useProductCustomize({
       canvases: editor.canvases,
       canvasStateByPlacement: editor.canvasStateRef.current,
       artworkByPlacement: editor.artworkRef.current,
+      canvasSizesByPlacement: editor.canvasSizeRef.current,
       artworkLibraryIds: editor.artworkLibraryIdRef.current,
       printAreas,
       printSizes: editor.printSizes,
@@ -102,6 +112,86 @@ export function useProductCustomize({
     buildFormData,
   });
 
+  const buildCurrentPreview =
+    useCallback(async (): Promise<MultiPlacementPreview> => {
+      /**
+       * Persist the current placement's artwork into artworkRef so that when we
+       * iterate inactive placements (which only have a saved snapshot, not a
+       * live canvas) we still pick up the latest design for the active one.
+       */
+      editor.savePlacementSnapshot(editor.placement);
+
+      const activeAreas = printAreas
+        .filter((area) => area.is_active)
+        .sort((a, b) => a.display_order - b.display_order);
+
+      const colorList: Array<{ colorCode: string; colorName: string }> =
+        availableColors.length > 0
+          ? availableColors
+          : [{ colorCode: selectedColor, colorName: selectedColor }];
+
+      const currentPlacementKey = normalizePlacementKey(editor.placement);
+
+      const entries = await Promise.all(
+        activeAreas.map(async (area): Promise<PlacementPreviewEntry | null> => {
+          const placementKey = normalizePlacementKey(area.title);
+          const region =
+            editor.regions[placementKey] ?? getRegionFromPrintArea(area);
+
+          /**
+           * Only the current placement has a live, mounted Fabric canvas.
+           * Other placements were unmounted on placement switch but their
+           * artwork was snapshotted into artworkRef.current[placement].
+           */
+          const liveCanvas =
+            placementKey === currentPlacementKey
+              ? ((editor.canvases as Record<string, Canvas | null>)[
+                  placementKey
+                ] ?? null)
+              : null;
+
+          const colorOptions: ColorMockupOption[] = colorList.map((color) => ({
+            colorCode: color.colorCode,
+            colorName: color.colorName,
+            backgroundImageUrl: area.image
+              ? getProductDesignAssetUrl(area.image, color.colorCode)
+              : "",
+          }));
+
+          const result = await buildPlacementMockups({
+            placement: placementKey,
+            placementTitle: area.title,
+            region,
+            liveCanvas,
+            savedPrintOnlyUrl: editor.artworkRef.current[placementKey] ?? "",
+            savedCanvasSize:
+              editor.canvasSizeRef.current[placementKey] ?? null,
+            colors: colorOptions,
+          });
+
+          if (!result) return null;
+
+          return {
+            placement: result.placement,
+            placementTitle: result.placementTitle,
+            printOnlyUrl: result.printOnlyUrl,
+            mockupsByColor: result.mockupsByColor,
+          };
+        })
+      );
+
+      return {
+        placements: entries.filter(
+          (entry): entry is PlacementPreviewEntry => entry !== null
+        ),
+      };
+    }, [
+      editor,
+      printAreas,
+      availableColors,
+      selectedColor,
+    ]);
+
   return {
     fetcher: publish.fetcher,
     placement: editor.placement,
@@ -120,5 +210,6 @@ export function useProductCustomize({
     handleColorChange,
     handleAddToStore: publish.handleSubmit,
     setArtworkLibraryIdForPlacement: editor.setArtworkLibraryIdForPlacement,
+    buildCurrentPreview,
   };
 }

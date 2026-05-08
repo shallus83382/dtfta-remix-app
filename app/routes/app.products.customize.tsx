@@ -21,6 +21,7 @@ import ColorSelector from "../components/product-customize/ColorSelector";
 import ProductMeta from "../components/product-customize/ProductMeta";
 import AppHeroBanner from "../common/AppHeroBanner";
 import { useProductCustomize } from "../lib/product-customize/useProductCustomize";
+import type { MultiPlacementPreview } from "../lib/product-customize/mockup-composer";
 import {
   loadCustomizeProduct,
   publishCustomizeProduct,
@@ -52,6 +53,18 @@ export default function ProductCustomize() {
     clear: () => void;
   } | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [previewData, setPreviewData] =
+    useState<MultiPlacementPreview | null>(null);
+  const [previewPlacement, setPreviewPlacement] = useState<string>("");
+  const [previewColor, setPreviewColor] = useState<string>("");
+  const [previewZoom, setPreviewZoom] = useState<number>(1);
+  const [isBuildingPreview, setIsBuildingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const PREVIEW_ZOOM_MIN = 0.5;
+  const PREVIEW_ZOOM_MAX = 3;
+  const PREVIEW_ZOOM_STEP = 0.25;
   const [apiArtworkAssets, setApiArtworkAssets] = useState<
     Array<{ id: string; name: string; url: string; createdAt?: string; source?: string }>
   >([]);
@@ -134,6 +147,7 @@ export default function ProductCustomize() {
     handleColorChange,
     handleAddToStore,
     setArtworkLibraryIdForPlacement,
+    buildCurrentPreview,
   } = useProductCustomize({
     productKey,
     productName,
@@ -149,6 +163,49 @@ export default function ProductCustomize() {
     },
     [placement, setArtworkLibraryIdForPlacement]
   );
+
+  const handlePreview = useCallback(async () => {
+    setIsPreviewModalOpen(true);
+    setIsBuildingPreview(true);
+    setPreviewError(null);
+    setPreviewData(null);
+    setPreviewZoom(1);
+
+    try {
+      const preview = await buildCurrentPreview();
+      if (!preview.placements.length) {
+        setPreviewError(
+          "Add some artwork or text to a placement before previewing the export."
+        );
+        return;
+      }
+      setPreviewData(preview);
+
+      const normalizedCurrent = placement;
+      const initialPlacement =
+        preview.placements.find((p) => p.placement === normalizedCurrent)
+          ?.placement ?? preview.placements[0].placement;
+      setPreviewPlacement(initialPlacement);
+
+      const initialEntry =
+        preview.placements.find((p) => p.placement === initialPlacement) ??
+        preview.placements[0];
+      const firstColorWithMockup = Object.entries(
+        initialEntry.mockupsByColor
+      ).find(([, url]) => Boolean(url))?.[0];
+      setPreviewColor(
+        selectedColor && initialEntry.mockupsByColor[selectedColor]
+          ? selectedColor
+          : firstColorWithMockup ?? selectedColor ?? ""
+      );
+    } catch (error) {
+      setPreviewError(
+        error instanceof Error ? error.message : "Failed to build preview"
+      );
+    } finally {
+      setIsBuildingPreview(false);
+    }
+  }, [buildCurrentPreview, placement, selectedColor]);
 
   const infoPanelStyle: React.CSSProperties = {
     position: "relative",
@@ -562,6 +619,30 @@ export default function ProductCustomize() {
 
                   <button
                     type="button"
+                    onClick={() => void handlePreview()}
+                    disabled={isBuildingPreview}
+                    style={{
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      height: 40,
+                      width: "100%",
+                      padding: "0 14px",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: isBuildingPreview ? "not-allowed" : "pointer",
+                      transition: "all 180ms ease",
+                      background: isBuildingPreview
+                        ? "#e2e8f0"
+                        : "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+                      color: brandColors.text,
+                      boxShadow: "0 4px 10px rgba(15,23,42,0.08)",
+                    }}
+                  >
+                    {isBuildingPreview ? "Generating preview..." : "Preview"}
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={handleAddToStore}
                     disabled={fetcher.state !== "idle"}
                     style={{
@@ -789,6 +870,276 @@ export default function ProductCustomize() {
                 No images yet. Upload artwork to get started.
               </Text>
             ) : null}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+      <Modal
+        open={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        title="Export preview"
+        primaryAction={{
+          content: "Close",
+          onAction: () => setIsPreviewModalOpen(false),
+        }}
+      >
+        <Modal.Section>
+          <BlockStack gap="300">
+            <Text as="p" tone="subdued">
+              This is the product mockup we'll export when you click "Add to Store". Switch colors to preview each variant.
+            </Text>
+
+            {isBuildingPreview ? (
+              <Text as="p" tone="subdued">
+                Generating preview...
+              </Text>
+            ) : null}
+
+            {previewError ? (
+              <div
+                style={{
+                  borderRadius: 10,
+                  border: "1px solid #fecaca",
+                  backgroundColor: "#fff1f2",
+                  padding: 12,
+                }}
+              >
+                <Text as="p" tone="critical">
+                  {previewError}
+                </Text>
+              </div>
+            ) : null}
+
+            {previewData && !isBuildingPreview ? (() => {
+              const activeEntry =
+                previewData.placements.find(
+                  (entry) => entry.placement === previewPlacement
+                ) ?? previewData.placements[0];
+
+              if (!activeEntry) return null;
+
+              const activeMockupUrl = activeEntry.mockupsByColor[previewColor];
+
+              return (
+                <BlockStack gap="300">
+                  {previewData.placements.length > 1 ? (
+                    <div>
+                      <Text as="p" fontWeight="semibold">
+                        Placement
+                      </Text>
+                      <div
+                        style={{
+                          marginTop: 8,
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 8,
+                        }}
+                      >
+                        {previewData.placements.map((entry) => {
+                          const isActive = entry.placement === activeEntry.placement;
+                          return (
+                            <button
+                              key={entry.placement}
+                              type="button"
+                              onClick={() => {
+                                setPreviewPlacement(entry.placement);
+                                if (!entry.mockupsByColor[previewColor]) {
+                                  const firstColor = Object.entries(
+                                    entry.mockupsByColor
+                                  ).find(([, url]) => Boolean(url))?.[0];
+                                  if (firstColor) setPreviewColor(firstColor);
+                                }
+                              }}
+                              style={{
+                                borderRadius: 999,
+                                border: isActive
+                                  ? "1px solid transparent"
+                                  : "1px solid #cfd8e3",
+                                height: 30,
+                                padding: "0 12px",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                background: isActive
+                                  ? brandPrimaryButtonBg
+                                  : "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+                                color: isActive ? "#ffffff" : brandColors.text,
+                                boxShadow: isActive
+                                  ? brandPrimaryCtaShadow
+                                  : "0 2px 6px rgba(22,22,31,0.08)",
+                                transition: "all 150ms ease",
+                              }}
+                            >
+                              {entry.placementTitle}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {availableColors.length > 0 ? (
+                    <div>
+                      <Text as="p" fontWeight="semibold">
+                        Color
+                      </Text>
+                      <div style={{ marginTop: 8 }}>
+                        <ColorSelector
+                          colors={availableColors}
+                          selectedColor={previewColor}
+                          onChange={setPreviewColor}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {activeMockupUrl ? (
+                    <div
+                      style={{
+                        borderRadius: 12,
+                        border: "1px solid #e2e8f0",
+                        background: "#ffffff",
+                        padding: 12,
+                        boxShadow: "0 4px 12px rgba(15,23,42,0.06)",
+                      }}
+                    >
+                      <InlineStack align="space-between" blockAlign="center" gap="200">
+                        <Text as="p" variant="bodySm" fontWeight="semibold">
+                          {activeEntry.placementTitle} ·{" "}
+                          {availableColors.find((c) => c.colorCode === previewColor)
+                            ?.colorName ??
+                            previewColor ??
+                            "selected color"}
+                        </Text>
+                        <InlineStack gap="100" blockAlign="center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewZoom((z) =>
+                                Math.max(PREVIEW_ZOOM_MIN, +(z - PREVIEW_ZOOM_STEP).toFixed(2))
+                              )
+                            }
+                            disabled={previewZoom <= PREVIEW_ZOOM_MIN}
+                            aria-label="Zoom out"
+                            style={{
+                              borderRadius: 8,
+                              border: "1px solid #cbd5e1",
+                              background: "#ffffff",
+                              minWidth: 30,
+                              height: 28,
+                              padding: "0 8px",
+                              fontSize: 14,
+                              fontWeight: 700,
+                              cursor: previewZoom <= PREVIEW_ZOOM_MIN ? "not-allowed" : "pointer",
+                              opacity: previewZoom <= PREVIEW_ZOOM_MIN ? 0.55 : 1,
+                            }}
+                          >
+                            −
+                          </button>
+                          <span
+                            style={{
+                              minWidth: 48,
+                              textAlign: "center",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: brandColors.text,
+                            }}
+                          >
+                            {Math.round(previewZoom * 100)}%
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewZoom((z) =>
+                                Math.min(PREVIEW_ZOOM_MAX, +(z + PREVIEW_ZOOM_STEP).toFixed(2))
+                              )
+                            }
+                            disabled={previewZoom >= PREVIEW_ZOOM_MAX}
+                            aria-label="Zoom in"
+                            style={{
+                              borderRadius: 8,
+                              border: "1px solid #cbd5e1",
+                              background: "#ffffff",
+                              minWidth: 30,
+                              height: 28,
+                              padding: "0 8px",
+                              fontSize: 14,
+                              fontWeight: 700,
+                              cursor: previewZoom >= PREVIEW_ZOOM_MAX ? "not-allowed" : "pointer",
+                              opacity: previewZoom >= PREVIEW_ZOOM_MAX ? 0.55 : 1,
+                            }}
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewZoom(1)}
+                            disabled={previewZoom === 1}
+                            style={{
+                              borderRadius: 8,
+                              border: "1px solid #cbd5e1",
+                              background: "#ffffff",
+                              height: 28,
+                              padding: "0 10px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: previewZoom === 1 ? "not-allowed" : "pointer",
+                              opacity: previewZoom === 1 ? 0.55 : 1,
+                            }}
+                          >
+                            Reset
+                          </button>
+                        </InlineStack>
+                      </InlineStack>
+                      <div
+                        style={{
+                          marginTop: 8,
+                          maxHeight: 460,
+                          overflow: "auto",
+                          background:
+                            "repeating-conic-gradient(#f8fafc 0% 25%, #ffffff 0% 50%) 50% / 18px 18px",
+                          borderRadius: 8,
+                          padding: 8,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <img
+                            src={activeMockupUrl}
+                            alt={`${activeEntry.placementTitle} mockup preview`}
+                            style={{
+                              transform: `scale(${previewZoom})`,
+                              transformOrigin: "top center",
+                              transition: "transform 120ms ease",
+                              maxWidth: "100%",
+                              maxHeight: 440,
+                              objectFit: "contain",
+                              borderRadius: 6,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        borderRadius: 10,
+                        border: "1px solid #fde68a",
+                        backgroundColor: "#fffbeb",
+                        padding: 12,
+                      }}
+                    >
+                      <Text as="p" tone="caution">
+                        No mockup available for this color. Make sure a background image is configured for the print area.
+                      </Text>
+                    </div>
+                  )}
+                </BlockStack>
+              );
+            })() : null}
           </BlockStack>
         </Modal.Section>
       </Modal>

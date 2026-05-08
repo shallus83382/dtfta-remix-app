@@ -71,102 +71,176 @@ function getOptionValue(
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await authenticate.public.appProxy(request);
+  try {
+    try {
+      await authenticate.public.appProxy(request);
+    } catch (authError) {
+      console.error("[dtfta-line-item] App proxy auth failed", authError);
+      return Response.json(
+        {
+          ok: false,
+          error:
+            "App proxy authentication failed. Make sure the storefront request is being signed by Shopify (open the storefront via the dev preview URL, not directly).",
+        },
+        { status: 401 },
+      );
+    }
 
-  const body = await request.json().catch(() => ({}));
-  const { customProductId, sku, ajaxVariantId } = body ?? {};
+    const body = await request.json().catch(() => ({}));
+    const { customProductId, sku, ajaxVariantId } = body ?? {};
 
-  if (!customProductId || !sku) {
-    return Response.json(
-      { ok: false, error: "Missing customProductId or sku" },
-      { status: 400 },
-    );
-  }
+    if (!customProductId || !sku) {
+      return Response.json(
+        { ok: false, error: "Missing customProductId or sku" },
+        { status: 400 },
+      );
+    }
 
-  const url = new URL(request.url);
-  const shop =
-    url.searchParams.get("shop") ||
-    url.searchParams.get("logged_in_customer_shop_domain") ||
-    body?.shop ||
-    "";
+    const url = new URL(request.url);
+    const shop =
+      url.searchParams.get("shop") ||
+      url.searchParams.get("logged_in_customer_shop_domain") ||
+      body?.shop ||
+      "";
 
-  if (!shop) {
-    return Response.json({ ok: false, error: "Missing shop" }, { status: 400 });
-  }
+    if (!shop) {
+      return Response.json(
+        { ok: false, error: "Missing shop" },
+        { status: 400 },
+      );
+    }
 
-  const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
-  const headers = createExternalApiHeaders("", { "X-Shop": shop });
-
-  const res = await fetch(
-    `${API_BASE}/custom-products/${encodeURIComponent(
+    const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
+    const headers = createExternalApiHeaders("", { "X-Shop": shop });
+    const apiUrl = `${API_BASE}/custom-products/${encodeURIComponent(
       String(customProductId),
-    )}?shop=${encodeURIComponent(shop)}`,
-    { headers },
-  );
+    )}?shop=${encodeURIComponent(shop)}`;
 
-  const apiData = await res.json().catch(() => ({}));
-  const template = apiData?.data;
+    console.log("[dtfta-line-item] Fetching custom product", {
+      shop,
+      customProductId,
+      sku,
+      ajaxVariantId,
+      apiUrl,
+    });
 
-  if (!res.ok || !template) {
-    return Response.json(
-      { ok: false, error: apiData?.message || "Custom product not found" },
-      { status: 404 },
-    );
-  }
+    let res: Response;
+    try {
+      res = await fetch(apiUrl, { headers });
+    } catch (fetchError) {
+      console.error(
+        "[dtfta-line-item] Failed to reach external API",
+        fetchError,
+      );
+      return Response.json(
+        {
+          ok: false,
+          error: `Unable to reach external API at ${API_BASE}. ${
+            fetchError instanceof Error ? fetchError.message : String(fetchError)
+          }`,
+        },
+        { status: 502 },
+      );
+    }
 
-  const variants: TemplateVariant[] = Array.isArray(template.variants)
-    ? template.variants
-    : [];
+    const rawText = await res.text();
+    let apiData: { data?: unknown; message?: string } = {};
+    try {
+      apiData = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      console.error(
+        "[dtfta-line-item] External API returned non-JSON",
+        res.status,
+        rawText.slice(0, 500),
+      );
+    }
+    const template = (apiData as { data?: any })?.data;
 
-  let matchedVariant = matchVariantBySku(variants, String(sku));
+    if (!res.ok || !template) {
+      console.error("[dtfta-line-item] External API error", {
+        status: res.status,
+        body: rawText.slice(0, 500),
+      });
+      return Response.json(
+        {
+          ok: false,
+          error:
+            apiData?.message ||
+            `Custom product not found (external API responded ${res.status}).`,
+        },
+        { status: 404 },
+      );
+    }
 
-  if (!matchedVariant && ajaxVariantId) {
-    matchedVariant = matchVariantByShopifyVariantId(
-      variants,
-      String(ajaxVariantId),
-    );
-  }
+    const variants: TemplateVariant[] = Array.isArray(template.variants)
+      ? template.variants
+      : [];
 
-  if (!matchedVariant?.shopify_variant_id) {
+    let matchedVariant = matchVariantBySku(variants, String(sku));
+
+    if (!matchedVariant && ajaxVariantId) {
+      matchedVariant = matchVariantByShopifyVariantId(
+        variants,
+        String(ajaxVariantId),
+      );
+    }
+
+    if (!matchedVariant?.shopify_variant_id) {
+      console.error("[dtfta-line-item] No matching variant", {
+        sku,
+        ajaxVariantId,
+        variantSkus: variants.map((v) => v.sku),
+      });
+      return Response.json(
+        {
+          ok: false,
+          error: `No matching Shopify variant found for SKU "${sku}".`,
+        },
+        { status: 404 },
+      );
+    }
+
+    const variantDtfta = matchedVariant.dtfta || {};
+    const optionValues = matchedVariant.option_values || [];
+
+    const color =
+      variantDtfta.color || getOptionValue(optionValues, "Color");
+
+    const size =
+      variantDtfta.size || getOptionValue(optionValues, "Size");
+
+    const properties = buildDtftaLineItem({
+      templateId: variantDtfta.templateId || String(template.id || ""),
+      productKey: variantDtfta.productKey || template.product_key || "",
+      garmentBrand: variantDtfta.garmentBrand || template.garment_brand || "",
+      garmentStyle: variantDtfta.garmentStyle || template.garment_style || "",
+      color,
+      size,
+      printPlan: variantDtfta.printPlan || template.print_plan || "",
+      artworksByPlacement: template.artworks_by_placement || {},
+    });
+
+    return Response.json({
+      ok: true,
+      ajaxVariantId: extractNumericVariantId(
+        String(matchedVariant.shopify_variant_id),
+      ),
+      matchedVariant,
+      properties: {
+        ...properties,
+      },
+    });
+  } catch (error) {
+    console.error("[dtfta-line-item] Unhandled error", error);
     return Response.json(
       {
         ok: false,
-        error: "No matching Shopify variant found for provided SKU",
+        error:
+          error instanceof Error
+            ? `Server error: ${error.message}`
+            : "Unknown server error while building POD cart data.",
       },
-      { status: 404 },
+      { status: 500 },
     );
   }
-
-  const variantDtfta = matchedVariant.dtfta || {};
-  const optionValues = matchedVariant.option_values || [];
-
-  const color =
-    variantDtfta.color || getOptionValue(optionValues, "Color");
-
-  const size =
-    variantDtfta.size || getOptionValue(optionValues, "Size");
-
-  const properties = buildDtftaLineItem({
-    templateId: variantDtfta.templateId || String(template.id || ""),
-    productKey: variantDtfta.productKey || template.product_key || "",
-    garmentBrand: variantDtfta.garmentBrand || template.garment_brand || "",
-    garmentStyle: variantDtfta.garmentStyle || template.garment_style || "",
-    color,
-    size,
-    printPlan: variantDtfta.printPlan || template.print_plan || "",
-    artworksByPlacement: template.artworks_by_placement || {},
-  });
-
-  return Response.json({
-    ok: true,
-    ajaxVariantId: extractNumericVariantId(
-      String(matchedVariant.shopify_variant_id),
-    ),
-    matchedVariant,
-    properties: {
-      ...properties,
-  //    dtfta_template_id: String(variantDtfta.templateId || template.id || ""),
-  //    dtfta_sku: String(matchedVariant.sku || sku || ""),
-    },
-  });
 }

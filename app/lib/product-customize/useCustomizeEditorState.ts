@@ -38,6 +38,13 @@ export function useCustomizeEditorState({
 
   const canvasStateRef = useRef<PlacementCanvasStateMap>({});
   const artworkRef = useRef<Record<string, string>>({});
+  /**
+   * Canvas dimensions captured at snapshot time, keyed by normalized placement.
+   * Saved alongside the artwork so we can recompose mockups with the same
+   * non-uniform scaling that produced the artwork crop, instead of distorting
+   * the design when only a 500x500 fallback is available.
+   */
+  const canvasSizeRef = useRef<Record<string, { width: number; height: number }>>({});
   /** Library asset ids from the artwork API, keyed by normalized placement (shared across colors). */
   const artworkLibraryIdRef = useRef<Record<string, string>>({});
   const placementRef = useRef<string>(defaultPlacement);
@@ -238,9 +245,34 @@ export function useCustomizeEditorState({
         flushSync(() => {
           setArtworkByPlacement(mergedArtwork);
         });
+
+        const liveCanvas = canvases[normalizedPlacement] as
+          | (Canvas & { getWidth?: () => number; getHeight?: () => number })
+          | undefined;
+        if (liveCanvas) {
+          const width = liveCanvas.getWidth?.() ?? 0;
+          const height = liveCanvas.getHeight?.() ?? 0;
+          if (width > 0 && height > 0) {
+            canvasSizeRef.current = {
+              ...canvasSizeRef.current,
+              [normalizedPlacement]: { width, height },
+            };
+          }
+        }
       } else {
+        /**
+         * Only clear the library-artwork binding when we're snapshotting the
+         * currently-active placement. For inactive placements, `canvases[key]`
+         * may hold a disposed Fabric reference (its DesignCanvas has unmounted
+         * but the entry was never removed from this state map) — exporting
+         * such a canvas returns null, which would otherwise look like "user
+         * cleared the canvas" and incorrectly drop the libraryArtworkId we set
+         * when the merchant picked from the artwork library.
+         */
+        const isCurrentPlacement =
+          normalizedPlacement === placementRef.current;
         const activeCanvas = canvases[normalizedPlacement];
-        if (activeCanvas) {
+        if (isCurrentPlacement && activeCanvas) {
           const ids = { ...artworkLibraryIdRef.current };
           delete ids[normalizedPlacement];
           artworkLibraryIdRef.current = ids;
@@ -291,6 +323,7 @@ export function useCustomizeEditorState({
     regions,
     artworkByPlacement,
     artworkRef,
+    canvasSizeRef,
     artworkLibraryIdRef,
     setArtworkLibraryIdForPlacement,
     selectedPrintArea,

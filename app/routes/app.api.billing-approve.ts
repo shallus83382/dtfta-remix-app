@@ -12,7 +12,11 @@ export async function action({ request }: ActionFunctionArgs) {
   const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
   const endpoint = `${API_BASE.replace(/\/$/, "")}/billing/approve`;
   const appUrl = (process.env.SHOPIFY_APP_URL || "").replace(/\/$/, "");
-  const returnUrl = appUrl ? `${appUrl}/billing/return` : "";
+  // Carry the shop through the round-trip so /billing/return knows which store
+  // came back (Shopify only appends charge_id; it does not echo the shop).
+  const returnUrl = appUrl
+    ? `${appUrl}/billing/return?shop=${encodeURIComponent(shop)}`
+    : "";
   const body = {
     shop,
     returnUrl,
