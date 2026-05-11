@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { LoaderFunctionArgs } from "react-router";
+import type { LinksFunction, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useNavigate } from "react-router";
+import productsCatalogStyles from "../styles/products-catalog.css?url";
 import {
   Page,
   Card,
@@ -32,6 +33,10 @@ import {
   brandPrimaryButtonBg,
   brandPrimaryCtaShadow,
 } from "../lib/brand-theme";
+
+export const links: LinksFunction = () => [
+  { rel: "stylesheet", href: productsCatalogStyles },
+];
 
 export type ProductWithKey = Product & {
   productKey?: string;
@@ -192,77 +197,6 @@ export default function ProductsIndex() {
 
   return (
     <Page fullWidth>
-      <style>
-        {`
-          .products-sidebar-btn {
-            position: relative;
-            overflow: hidden;
-          }
-          .products-sidebar-btn::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: -38%;
-            width: 30%;
-            height: 100%;
-            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0) 100%);
-            transform: skewX(-18deg);
-            transition: transform 520ms ease;
-            pointer-events: none;
-          }
-          .products-sidebar-btn:hover {
-            transform: translateY(-2px);
-            filter: saturate(1.08) brightness(1.03);
-          }
-          .products-sidebar-btn:hover::after {
-            transform: translateX(420%) skewX(-18deg);
-          }
-
-          @keyframes dtfta-filler-aurora {
-            0%, 100% { transform: translate(-4%, -3%) scale(1); opacity: 0.55; }
-            50% { transform: translate(5%, 4%) scale(1.06); opacity: 0.82; }
-          }
-          .dtfta-filler-card {
-            position: relative;
-            isolation: isolate;
-            transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 280ms ease,
-              border-color 280ms ease;
-          }
-          .dtfta-filler-card:hover {
-            transform: translateY(-3px);
-            border-color: rgba(71, 176, 161, 0.35);
-            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.09);
-          }
-          .dtfta-filler-aurora {
-            position: absolute;
-            inset: -45%;
-            background:
-              radial-gradient(ellipse 55% 45% at 28% 22%, rgba(255, 122, 0, 0.16) 0%, transparent 55%),
-              radial-gradient(ellipse 50% 48% at 72% 78%, rgba(255, 77, 166, 0.14) 0%, transparent 52%),
-              radial-gradient(ellipse 45% 40% at 82% 28%, rgba(71, 176, 161, 0.13) 0%, transparent 50%);
-            animation: dtfta-filler-aurora 10s ease-in-out infinite;
-            pointer-events: none;
-            z-index: 0;
-          }
-          .dtfta-filler-mesh {
-            position: absolute;
-            inset: 0;
-            border-radius: 14px;
-            opacity: 0.18;
-            background-image: radial-gradient(circle at center, #94a3b8 0.9px, transparent 1px);
-            background-size: 18px 18px;
-            pointer-events: none;
-            z-index: 0;
-            mask-image: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 55%, rgba(0,0,0,0.45) 100%);
-          }
-          .dtfta-filler-body {
-            position: relative;
-            z-index: 2;
-            width: 100%;
-          }
-        `}
-      </style>
       <div style={{ maxWidth: 1420, margin: "0 auto", width: "100%" }}>
       <BlockStack gap="500">
         <AppHeroBanner
@@ -514,7 +448,7 @@ export default function ProductsIndex() {
                 <Badge tone="success">On-demand</Badge>
               </InlineStack>
 
-              <Text as="p" variant="bodyMd" style={{ color: brandColors.textSubtle }}>
+              <Text as="p" variant="bodyMd" tone="subdued">
                 Products are made-to-order after purchase, so there is no inventory overhead.
               </Text>
 

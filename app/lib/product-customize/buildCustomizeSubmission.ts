@@ -12,7 +12,10 @@ import {
   getRegionFromPrintArea,
   normalizePlacementKey,
 } from "./helpers";
-import { getProductDesignAssetUrl } from "../design-assets";
+import {
+  getProductDesignAssetUrl,
+  getProductDesignAssetUrlForFabric,
+} from "../design-assets";
 import {
   buildPlacementMockups,
   type ColorMockupOption,
@@ -164,7 +167,7 @@ export async function buildCustomizeSubmission({
       colorCode,
       colorName: colorCode,
       backgroundImageUrl: area.image
-        ? getProductDesignAssetUrl(area.image, colorCode)
+        ? getProductDesignAssetUrlForFabric(area.image, colorCode)
         : "",
     }));
 

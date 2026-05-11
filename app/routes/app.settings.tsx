@@ -8,6 +8,7 @@ import {
   InlineStack,
   InlineGrid,
   Text,
+  Badge,
 } from '@shopify/polaris';
 import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
@@ -518,19 +519,11 @@ export default function Settings() {
                   <Text as="h2" variant="headingMd">
                     Profile status
                   </Text>
-                  <Text
-                    as="p"
-                    variant="bodySm"
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: 999,
-                      backgroundColor: completionPercent === 100 ? '#dcfce7' : '#fef3c7',
-                      color: completionPercent === 100 ? '#166534' : '#92400e',
-                      fontWeight: 600,
-                    }}
+                  <Badge
+                    tone={completionPercent === 100 ? 'success' : 'attention'}
                   >
-                    {completionPercent}% complete
-                  </Text>
+                    {`${completionPercent}% complete`}
+                  </Badge>
                 </InlineStack>
 
                 <div
@@ -561,10 +554,12 @@ export default function Settings() {
                   </BlockStack>
                 </div>
 
-                <Text as="p" tone="subdued" style={{ marginTop: 8 }}>
-                  Keep this information accurate so packing slips and return labels always match
-                  your brand.
-                </Text>
+                <div style={{ marginTop: 8 }}>
+                  <Text as="p" tone="subdued">
+                    Keep this information accurate so packing slips and return labels always match
+                    your brand.
+                  </Text>
+                </div>
               </BlockStack>
             </div>
         </div>

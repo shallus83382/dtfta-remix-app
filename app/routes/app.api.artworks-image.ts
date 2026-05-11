@@ -1,5 +1,22 @@
 import type { LoaderFunctionArgs } from "react-router";
 
+function allowedImageHosts(): Set<string> {
+  const hosts = new Set([
+    "dtfta-storage-352196746036-us-east-1-an.s3.amazonaws.com",
+    "d315otl6ckb9m2.cloudfront.net",
+    "d39r86d6mk8b6o.cloudfront.net",
+  ]);
+  const designBase = process.env.AWS_COULD_FRONT_URL?.trim();
+  if (designBase) {
+    try {
+      hosts.add(new URL(designBase).hostname);
+    } catch {
+      /* ignore invalid env */
+    }
+  }
+  return hosts;
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const reqUrl = new URL(request.url);
   const source = reqUrl.searchParams.get("url") ?? "";
@@ -19,12 +36,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return new Response("Unsupported protocol", { status: 400 });
   }
 
-  // Prevent open proxy abuse by allowing only known storage hosts.
-  const allowedHosts = new Set([
-    "dtfta-storage-352196746036-us-east-1-an.s3.amazonaws.com",
-    "d315otl6ckb9m2.cloudfront.net",
-  ]);
-  if (!allowedHosts.has(parsed.hostname)) {
+  // Prevent open proxy abuse by allowing only known storage / catalog hosts.
+  if (!allowedImageHosts().has(parsed.hostname)) {
     return new Response("Host not allowed", { status: 403 });
   }
 

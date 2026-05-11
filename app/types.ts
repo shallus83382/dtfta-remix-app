@@ -35,6 +35,9 @@ export interface Product {
   isBestseller?: boolean;
   category: string;
   isFavorite?: boolean;
+  /** Present when catalog API returns variant options */
+  colors?: string[];
+  sizes?: string[];
 }
 
 export interface DashboardStats {

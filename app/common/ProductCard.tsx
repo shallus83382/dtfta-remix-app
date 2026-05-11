@@ -187,7 +187,6 @@ export default function ProductCard({
               variant={variant === "compact" ? "bodySm" : "headingSm"}
               fontWeight="semibold"
               tone={isActiveVisual ? "text-inverse" : "base"}
-              style={{ color: isActiveVisual ? "#ffffff" : brandColors.text }}
               truncate
             >
               {product.name}
@@ -195,8 +194,7 @@ export default function ProductCard({
             <Text
               as="p"
               variant="bodySm"
-              tone={isActiveVisual ? "text-inverse" : "subdued"}
-              style={{ color: isActiveVisual ? "rgba(255,255,255,0.9)" : undefined }}
+              tone={isActiveVisual ? "text-inverse-secondary" : "subdued"}
               truncate
             >
               By {product.brand} {product.model ? `・${product.model}` : ""}
@@ -206,15 +204,13 @@ export default function ProductCard({
               variant={variant === "compact" ? "bodyMd" : "headingSm"}
               fontWeight="semibold"
               tone={isActiveVisual ? "text-inverse" : "base"}
-              style={{ color: isActiveVisual ? "#ffffff" : brandColors.text }}
             >
               From {product?.currency} {formattedPrice}
             </Text>
             <Text
               as="p"
               variant="bodySm"
-              tone={isActiveVisual ? "text-inverse" : "subdued"}
-              style={{ color: isActiveVisual ? "rgba(255,255,255,0.9)" : undefined }}
+              tone={isActiveVisual ? "text-inverse-secondary" : "subdued"}
             >
               {product.colors?.length ?? 0} colors · {product.sizes?.length ?? 0} sizes
             </Text>

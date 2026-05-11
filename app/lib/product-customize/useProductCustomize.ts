@@ -11,7 +11,7 @@ import {
   type PlacementPreviewEntry,
 } from "./mockup-composer";
 import { getRegionFromPrintArea, normalizePlacementKey } from "./helpers";
-import { getProductDesignAssetUrl } from "../design-assets";
+import { getProductDesignAssetUrlForFabric } from "../design-assets";
 
 type UseProductCustomizeArgs = {
   productKey: string;
@@ -154,7 +154,7 @@ export function useProductCustomize({
             colorCode: color.colorCode,
             colorName: color.colorName,
             backgroundImageUrl: area.image
-              ? getProductDesignAssetUrl(area.image, color.colorCode)
+              ? getProductDesignAssetUrlForFabric(area.image, color.colorCode)
               : "",
           }));
 

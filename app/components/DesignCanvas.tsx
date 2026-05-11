@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from "react";
-import { Select, InlineStack } from "@shopify/polaris";
+import { Select, InlineStack, useMediaQuery } from "@shopify/polaris";
 import { brandColors } from "../lib/brand-theme";
 import type { Canvas, FabricObject, Rect } from "fabric";
 
@@ -175,6 +175,7 @@ export default function DesignCanvas({
   const [fontFamily, setFontFamily] = useState(DEFAULT_FONT_FAMILY);
 
   const region = designableRegion ?? DEFAULT_REGION;
+  const isNarrowToolbar = useMediaQuery("(max-width: 560px)");
 
   const hasDimensions = fillWidth
     ? typeof canvasDimensions === "object" && canvasDimensions.w > 0 && canvasDimensions.h > 0
@@ -1086,9 +1087,12 @@ export default function DesignCanvas({
           background: "linear-gradient(145deg, #ffffff 0%, #f8fbff 100%)",
           padding: 10,
           boxShadow: "0 8px 18px rgba(15,23,42,0.05)",
+          minWidth: 0,
+          maxWidth: "100%",
+          boxSizing: "border-box",
         }}
       >
-        <InlineStack gap="300" blockAlign="center">
+        <InlineStack gap="300" blockAlign="center" wrap>
         <span style={{ fontSize: 12, fontWeight: 700, color: brandColors.textSubtle }}>Zoom:</span>
 
         <button
@@ -1126,20 +1130,32 @@ export default function DesignCanvas({
         </button>
 
 
-          <div style={{ minWidth: 220 }}>
+          <div
+            style={{
+              flex: isNarrowToolbar ? "1 1 100%" : "1 1 160px",
+              minWidth: isNarrowToolbar ? "min(100%, 200px)" : 0,
+              maxWidth: "100%",
+            }}
+          >
             <Select
               label="Font family"
-              labelInline
+              labelInline={!isNarrowToolbar}
               options={FONT_FAMILY_OPTIONS}
               value={fontFamily}
               onChange={handleFontFamilyChange}
             />
           </div>
 
-          <div style={{ minWidth: 220 }}>
+          <div
+            style={{
+              flex: isNarrowToolbar ? "1 1 100%" : "1 1 160px",
+              minWidth: isNarrowToolbar ? "min(100%, 200px)" : 0,
+              maxWidth: "100%",
+            }}
+          >
             <Select
               label="Text color"
-              labelInline
+              labelInline={!isNarrowToolbar}
               options={TEXT_COLOR_OPTIONS}
               value={textColor}
               onChange={handleTextColorChange}
@@ -1165,7 +1181,7 @@ export default function DesignCanvas({
         </InlineStack>
       </div>
 
-      <div
+        <div
         ref={zoomContainerRef}
         style={{
           border: "none",
@@ -1173,6 +1189,9 @@ export default function DesignCanvas({
           background: "#fff",
           overflow: "hidden",
           cursor: "crosshair",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
         <div
