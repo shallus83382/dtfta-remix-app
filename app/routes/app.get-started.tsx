@@ -216,9 +216,9 @@ export default function GetStarted() {
                     height={100}
                   />
                 </div>
-                <h3>We Print It</h3>
+                <h3>We Print & Press It</h3>
                 <p>
-                  Our team prints your design using premium DTF technology with vibrant colors and durable quality.
+                Our team professionally prints and presses your design using premium DTF technology with vibrant colors and durable quality.
                 </p>
               </article>
 
@@ -237,9 +237,9 @@ export default function GetStarted() {
                     height={100}
                   />
                 </div>
-                <h3>You Press &amp; Sell</h3>
+                <h3>We Ship to Your Customer</h3>
                 <p>
-                  Apply the transfer to your products and start selling to your customers with confidence.
+                  We carefully pack and ship the finished products directly to your customers, so you can grow your business with confidence.
                 </p>
               </article>
             </div>

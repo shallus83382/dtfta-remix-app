@@ -14,6 +14,7 @@ import {
   DropZone,
   Thumbnail,
   Scrollable,
+  useMediaQuery,
 } from "@shopify/polaris";
 import translations from "@shopify/polaris/locales/en.json";
 import CustomizeCanvasSection from "../components/product-customize/CustomizeCanvasSection";
@@ -79,6 +80,8 @@ export default function ProductCustomize() {
 
   const loaderData = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
+  /** Below ~1040px the three-column studio layout stacks (matches Polaris stacked content breakpoint). */
+  const isStudioStacked = useMediaQuery("(max-width: 1040px)");
 
   const productKey =
     loaderData.productKey ||
@@ -394,7 +397,17 @@ export default function ProductCustomize() {
         fullWidth
         backAction={{ url: "/app/products", content: "Products" }}
       >
-      <div style={{ maxWidth: 1420, margin: "0 auto", width: "100%" }}>
+      <div
+        style={{
+          maxWidth: 1420,
+          margin: "0 auto",
+          width: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
+          paddingInline: isStudioStacked ? 12 : 16,
+          overflowX: "hidden",
+        }}
+      >
       <BlockStack gap="400">
         {fetcher.data && !fetcher.data.ok ? (
           <Card>
@@ -419,8 +432,28 @@ export default function ProductCustomize() {
           minHeight={120}
         />
 
-        <InlineStack align="start" gap="400" blockAlign="start">
-          <div style={{ minWidth: 260, maxWidth: 300, flexShrink: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: isStudioStacked ? "column" : "row",
+            alignItems: "stretch",
+            gap: isStudioStacked ? 20 : 24,
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: isStudioStacked ? "100%" : 300,
+              minWidth: isStudioStacked ? 0 : 260,
+              flexShrink: 0,
+              boxSizing: "border-box",
+              order: isStudioStacked ? 3 : 0,
+            }}
+          >
             <div style={infoPanelStyle}>
               <div
                 style={{
@@ -452,13 +485,25 @@ export default function ProductCustomize() {
                 <List type="bullet">
                   <List.Item>{availableColors.length} colors available</List.Item>
                   <List.Item>{printAreas.length} print placements</List.Item>
-                  <List.Item>Use right panel to configure variants</List.Item>
+                  <List.Item>
+                    {isStudioStacked
+                      ? "Use Variants & options below for colors, canvas tools, and publishing."
+                      : "Use right panel to configure variants"}
+                  </List.Item>
                 </List>
               </BlockStack>
             </div>
           </div>
 
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              flex: isStudioStacked ? "0 0 auto" : 1,
+              width: "100%",
+              minWidth: 0,
+              boxSizing: "border-box",
+              order: isStudioStacked ? 1 : 0,
+            }}
+          >
             <CustomizeCanvasSection
               placement={placement}
               selectedColor={selectedColor}
@@ -482,7 +527,7 @@ export default function ProductCustomize() {
                 boxShadow: "0 8px 18px rgba(22,22,31,0.06)",
               }}
             >
-              <InlineStack align="center" gap="200" blockAlign="center">
+              <InlineStack align="center" gap="200" blockAlign="center" wrap>
                 {printAreas.map((area) => {
                   const key = normalizePlacementKey(area.title);
                   const isActive = placement === key;
@@ -517,7 +562,16 @@ export default function ProductCustomize() {
             </div>
           </div>
 
-          <div style={{ minWidth: 300, maxWidth: 340, flexShrink: 0 }}>
+          <div
+            style={{
+              width: "100%",
+              maxWidth: isStudioStacked ? "100%" : 340,
+              minWidth: isStudioStacked ? 0 : 300,
+              flexShrink: 0,
+              boxSizing: "border-box",
+              order: isStudioStacked ? 2 : 0,
+            }}
+          >
               <div style={rightPanelStyle}>
                 <div
                   style={{
@@ -671,7 +725,7 @@ export default function ProductCustomize() {
                 </BlockStack>
               </div>
           </div>
-        </InlineStack>
+        </div>
         <div style={{ marginBottom: 36 }} />
       </BlockStack>
       </div>

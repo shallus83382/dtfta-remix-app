@@ -1,5 +1,5 @@
 import { reactRouter } from "@react-router/dev/vite";
-import { defineConfig, type UserConfig } from "vite";
+import { defineConfig, loadEnv, type UserConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 // Related: https://github.com/remix-run/remix/issues/2835#issuecomment-1144102176
@@ -35,27 +35,34 @@ if (host === "localhost") {
   };
 }
 
-export default defineConfig({
-  server: {
-    allowedHosts: [host],
-    cors: {
-      preflightContinue: true,
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const awsAssetBase =
+    (env.AWS_COULD_FRONT_URL && env.AWS_COULD_FRONT_URL.trim()) ||
+    "https://dnsdtftransferauthority.elyriasoft.com";
+
+  return {
+    define: {
+      __DTFTA_ASSET_BASE__: JSON.stringify(awsAssetBase),
     },
-    port: Number(process.env.PORT || 3000),
-    hmr: hmrConfig,
-    fs: {
-      // See https://vitejs.dev/config/server-options.html#server-fs-allow for more information
-      allow: ["app", "node_modules"],
+    server: {
+      allowedHosts: [host],
+      cors: {
+        preflightContinue: true,
+      },
+      port: Number(process.env.PORT || 3000),
+      hmr: hmrConfig,
+      fs: {
+        // See https://vitejs.dev/config/server-options.html#server-fs-allow for more information
+        allow: ["app", "node_modules"],
+      },
     },
-  },
-  plugins: [
-    reactRouter(),
-    tsconfigPaths(),
-  ],
-  build: {
-    assetsInlineLimit: 0,
-  },
-  optimizeDeps: {
-    include: ["@shopify/app-bridge-react"],
-  },
-}) satisfies UserConfig;
+    plugins: [reactRouter(), tsconfigPaths()],
+    build: {
+      assetsInlineLimit: 0,
+    },
+    optimizeDeps: {
+      include: ["@shopify/app-bridge-react"],
+    },
+  } satisfies UserConfig;
+});

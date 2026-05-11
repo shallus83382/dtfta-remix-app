@@ -1,8 +1,8 @@
 /**
  * Client-safe mapping from productKey to design asset URLs (-front/-back).
- * Used by the customizer; do not use Node/server-only APIs here.
+ * Base URL is injected at build/dev time via Vite `define` (see `vite.config.ts`, env `AWS_COULD_FRONT_URL`).
  */
-const APP_ASSET_BASE = "https://d315otl6ckb9m2.cloudfront.net";
+const APP_ASSET_BASE = __DTFTA_ASSET_BASE__;
 
 export const PRODUCT_KEY_TO_DESIGN_ASSET_BASE: Record<string, string> = {
   "nl-6210": "unisex-tee",
@@ -184,7 +184,33 @@ export function getProductDesignAssetUrl(assetKey: string, color?: string): stri
   const colorAsset = PRODUCT_KEY_TO_DESIGN_ASSET[colorCategory]?.[assetKey];
   const fallbackAsset = PRODUCT_KEY_TO_DESIGN_ASSET.default?.[assetKey];
   const resolved = colorAsset || fallbackAsset;
+  
   return resolved ? `${APP_ASSET_BASE}/${resolved}` : "";
+}
+
+const FABRIC_IMAGE_PROXY_PATH = "/app/api/artworks-image";
+
+/**
+ * Fabric / canvas APIs load images with `crossOrigin: "anonymous"`, which requires
+ * ACAO from the image host. Our design CDN may not send CORS headers, so we load
+ * catalog assets through the same-origin app proxy instead.
+ *
+ * Only URLs under the configured asset base are rewritten (not an open proxy).
+ */
+export function toProxiedFabricImageUrl(remoteUrl: string): string {
+  const trimmed = remoteUrl.trim();
+  if (!trimmed) return trimmed;
+  const base = __DTFTA_ASSET_BASE__.replace(/\/+$/, "");
+  if (trimmed.startsWith(`${base}/`) || trimmed === base) {
+    return `${FABRIC_IMAGE_PROXY_PATH}?url=${encodeURIComponent(trimmed)}`;
+  }
+  return trimmed;
+}
+
+/** Catalog print-area background URL safe for Fabric (`fromURL` + export). */
+export function getProductDesignAssetUrlForFabric(assetKey: string, color?: string): string {
+  const remote = getProductDesignAssetUrl(assetKey, color);
+  return remote ? toProxiedFabricImageUrl(remote) : "";
 }
 
 /**

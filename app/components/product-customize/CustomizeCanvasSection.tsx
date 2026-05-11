@@ -5,7 +5,7 @@ import DesignCanvas, {
   type DesignableRegion,
 } from "../DesignCanvas";
 import type { DtftaPrintArea } from "../../lib/dtfta-products.server";
-import { getProductDesignAssetUrl } from "../../lib/design-assets";
+import { getProductDesignAssetUrlForFabric } from "../../lib/design-assets";
 
 type CanvasActions = {
   addText: () => void;
@@ -61,7 +61,7 @@ export default function CustomizeCanvasSection({
   }
 
   const backgroundImageUrl = selectedPrintArea.image
-    ? getProductDesignAssetUrl(selectedPrintArea.image, selectedColor)
+    ? getProductDesignAssetUrlForFabric(selectedPrintArea.image, selectedColor)
     : "";
 
   const handleRegisterActions = useCallback(
@@ -94,13 +94,18 @@ export default function CustomizeCanvasSection({
           borderRadius: 10,
           background: "#ffffff",
           padding: 0,
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
         <div
           style={{
             width: "100%",
             minWidth: 0,
+            maxWidth: "100%",
             height: "auto",
+            boxSizing: "border-box",
           }}
         >
           {backgroundImageUrl ? (
