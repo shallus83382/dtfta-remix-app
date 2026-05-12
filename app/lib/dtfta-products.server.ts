@@ -24,6 +24,23 @@ export interface DtftaPrintArea {
   display_order: number;
   is_active: boolean;
   image: string;
+  /** Optional explicit physical print width in `unit` (when set, overrides heuristic / DPI derivation). */
+  physical_print_width?: string;
+  physical_print_height?: string;
+  /** Design pixels per inch when deriving inches from large coordinate-style `area_width`/`area_height`. Default 150 in code. */
+  print_area_dpi?: number;
+  /** Mockup/clipping rectangle in design coordinates (0–500 scale). Use when `area_width`/`area_height` hold physical sizes (e.g. 12×16 in). */
+  design_area_width?: string;
+  design_area_height?: string;
+  design_position_x?: string;
+  design_position_y?: string;
+  /**
+   * Width/height of the **full mockup coordinate system** in the print-area `unit` (e.g. usable chest
+   * width × height the placement is measured against). When set, `position_x`/`position_y` map as
+   * `(value / reference) * 500` on each axis. Omit only if defaults from the app are acceptable.
+   */
+  position_reference_width?: string;
+  position_reference_height?: string;
 }
 
 export interface DtftaProductBlank {
@@ -323,6 +340,51 @@ export function normalizeDtftaPrintArea(input: unknown): DtftaPrintArea | null {
           ? input.isActive
           : true,
     image,
+    ...(typeof input.physical_print_width === "string"
+      ? { physical_print_width: input.physical_print_width }
+      : typeof input.physicalPrintWidth === "string"
+        ? { physical_print_width: input.physicalPrintWidth }
+        : {}),
+    ...(typeof input.physical_print_height === "string"
+      ? { physical_print_height: input.physical_print_height }
+      : typeof input.physicalPrintHeight === "string"
+        ? { physical_print_height: input.physicalPrintHeight }
+        : {}),
+    ...(typeof input.print_area_dpi === "number"
+      ? { print_area_dpi: input.print_area_dpi }
+      : typeof input.printAreaDpi === "number"
+        ? { print_area_dpi: input.printAreaDpi }
+        : {}),
+    ...(typeof input.design_area_width === "string"
+      ? { design_area_width: input.design_area_width }
+      : typeof input.designAreaWidth === "string"
+        ? { design_area_width: input.designAreaWidth }
+        : {}),
+    ...(typeof input.design_area_height === "string"
+      ? { design_area_height: input.design_area_height }
+      : typeof input.designAreaHeight === "string"
+        ? { design_area_height: input.designAreaHeight }
+        : {}),
+    ...(typeof input.design_position_x === "string"
+      ? { design_position_x: input.design_position_x }
+      : typeof input.designPositionX === "string"
+        ? { design_position_x: input.designPositionX }
+        : {}),
+    ...(typeof input.design_position_y === "string"
+      ? { design_position_y: input.design_position_y }
+      : typeof input.designPositionY === "string"
+        ? { design_position_y: input.designPositionY }
+        : {}),
+    ...(typeof input.position_reference_width === "string"
+      ? { position_reference_width: input.position_reference_width }
+      : typeof input.positionReferenceWidth === "string"
+        ? { position_reference_width: input.positionReferenceWidth }
+        : {}),
+    ...(typeof input.position_reference_height === "string"
+      ? { position_reference_height: input.position_reference_height }
+      : typeof input.positionReferenceHeight === "string"
+        ? { position_reference_height: input.positionReferenceHeight }
+        : {}),
   };
 }
 

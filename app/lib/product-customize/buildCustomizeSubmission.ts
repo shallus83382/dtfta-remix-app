@@ -7,11 +7,14 @@ import type {
   PlacementRegionMap,
   PrintableAreaPayload,
   ArtworkUrlPayload,
+  ArtworkLayerMeta,
 } from "./types";
+import type { DesignLayerSummary } from "./design-layer-summary";
 import {
   getRegionFromPrintArea,
   normalizePlacementKey,
 } from "./helpers";
+import { getPhysicalPrintSize } from "./print-area-dimensions";
 import {
   getProductDesignAssetUrl,
   getProductDesignAssetUrlForFabric,
@@ -25,6 +28,39 @@ import {
 function sanitizeDbProductId(raw: string): string {
   const s = String(raw ?? "").trim();
   return /^\d+$/.test(s) ? s : "";
+}
+
+function designLayersToSubmissionMeta(
+  layers: DesignLayerSummary[] | undefined,
+  unit: string | null | undefined
+): ArtworkLayerMeta[] | undefined {
+  if (!layers?.length) return undefined;
+  return layers.map((layer) => {
+    const id = layer.libraryArtworkId?.trim();
+    return {
+      layerId: layer.id,
+      kind: layer.kind,
+      label: layer.label,
+      unit: unit ?? undefined,
+      left: layer.left,
+      top: layer.top,
+      width: layer.width,
+      height: layer.height,
+      centerX: layer.centerX,
+      centerY: layer.centerY,
+      rotation: layer.rotation,
+      centerXMin: layer.centerXMin,
+      centerXMax: layer.centerXMax,
+      centerYMin: layer.centerYMin,
+      centerYMax: layer.centerYMax,
+      ...(id ? { libraryArtworkId: id, artworkId: id } : {}),
+      ...(layer.previewUrl &&
+      typeof layer.previewUrl === "string" &&
+      !layer.previewUrl.startsWith("data:")
+        ? { previewUrl: layer.previewUrl }
+        : {}),
+    };
+  });
 }
 
 type BuildCustomizeSubmissionArgs = {
@@ -42,6 +78,8 @@ type BuildCustomizeSubmissionArgs = {
   canvasSizesByPlacement?: Record<string, { width: number; height: number }>;
   /** Optional library asset ids per placement (from artwork API). */
   artworkLibraryIds?: Record<string, string>;
+  /** Design layer geometry per normalized placement (same keys as print areas). */
+  designLayersByPlacement?: Record<string, DesignLayerSummary[]>;
   printAreas: DtftaPrintArea[];
   printSizes: PlacementPrintSizeMap;
   regions: PlacementRegionMap;
@@ -80,10 +118,7 @@ function buildPrintableAreasForSelectedColor({
   return printAreas.map((area) => {
     const placement = normalizePlacementKey(area.title);
     const region = regions[placement] ?? getRegionFromPrintArea(area);
-    const size = printSizes[placement] ?? {
-      width: Number(area.area_width || 250),
-      height: Number(area.area_height || 250),
-    };
+    const size = printSizes[placement] ?? getPhysicalPrintSize(area);
 
     const payloadKey = `${selectedColor}_${placement}`;
 
@@ -131,6 +166,7 @@ export async function buildCustomizeSubmission({
   artworkByPlacement,
   canvasSizesByPlacement,
   artworkLibraryIds,
+  designLayersByPlacement,
   printAreas,
   printSizes,
   regions,
@@ -158,10 +194,7 @@ export async function buildCustomizeSubmission({
   for (const area of printAreas) {
     const placement = normalizePlacementKey(area.title);
     const region = regions[placement] ?? getRegionFromPrintArea(area);
-    const printSize = printSizes[placement] ?? {
-      width: Number(area.area_width || 250),
-      height: Number(area.area_height || 250),
-    };
+    const printSize = printSizes[placement] ?? getPhysicalPrintSize(area);
 
     const colors: ColorMockupOption[] = allColorCodes.map((colorCode) => ({
       colorCode,
@@ -184,6 +217,10 @@ export async function buildCustomizeSubmission({
     if (!result) continue;
 
     const libraryArtworkId = artworkLibraryIds?.[placement]?.trim();
+    const layersMeta = designLayersToSubmissionMeta(
+      designLayersByPlacement?.[placement],
+      area.unit
+    );
 
     for (const colorCode of allColorCodes) {
       const mockupUrl = result.mockupsByColor[colorCode] ?? "";
@@ -200,6 +237,7 @@ export async function buildCustomizeSubmission({
         designableRegion: region,
         printSize,
         ...(libraryArtworkId ? { libraryArtworkId } : {}),
+        ...(layersMeta?.length ? { layersMeta } : {}),
       };
     }
   }

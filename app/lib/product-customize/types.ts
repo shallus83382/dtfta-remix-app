@@ -32,6 +32,31 @@ export type PrintableAreaPayload = {
   editorState?: unknown;
 };
 
+/** Serialized design-layer metrics for API storage (matches editor layer summaries; preview omitted for large data URLs). */
+export type ArtworkLayerMeta = {
+  layerId: string;
+  kind: "image" | "text" | "vector" | "other";
+  label: string;
+  /** Product print-area unit (e.g. in, cm) for interpreting numeric fields */
+  unit?: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+  rotation: number;
+  centerXMin: number;
+  centerXMax: number;
+  centerYMin: number;
+  centerYMax: number;
+  /** Library asset id when this layer was inserted from the artwork library */
+  libraryArtworkId?: string;
+  /** Same id as {@link libraryArtworkId}; sent for APIs that expect `artworkId` */
+  artworkId?: string;
+  previewUrl?: string | null;
+};
+
 export type ArtworkUrlPayload = {
   colorCode: string;
   placement: string;
@@ -39,6 +64,8 @@ export type ArtworkUrlPayload = {
   customArtworkUrl?: string;
   /** Stable id from `/app/api/artworks` when the merchant picked a library asset */
   libraryArtworkId?: string;
+  /** Per-layer placement and size in print-area units, keyed by layer id */
+  layersMeta?: ArtworkLayerMeta[];
   designableRegion: DesignableRegion;
   printSize: {
     width: number;

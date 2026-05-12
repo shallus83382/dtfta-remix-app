@@ -13,7 +13,12 @@ import {
   getRegionFromPrintArea,
   normalizePlacementKey,
 } from "./helpers";
-import { exportCanvasToDataUrl } from "../../components/DesignCanvas";
+import {
+  computeDesignLayerSummaries,
+  type DesignLayerSummary,
+} from "./design-layer-summary";
+import { exportCanvasToDataUrl, FABRIC_EXPORT_MULTIPLIER } from "../../components/DesignCanvas";
+import { getPhysicalPrintSize } from "./print-area-dimensions";
 
 type UseCustomizeEditorStateArgs = {
   printAreas: DtftaPrintArea[];
@@ -27,6 +32,7 @@ export function useCustomizeEditorState({
   const defaultPlacement = normalizePlacementKey(printAreas[0]?.title ?? "front");
 
   const [placement, setPlacement] = useState<string>(defaultPlacement);
+  const placementRef = useRef<string>(defaultPlacement);
   const [canvases, setCanvases] = useState<Record<string, Canvas | null>>({});
   const [canvasStateByPlacement, setCanvasStateByPlacement] =
     useState<PlacementCanvasStateMap>({});
@@ -47,7 +53,13 @@ export function useCustomizeEditorState({
   const canvasSizeRef = useRef<Record<string, { width: number; height: number }>>({});
   /** Library asset ids from the artwork API, keyed by normalized placement (shared across colors). */
   const artworkLibraryIdRef = useRef<Record<string, string>>({});
-  const placementRef = useRef<string>(defaultPlacement);
+  /**
+   * Last known design layer summaries per placement (print-area units), updated when
+   * we snapshot a placement that still has a live Fabric canvas.
+   */
+  const designLayersByPlacementRef = useRef<Record<string, DesignLayerSummary[]>>(
+    {}
+  );
   const selectedColorRef = useRef<string>(selectedColor);
 
   useEffect(() => {
@@ -67,10 +79,7 @@ export function useCustomizeEditorState({
       for (const area of printAreas) {
         const placementKey = normalizePlacementKey(area.title);
         if (!next[placementKey]) {
-          next[placementKey] = {
-            width: Number(area.area_width || 250),
-            height: Number(area.area_height || 250),
-          };
+          next[placementKey] = getPhysicalPrintSize(area);
         }
       }
 
@@ -103,10 +112,7 @@ export function useCustomizeEditorState({
     : DEFAULT_DESIGN_REGION;
 
   const selectedPrintSize = selectedPrintArea
-    ? printSizes[placement] ?? {
-        width: Number(selectedPrintArea.area_width || 250),
-        height: Number(selectedPrintArea.area_height || 250),
-      }
+    ? printSizes[placement] ?? getPhysicalPrintSize(selectedPrintArea)
     : { width: 12, height: 16 };
 
   const handleCanvasReady = useCallback(
@@ -168,12 +174,47 @@ export function useCustomizeEditorState({
         });
 
         const serialized = userObjects
-          .map((obj) =>
-            typeof (obj as FabricObject & { toObject?: () => unknown }).toObject ==
-            "function"
-              ? (obj as FabricObject & { toObject: () => unknown }).toObject()
-              : null
-          )
+          .map((obj) => {
+            if (
+              typeof (obj as FabricObject & { toObject?: () => unknown }).toObject !==
+              "function"
+            ) {
+              return null;
+            }
+            const raw = (obj as FabricObject & { toObject: () => unknown }).toObject() as Record<
+              string,
+              unknown
+            >;
+            const liveData = (obj as FabricObject & { data?: Record<string, unknown> }).data;
+            if (liveData && typeof liveData === "object") {
+              const base =
+                raw.data && typeof raw.data === "object" && !Array.isArray(raw.data)
+                  ? { ...(raw.data as Record<string, unknown>) }
+                  : {};
+              const lid =
+                typeof liveData.layerId === "string" && liveData.layerId.trim()
+                  ? liveData.layerId.trim()
+                  : "";
+              let lib = "";
+              if (typeof liveData.libraryArtworkId === "string") {
+                lib = liveData.libraryArtworkId.trim();
+              }
+              if (!lib && typeof liveData.artworkId === "string") {
+                lib = liveData.artworkId.trim();
+              }
+              if (lid) base.layerId = lid;
+              if (lib) {
+                base.libraryArtworkId = lib;
+                base.artworkId = lib;
+              }
+              raw.data = {
+                ...base,
+                __internal: Boolean(base.__internal),
+                kind: typeof base.kind === "string" ? base.kind : "design",
+              };
+            }
+            return raw;
+          })
           .filter(Boolean);
 
         return { objects: serialized };
@@ -194,13 +235,19 @@ export function useCustomizeEditorState({
       const placementArea = printAreas.find(
         (area) => normalizePlacementKey(area.title) === normalizedPlacement
       );
+      const fallbackArea = printAreas[0];
       const regionForExport =
         regions[normalizedPlacement] ??
-        (placementArea ? getRegionFromPrintArea(placementArea) : getRegionFromPrintArea(printAreas[0]));
+        (placementArea
+          ? getRegionFromPrintArea(placementArea)
+          : fallbackArea
+            ? getRegionFromPrintArea(fallbackArea)
+            : DEFAULT_DESIGN_REGION);
 
       const dataUrl = exportCanvasToDataUrl(canvas, {
         region: regionForExport,
         includeBackground: false,
+        multiplier: FABRIC_EXPORT_MULTIPLIER,
       });
       return dataUrl || "";
     },
@@ -279,12 +326,56 @@ export function useCustomizeEditorState({
         }
       }
 
+      try {
+        const canvas = canvases[normalizedPlacement];
+        if (canvas) {
+          const placementArea = printAreas.find(
+            (area) => normalizePlacementKey(area.title) === normalizedPlacement
+          );
+          const region =
+            regions[normalizedPlacement] ??
+            (placementArea ? getRegionFromPrintArea(placementArea) : DEFAULT_DESIGN_REGION);
+          const printSize =
+            printSizes[normalizedPlacement] ??
+            (placementArea ? getPhysicalPrintSize(placementArea) : { width: 12, height: 16 });
+
+          const liveCanvas = canvas as Canvas & {
+            getWidth?: () => number;
+            getHeight?: () => number;
+          };
+          const width = liveCanvas.getWidth?.() ?? 0;
+          const height = liveCanvas.getHeight?.() ?? 0;
+          if (width > 0 && height > 0) {
+            const layers = computeDesignLayerSummaries(canvas, {
+              designableRegion: region,
+              canvasPixelWidth: width,
+              canvasPixelHeight: height,
+              printWidth: printSize.width,
+              printHeight: printSize.height,
+            });
+            designLayersByPlacementRef.current = {
+              ...designLayersByPlacementRef.current,
+              [normalizedPlacement]: layers,
+            };
+          }
+        }
+      } catch (error) {
+        console.error("Failed to snapshot design layers", error);
+      }
+
       return {
         editorState: nextCanvasState ?? canvasStateRef.current[normalizedPlacement] ?? null,
         artwork: nextArtwork || artworkRef.current[normalizedPlacement] || "",
       };
     },
-    [canvases, exportPlacementArtwork, serializePlacementState]
+    [
+      canvases,
+      exportPlacementArtwork,
+      serializePlacementState,
+      printAreas,
+      regions,
+      printSizes,
+    ]
   );
 
   const saveAllPlacements = useCallback(
@@ -325,6 +416,7 @@ export function useCustomizeEditorState({
     artworkRef,
     canvasSizeRef,
     artworkLibraryIdRef,
+    designLayersByPlacementRef,
     setArtworkLibraryIdForPlacement,
     selectedPrintArea,
     selectedRegion,

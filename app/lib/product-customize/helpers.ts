@@ -1,5 +1,6 @@
 import type { DtftaPrintArea, DtftaVariant } from "../dtfta-products.server";
 import type { DesignableRegion } from "../../components/DesignCanvas";
+import { getDesignRegionFromPrintArea } from "./print-area-dimensions";
 
 export const DEFAULT_DESIGN_REGION: DesignableRegion = {
   left: 125,
@@ -28,12 +29,7 @@ export function parseColorPlacementKey(value: string): { colorCode: string; plac
 export function getRegionFromPrintArea(area?: DtftaPrintArea): DesignableRegion {
   if (!area) return DEFAULT_DESIGN_REGION;
 
-  return {
-    left: Number(area.position_x || 0),
-    top: Number(area.position_y || 0),
-    width: Number(area.area_width || 250),
-    height: Number(area.area_height || 250),
-  };
+  return getDesignRegionFromPrintArea(area);
 }
 
 export function normalizeApiVariants(input: unknown): DtftaVariant[] {

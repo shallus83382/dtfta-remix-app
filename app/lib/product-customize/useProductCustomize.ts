@@ -68,10 +68,13 @@ export function useProductCustomize({
    * Artwork and placement are shared by placement, not by color.
    * When switching color, only the background preview changes.
    */
-  const handleColorChange = useCallback((colorCode: string) => {
-    editor.savePlacementSnapshot(editor.placement);
-    setSelectedColor(colorCode);
-  }, [editor]);
+  const handleColorChange = useCallback(
+    (colorCode: string) => {
+      editor.savePlacementSnapshot(editor.placement);
+      setSelectedColor(colorCode);
+    },
+    [editor.placement, editor.savePlacementSnapshot]
+  );
 
   const buildFormData = useCallback(async () => {
     editor.savePlacementSnapshot(editor.placement);
@@ -86,6 +89,7 @@ export function useProductCustomize({
       artworkByPlacement: editor.artworkRef.current,
       canvasSizesByPlacement: editor.canvasSizeRef.current,
       artworkLibraryIds: editor.artworkLibraryIdRef.current,
+      designLayersByPlacement: editor.designLayersByPlacementRef.current,
       printAreas,
       printSizes: editor.printSizes,
       regions: editor.regions,
@@ -105,7 +109,12 @@ export function useProductCustomize({
     printAreas,
     selectedColor,
     variants,
-    editor,
+    editor.placement,
+    editor.canvases,
+    editor.printSizes,
+    editor.regions,
+    editor.savePlacementSnapshot,
+    editor.saveAllPlacements,
   ]);
 
   const publish = useCustomizePublish({
@@ -186,7 +195,12 @@ export function useProductCustomize({
         ),
       };
     }, [
-      editor,
+      editor.placement,
+      editor.canvases,
+      editor.regions,
+      editor.artworkRef,
+      editor.canvasSizeRef,
+      editor.savePlacementSnapshot,
       printAreas,
       availableColors,
       selectedColor,
