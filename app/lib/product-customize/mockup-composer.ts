@@ -1,5 +1,6 @@
 import type { Canvas } from "fabric";
-import { exportCanvasToDataUrl } from "../../components/DesignCanvas";
+import { exportCanvasToDataUrl, FABRIC_EXPORT_MULTIPLIER } from "../../components/DesignCanvas";
+import { designRegionToPixelRect, DESIGN_REGION_EDGE_BLEED_PX } from "./design-region-pixel-rect";
 
 export const MOCKUP_CANVAS_SIZE = 500;
 
@@ -43,7 +44,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function getScaledRegion({
+function getScaledRegionPixels({
   region,
   canvasWidth,
   canvasHeight,
@@ -52,15 +53,13 @@ function getScaledRegion({
   canvasWidth: number;
   canvasHeight: number;
 }) {
-  const scaleX = canvasWidth / MOCKUP_CANVAS_SIZE;
-  const scaleY = canvasHeight / MOCKUP_CANVAS_SIZE;
-
-  return {
-    left: region.left * scaleX,
-    top: region.top * scaleY,
-    width: region.width * scaleX,
-    height: region.height * scaleY,
-  };
+  return designRegionToPixelRect(
+    region,
+    canvasWidth,
+    canvasHeight,
+    MOCKUP_CANVAS_SIZE,
+    DESIGN_REGION_EDGE_BLEED_PX
+  );
 }
 
 /**
@@ -78,7 +77,7 @@ export async function composeMockupImage({
   region,
   canvasWidth,
   canvasHeight,
-  multiplier = 3,
+  multiplier = FABRIC_EXPORT_MULTIPLIER,
 }: {
   backgroundImageUrl: string;
   artworkDataUrl: string;
@@ -92,42 +91,70 @@ export async function composeMockupImage({
     loadImage(artworkDataUrl),
   ]);
 
+  const m = Math.max(1, multiplier);
+  const cw = Math.max(1, canvasWidth);
+  const ch = Math.max(1, canvasHeight);
+
+  /** Ceil so scaled artwork/background never lands past the bitmap edge (avoids corner clipping). */
   const output = document.createElement("canvas");
-  output.width = Math.max(1, Math.round(canvasWidth * multiplier));
-  output.height = Math.max(1, Math.round(canvasHeight * multiplier));
+  output.width = Math.max(1, Math.ceil(cw * m - 1e-9));
+  output.height = Math.max(1, Math.ceil(ch * m - 1e-9));
+  const outW = output.width;
+  const outH = output.height;
 
   const ctx = output.getContext("2d");
   if (!ctx) {
     throw new Error("Unable to create canvas context");
   }
 
-  ctx.scale(multiplier, multiplier);
-  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+  ctx.imageSmoothingEnabled = true;
+  if ("imageSmoothingQuality" in ctx) {
+    (ctx as CanvasRenderingContext2D & { imageSmoothingQuality?: string }).imageSmoothingQuality =
+      "high";
+  }
+
+  ctx.clearRect(0, 0, outW, outH);
 
   const bgWidth = backgroundImage.naturalWidth || backgroundImage.width || 1;
   const bgHeight = backgroundImage.naturalHeight || backgroundImage.height || 1;
-  const bgScale = Math.min(canvasWidth / bgWidth, canvasHeight / bgHeight);
+  const bgScale = Math.min(cw / bgWidth, ch / bgHeight);
   const bgDrawWidth = bgWidth * bgScale;
   const bgDrawHeight = bgHeight * bgScale;
-  const bgLeft = canvasWidth / 2 - bgDrawWidth / 2;
-  const bgTop = canvasHeight / 2 - bgDrawHeight / 2;
+  const bgLeft = cw / 2 - bgDrawWidth / 2;
+  const bgTop = ch / 2 - bgDrawHeight / 2;
 
-  ctx.drawImage(backgroundImage, bgLeft, bgTop, bgDrawWidth, bgDrawHeight);
+  let bgDx = bgLeft * m;
+  let bgDy = bgTop * m;
+  let bgDw = bgDrawWidth * m;
+  let bgDh = bgDrawHeight * m;
+  bgDx = Math.max(0, Math.min(bgDx, outW - 1));
+  bgDy = Math.max(0, Math.min(bgDy, outH - 1));
+  bgDw = Math.max(1, Math.min(bgDw, outW - bgDx));
+  bgDh = Math.max(1, Math.min(bgDh, outH - bgDy));
 
-  const drawRegion = getScaledRegion({ region, canvasWidth, canvasHeight });
+  ctx.drawImage(backgroundImage, 0, 0, bgWidth, bgHeight, bgDx, bgDy, bgDw, bgDh);
 
-  /**
-   * The artworkDataUrl is already a crop of this exact print region.
-   * Drawing it into the same region recreates the editor preview without
-   * shifting or changing the user's placement.
-   */
-  ctx.drawImage(
-    artworkImage,
-    drawRegion.left,
-    drawRegion.top,
-    drawRegion.width,
-    drawRegion.height
-  );
+  const drawRegion = getScaledRegionPixels({ region, canvasWidth: cw, canvasHeight: ch });
+
+  let dx = drawRegion.left * m;
+  let dy = drawRegion.top * m;
+  let dw = drawRegion.width * m;
+  let dh = drawRegion.height * m;
+
+  dx = Math.max(0, Math.min(dx, outW - 1));
+  dy = Math.max(0, Math.min(dy, outH - 1));
+  dw = Math.max(1, Math.min(dw, outW - dx));
+  dh = Math.max(1, Math.min(dh, outH - dy));
+
+  const iw = artworkImage.naturalWidth || artworkImage.width || 1;
+  const ih = artworkImage.naturalHeight || artworkImage.height || 1;
+  if (iw > 0 && ih > 0) {
+    /**
+     * Map the full exported print crop into the destination rect (same math as before,
+     * but device-pixel explicit so rounding never paints past the canvas edge).
+     */
+    ctx.drawImage(artworkImage, 0, 0, iw, ih, dx, dy, dw, dh);
+  }
 
   return output.toDataURL("image/png");
 }
@@ -165,6 +192,7 @@ export async function composeMockupsForColors({
           region,
           canvasWidth,
           canvasHeight,
+          multiplier: FABRIC_EXPORT_MULTIPLIER,
         });
         return [color.colorCode, mockupUrl] as const;
       } catch (error) {
@@ -240,6 +268,7 @@ export async function buildPlacementMockups(
     const exported = exportCanvasToDataUrl(input.liveCanvas, {
       region: input.region,
       includeBackground: false,
+      multiplier: FABRIC_EXPORT_MULTIPLIER,
     });
     if (exported) {
       printOnlyUrl = exported;

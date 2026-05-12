@@ -2,6 +2,17 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { Select, InlineStack, useMediaQuery } from "@shopify/polaris";
 import { brandColors } from "../lib/brand-theme";
 import type { Canvas, FabricObject, Rect } from "fabric";
+import {
+  computeDesignLayerSummaries,
+  ensureDesignLayerId,
+  type DesignLayerSummary,
+} from "../lib/product-customize/design-layer-summary";
+import { designRegionToPixelRect, DESIGN_REGION_EDGE_BLEED_PX } from "../lib/product-customize/design-region-pixel-rect";
+
+export type { DesignLayerSummary };
+
+/** Print-only `toDataURL` multiplier; mockups use the same value when compositing. */
+export const FABRIC_EXPORT_MULTIPLIER = 3;
 
 const CANVAS_SIZE = 500;
 const MIN_CANVAS_SIZE = 280;
@@ -12,6 +23,37 @@ const MAX_CANVAS_HEIGHT = 520;
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 2;
 const ZOOM_STEP = 0.15;
+
+/** @see DESIGN_REGION_EDGE_BLEED_PX in design-region-pixel-rect (export + mockup use the same value). */
+const REGION_CLIP_OUTSET_PX = DESIGN_REGION_EDGE_BLEED_PX;
+
+function createPaddedAbsoluteClipRect(
+  fabric: typeof import("fabric"),
+  regionRect: { left?: number; top?: number; width?: number; height?: number },
+  canvasW: number,
+  canvasH: number
+) {
+  const pad = REGION_CLIP_OUTSET_PX;
+  const rl = regionRect.left ?? 0;
+  const rt = regionRect.top ?? 0;
+  const rw = regionRect.width ?? 0;
+  const rh = regionRect.height ?? 0;
+  const cw = Math.max(1, canvasW);
+  const ch = Math.max(1, canvasH);
+  const left = Math.max(0, rl - pad);
+  const top = Math.max(0, rt - pad);
+  const width = Math.max(1, Math.min(cw - left, rw + 2 * pad));
+  const height = Math.max(1, Math.min(ch - top, rh + 2 * pad));
+  return new fabric.Rect({
+    left,
+    top,
+    width,
+    height,
+    originX: "left",
+    originY: "top",
+    absolutePositioned: true,
+  });
+}
 
 const DEFAULT_TEXT_COLOR = "#111111";
 const DEFAULT_FONT_FAMILY = "Arial";
@@ -66,10 +108,15 @@ interface DesignCanvasProps {
   onRegisterActions?: (actions: {
     addText: () => void;
     addImage: (file: File) => Promise<void>;
-    addImageFromUrl: (url: string) => Promise<void>;
+    addImageFromUrl: (
+      url: string,
+      options?: { libraryArtworkId?: string }
+    ) => Promise<void>;
     deleteSelected: () => void;
     clear: () => void;
   } | null) => void;
+  /** Fired when design layers change (add/move/scale/rotate/select). Values use the same unit as product print area `unit`. */
+  onDesignLayersChange?: (layers: DesignLayerSummary[]) => void;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -140,6 +187,7 @@ export default function DesignCanvas({
   initialCanvasState,
   showInlineActions = true,
   onRegisterActions,
+  onDesignLayersChange,
 }: DesignCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -153,6 +201,8 @@ export default function DesignCanvas({
   const onPrintDimensionsChangeRef = useRef(onPrintDimensionsChange);
   const onDesignableRegionChangeRef = useRef(onDesignableRegionChange);
   const onRegisterActionsRef = useRef(onRegisterActions);
+  const onDesignLayersChangeRef = useRef(onDesignLayersChange);
+  const designLayersRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     onCanvasReadyRef.current = onCanvasReady;
@@ -189,6 +239,44 @@ export default function DesignCanvas({
 
   const scaleX = width / CANVAS_SIZE;
   const scaleY = height / CANVAS_SIZE;
+
+  useEffect(() => {
+    onDesignLayersChangeRef.current = onDesignLayersChange;
+  }, [onDesignLayersChange]);
+
+  const scheduleDesignLayersEmit = useCallback(() => {
+    if (designLayersRafRef.current != null) {
+      cancelAnimationFrame(designLayersRafRef.current);
+    }
+    designLayersRafRef.current = requestAnimationFrame(() => {
+      designLayersRafRef.current = null;
+      const canvas = canvasRef.current;
+      const list = computeDesignLayerSummaries(canvas, {
+        designableRegion: region,
+        canvasPixelWidth: width,
+        canvasPixelHeight: height,
+        printWidth,
+        printHeight,
+      });
+      onDesignLayersChangeRef.current?.(list);
+    });
+  }, [
+    region.left,
+    region.top,
+    region.width,
+    region.height,
+    width,
+    height,
+    printWidth,
+    printHeight,
+  ]);
+
+  const scheduleDesignLayersEmitRef = useRef(scheduleDesignLayersEmit);
+  scheduleDesignLayersEmitRef.current = scheduleDesignLayersEmit;
+
+  useEffect(() => {
+    scheduleDesignLayersEmit();
+  }, [scheduleDesignLayersEmit, canvasReadyTick]);
 
   useEffect(() => {
     if (!fillWidth || !wrapperRef.current) return;
@@ -239,19 +327,13 @@ export default function DesignCanvas({
 
   const buildRegionClipPath = useCallback(async () => {
     const rect = regionRectRef.current;
-    if (!rect) return null;
+    const canvas = canvasRef.current;
+    if (!rect || !canvas) return null;
 
     const fabric = await import("fabric");
-
-    return new fabric.Rect({
-      left: rect.left ?? 0,
-      top: rect.top ?? 0,
-      width: rect.width ?? 0,
-      height: rect.height ?? 0,
-      originX: "left",
-      originY: "top",
-      absolutePositioned: true,
-    });
+    const cw = canvas.getWidth?.() ?? CANVAS_SIZE;
+    const ch = canvas.getHeight?.() ?? CANVAS_SIZE;
+    return createPaddedAbsoluteClipRect(fabric, rect, cw, ch);
   }, []);
 
   const clampObjectToRegion = useCallback((obj: FabricObject) => {
@@ -410,19 +492,45 @@ export default function DesignCanvas({
           constrainScaleToRegion(e.target);
           clampObjectToRegion(e.target);
         }
+        scheduleDesignLayersEmitRef.current();
       };
 
-      fabricCanvas.on("object:moving", onMoving);
-      fabricCanvas.on("object:scaling", onScaling);
+      const bumpDesignLayers = () => scheduleDesignLayersEmitRef.current();
+
+      const onMovingWithLayers = (e: { target?: FabricObject }) => {
+        onMoving(e);
+        bumpDesignLayers();
+      };
+
+      const onScalingWithLayers = (e: { target?: FabricObject }) => {
+        onScaling(e);
+        bumpDesignLayers();
+      };
+
+      fabricCanvas.on("object:moving", onMovingWithLayers);
+      fabricCanvas.on("object:scaling", onScalingWithLayers);
       fabricCanvas.on("object:modified", onModified);
 
+      fabricCanvas.on("object:added", bumpDesignLayers);
+      fabricCanvas.on("object:removed", bumpDesignLayers);
+      fabricCanvas.on("selection:created", bumpDesignLayers);
+      fabricCanvas.on("selection:updated", bumpDesignLayers);
+      fabricCanvas.on("selection:cleared", bumpDesignLayers);
+
       cleanupListeners = () => {
-        fabricCanvas.off("object:moving", onMoving);
-        fabricCanvas.off("object:scaling", onScaling);
+        fabricCanvas.off("object:moving", onMovingWithLayers);
+        fabricCanvas.off("object:scaling", onScalingWithLayers);
         fabricCanvas.off("object:modified", onModified);
+
+        fabricCanvas.off("object:added", bumpDesignLayers);
+        fabricCanvas.off("object:removed", bumpDesignLayers);
+        fabricCanvas.off("selection:created", bumpDesignLayers);
+        fabricCanvas.off("selection:updated", bumpDesignLayers);
+        fabricCanvas.off("selection:cleared", bumpDesignLayers);
       };
 
       fabricCanvas.requestRenderAll();
+      bumpDesignLayers();
       onCanvasReadyRef.current?.(fabricCanvas);
     });
 
@@ -565,18 +673,13 @@ export default function DesignCanvas({
 
       const currentRect = regionRectRef.current;
 
+      const cw = canvas.getWidth?.() ?? CANVAS_SIZE;
+      const ch = canvas.getHeight?.() ?? CANVAS_SIZE;
+
       canvas.getObjects().forEach((obj) => {
         if (obj === backgroundImageRef.current || obj === currentRect) return;
 
-        const clip = new fabric.Rect({
-          left: currentRect.left ?? 0,
-          top: currentRect.top ?? 0,
-          width: currentRect.width ?? 0,
-          height: currentRect.height ?? 0,
-          originX: "left",
-          originY: "top",
-          absolutePositioned: true,
-        });
+        const clip = createPaddedAbsoluteClipRect(fabric, currentRect, cw, ch);
 
         obj.set({ clipPath: clip });
         obj.setCoords();
@@ -640,16 +743,11 @@ export default function DesignCanvas({
 
         fabricObjects.forEach((obj) => {
           currentCanvas.add(obj);
+          ensureDesignLayerId(obj);
 
-          const clip = new fabric.Rect({
-            left: regionRectRef.current!.left ?? 0,
-            top: regionRectRef.current!.top ?? 0,
-            width: regionRectRef.current!.width ?? 0,
-            height: regionRectRef.current!.height ?? 0,
-            originX: "left",
-            originY: "top",
-            absolutePositioned: true,
-          });
+          const cw = currentCanvas.getWidth?.() ?? CANVAS_SIZE;
+          const ch = currentCanvas.getHeight?.() ?? CANVAS_SIZE;
+          const clip = createPaddedAbsoluteClipRect(fabric, regionRectRef.current!, cw, ch);
 
           obj.set({
             clipPath: clip,
@@ -671,6 +769,7 @@ export default function DesignCanvas({
       }
 
       currentCanvas.requestRenderAll();
+      scheduleDesignLayersEmitRef.current();
     });
 
     return () => {
@@ -891,6 +990,7 @@ export default function DesignCanvas({
       });
 
       canvas.add(text);
+      ensureDesignLayerId(text);
       text.setCoords();
 
       constrainScaleToRegion(text);
@@ -902,7 +1002,7 @@ export default function DesignCanvas({
   }, [buildRegionClipPath, clampObjectToRegion, constrainScaleToRegion, textColor, fontFamily]);
 
   const handleAddImageFromSource = useCallback(
-    async (input: File | string) => {
+    async (input: File | string, meta?: { libraryArtworkId?: string }) => {
       if (!canvasRef.current || !regionRectRef.current) return;
 
       try {
@@ -944,6 +1044,11 @@ export default function DesignCanvas({
         const maxHeight = Math.max(50, (rect.height ?? 0) - 20);
         const imgScale = Math.min(maxWidth / w, maxHeight / h, 1);
 
+        const libraryArtworkId =
+          typeof meta?.libraryArtworkId === "string" && meta.libraryArtworkId.trim()
+            ? meta.libraryArtworkId.trim()
+            : undefined;
+
         img.set({
           left: centerX,
           top: centerY,
@@ -956,10 +1061,17 @@ export default function DesignCanvas({
           centeredRotation: true,
           selectable: true,
           evented: true,
-          data: { __internal: false, kind: "design" },
+          data: {
+            __internal: false,
+            kind: "design",
+            ...(libraryArtworkId
+              ? { libraryArtworkId, artworkId: libraryArtworkId }
+              : {}),
+          },
         });
 
         canvas.add(img);
+        ensureDesignLayerId(img);
         img.setCoords();
 
         constrainScaleToRegion(img);
@@ -980,7 +1092,8 @@ export default function DesignCanvas({
   );
 
   const handleAddImageFromUrl = useCallback(
-    async (url: string) => handleAddImageFromSource(url),
+    async (url: string, options?: { libraryArtworkId?: string }) =>
+      handleAddImageFromSource(url, options),
     [handleAddImageFromSource]
   );
 
@@ -1341,7 +1454,7 @@ export default function DesignCanvas({
           }
           style={{ width: 56 }}
         />
-      </div> */}  
+      </div> */}   
 
     </>
   );
@@ -1372,7 +1485,7 @@ export function exportCanvasToDataUrl(
   options?: { region?: DesignableRegion; includeBackground?: boolean; multiplier?: number }
 ): string | null {
   if (!canvas) return null;
-  const multiplier = options?.multiplier ?? 3;
+  const multiplier = options?.multiplier ?? FABRIC_EXPORT_MULTIPLIER;
   const extractFallbackArtworkSource = () => {
     try {
       const objects = canvas.getObjects();
@@ -1416,25 +1529,36 @@ export function exportCanvasToDataUrl(
 
     if (typeof anyCanvas.toDataURL === "function") {
       const region = options?.region;
-      const widthScale =
+      const cw =
         typeof (canvas as Canvas & { getWidth?: () => number }).getWidth === "function"
-          ? ((canvas as Canvas & { getWidth: () => number }).getWidth() || CANVAS_SIZE) / CANVAS_SIZE
-          : 1;
-      const heightScale =
+          ? (canvas as Canvas & { getWidth: () => number }).getWidth() || CANVAS_SIZE
+          : CANVAS_SIZE;
+      const ch =
         typeof (canvas as Canvas & { getHeight?: () => number }).getHeight === "function"
-          ? ((canvas as Canvas & { getHeight: () => number }).getHeight() || CANVAS_SIZE) / CANVAS_SIZE
-          : 1;
+          ? (canvas as Canvas & { getHeight: () => number }).getHeight() || CANVAS_SIZE
+          : CANVAS_SIZE;
+
+      const pixelRect =
+        region != null
+          ? designRegionToPixelRect(
+              region,
+              cw,
+              ch,
+              CANVAS_SIZE,
+              DESIGN_REGION_EDGE_BLEED_PX
+            )
+          : null;
 
       return anyCanvas.toDataURL({
         format: "png",
-        multiplier: multiplier ?? 1,
+        multiplier,
         filter: isExportableObject,
-        ...(region
+        ...(pixelRect
           ? {
-              left: Math.max(0, region.left * widthScale),
-              top: Math.max(0, region.top * heightScale),
-              width: Math.max(1, region.width * widthScale),
-              height: Math.max(1, region.height * heightScale),
+              left: pixelRect.left,
+              top: pixelRect.top,
+              width: pixelRect.width,
+              height: pixelRect.height,
             }
           : {}),
       });

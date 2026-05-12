@@ -18,6 +18,8 @@ import {
 } from "@shopify/polaris";
 import translations from "@shopify/polaris/locales/en.json";
 import CustomizeCanvasSection from "../components/product-customize/CustomizeCanvasSection";
+import ArtworkLayersPanel from "../components/product-customize/ArtworkLayersPanel";
+import type { DesignLayerSummary } from "../lib/product-customize/design-layer-summary";
 import ColorSelector from "../components/product-customize/ColorSelector";
 import ProductMeta from "../components/product-customize/ProductMeta";
 import AppHeroBanner from "../common/AppHeroBanner";
@@ -49,7 +51,10 @@ export default function ProductCustomize() {
   const [canvasActions, setCanvasActions] = useState<{
     addText: () => void;
     addImage: (file: File) => Promise<void>;
-    addImageFromUrl: (url: string) => Promise<void>;
+    addImageFromUrl: (
+      url: string,
+      options?: { libraryArtworkId?: string }
+    ) => Promise<void>;
     deleteSelected: () => void;
     clear: () => void;
   } | null>(null);
@@ -77,6 +82,7 @@ export default function ProductCustomize() {
   const [artworkType, setArtworkType] = useState<"all" | "svg" | "raster">("all");
   const [artworkSort, setArtworkSort] = useState<"recent" | "name_asc" | "name_desc">("recent");
   const [artworkSearch, setArtworkSearch] = useState("");
+  const [designLayers, setDesignLayers] = useState<DesignLayerSummary[]>([]);
 
   const loaderData = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
@@ -159,6 +165,10 @@ export default function ProductCustomize() {
     variants: product?.variants ?? [],
     defaultColor: product?.variants?.[0]?.colorCode ?? "",
   });
+
+  useEffect(() => {
+    setDesignLayers([]);
+  }, [placement]);
 
   const handleLibraryArtworkBindingChange = useCallback(
     (libraryArtworkId: string | null) => {
@@ -516,7 +526,16 @@ export default function ProductCustomize() {
               onRegionChange={handleRegionChange}
               onRegisterActions={setCanvasActions}
               onLibraryArtworkBindingChange={handleLibraryArtworkBindingChange}
+              onDesignLayersChange={setDesignLayers}
             />
+
+            <ArtworkLayersPanel
+              layers={designLayers}
+              dimensionUnit={selectedPrintArea?.unit ?? ""}
+              printWidth={selectedPrintSize.width}
+              printHeight={selectedPrintSize.height}
+            />
+
             <div
               style={{
                 marginTop: 12,
@@ -874,7 +893,9 @@ export default function ProductCustomize() {
                     onClick={async () => {
                       if (!canvasActions) return;
                       const proxiedUrl = `/app/api/artworks-image?url=${encodeURIComponent(image.url)}`;
-                      await canvasActions.addImageFromUrl(proxiedUrl);
+                      await canvasActions.addImageFromUrl(proxiedUrl, {
+                        libraryArtworkId: image.id,
+                      });
                       setArtworkLibraryIdForPlacement(placement, image.id);
                       setIsImageModalOpen(false);
                     }}
@@ -1152,13 +1173,14 @@ export default function ProductCustomize() {
                           background:
                             "repeating-conic-gradient(#f8fafc 0% 25%, #ffffff 0% 50%) 50% / 18px 18px",
                           borderRadius: 8,
-                          padding: 8,
+                          padding: "12px 12px 20px",
                         }}
                       >
                         <div
                           style={{
                             display: "flex",
                             justifyContent: "center",
+                            alignItems: "flex-start",
                           }}
                         >
                           <img
@@ -1169,9 +1191,10 @@ export default function ProductCustomize() {
                               transformOrigin: "top center",
                               transition: "transform 120ms ease",
                               maxWidth: "100%",
-                              maxHeight: 440,
+                              height: "auto",
                               objectFit: "contain",
-                              borderRadius: 6,
+                              borderRadius: 4,
+                              display: "block",
                             }}
                           />
                         </div>

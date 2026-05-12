@@ -3,14 +3,22 @@ import { Text } from "@shopify/polaris";
 import type { Canvas } from "fabric";
 import DesignCanvas, {
   type DesignableRegion,
+  type DesignLayerSummary,
 } from "../DesignCanvas";
 import type { DtftaPrintArea } from "../../lib/dtfta-products.server";
 import { getProductDesignAssetUrlForFabric } from "../../lib/design-assets";
+import {
+  formatPrintMeasurement,
+  normalizePrintUnitDisplay,
+} from "../../lib/product-customize/print-units";
 
 type CanvasActions = {
   addText: () => void;
   addImage: (file: File) => Promise<void>;
-  addImageFromUrl: (url: string) => Promise<void>;
+  addImageFromUrl: (
+    url: string,
+    options?: { libraryArtworkId?: string }
+  ) => Promise<void>;
   deleteSelected: () => void;
   clear: () => void;
 };
@@ -28,6 +36,7 @@ type Props = {
   onRegisterActions?: (actions: CanvasActions | null) => void;
   /** Called when canvas is cleared or a local file image is added (no library id). */
   onLibraryArtworkBindingChange?: (libraryArtworkId: string | null) => void;
+  onDesignLayersChange?: (layers: DesignLayerSummary[]) => void;
 };
 
 export default function CustomizeCanvasSection({
@@ -42,6 +51,7 @@ export default function CustomizeCanvasSection({
   onRegionChange,
   onRegisterActions,
   onLibraryArtworkBindingChange,
+  onDesignLayersChange,
 }: Props) {
   if (!selectedPrintArea) {
     return (
@@ -127,6 +137,7 @@ export default function CustomizeCanvasSection({
                 onRegionChange(placement, region)
               }
               initialCanvasState={initialCanvasState}
+              onDesignLayersChange={onDesignLayersChange}
             />
           ) : (
             <div
@@ -147,8 +158,10 @@ export default function CustomizeCanvasSection({
 
       <div style={{ marginTop: 14 }}>
         <Text as="p" variant="bodySm" tone="subdued">
-          Active print area: {selectedPrintArea.title} · {selectedPrintArea.area_width} ×{" "}
-          {selectedPrintArea.area_height} {selectedPrintArea.unit}
+          Active print area: {selectedPrintArea.title} ·{" "}
+          {formatPrintMeasurement(selectedPrintSize.width, selectedPrintArea.unit)} ×{" "}
+          {formatPrintMeasurement(selectedPrintSize.height, selectedPrintArea.unit)}{" "}
+          {normalizePrintUnitDisplay(selectedPrintArea.unit) || selectedPrintArea.unit}
         </Text>
       </div>
       <div style={{ marginBottom: 24 }} />
