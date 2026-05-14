@@ -1,5 +1,11 @@
 // Shared types extracted from previous store implementation
-export type OrderStatus = 'New' | 'In Production' | 'Shipped' | 'Artwork Needed' | 'Exception';
+export type OrderStatus =
+  | 'New'
+  | 'In Production'
+  | 'Shipped'
+  | 'Artwork Needed'
+  | 'Billing Pending'
+  | 'Exception';
 
 export interface Order {
   id: string;
@@ -29,6 +35,9 @@ export interface Product {
   isBestseller?: boolean;
   category: string;
   isFavorite?: boolean;
+  /** Present when catalog API returns variant options */
+  colors?: string[];
+  sizes?: string[];
 }
 
 export interface DashboardStats {
@@ -58,6 +67,12 @@ export interface BrandSettings {
 export interface SetupStatus {
   fulfillmentServiceConnected: boolean;
   locationCreated: boolean;
+}
+
+export interface BillingStatus {
+  status: "active" | "inactive" | "blocked";
+  required: boolean;
+  lineItemId?: string | null;
 }
 
 /** Design payload sent to Laravel create-in-shopify endpoint */

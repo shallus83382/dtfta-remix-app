@@ -1,0 +1,10 @@
+/* App routes only: soft canvas behind Polaris pages (matches landing). */
+.appBrandShell {
+  min-height: 100%;
+  background: linear-gradient(
+    180deg,
+    #faf9fd 0%,
+    #f6f5fb 38%,
+    #ebe8f4 100%
+  );
+}

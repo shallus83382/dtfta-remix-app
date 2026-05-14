@@ -1,14 +1,14 @@
 /**
  * Design export and placement types for DTFTA product customizer.
- * Aligned with Developer Guide: dtfta_print_plan (e.g. FRONT:12x16|BACK:12x16), artwork URL(s) per placement.
+ * Supports dynamic placement keys while remaining compatible with front/back.
  */
 
-export type PlacementKey = "front" | "back";
+export type PlacementKey = string;
 
-export const PLACEMENT_LABELS: Record<PlacementKey, string> = {
-  front: "Front",
-  back: "Back",
-};
+export interface PlacementDimensions {
+  width: number;
+  height: number;
+}
 
 export interface DesignExport {
   printPlan: string;
@@ -16,13 +16,15 @@ export interface DesignExport {
 }
 
 /** Build print plan string e.g. FRONT:12x16|BACK:12x16 */
-export function buildPrintPlan(dimensions: Partial<Record<PlacementKey, { width: number; height: number }>>): string {
+export function buildPrintPlan(
+  dimensions: Partial<Record<PlacementKey, PlacementDimensions>>
+): string {
   const parts: string[] = [];
-  if (dimensions.front) {
-    parts.push(`FRONT:${dimensions.front.width}x${dimensions.front.height}`);
+
+  for (const [placement, value] of Object.entries(dimensions)) {
+    if (!value) continue;
+    parts.push(`${placement.toUpperCase()}:${value.width}x${value.height}`);
   }
-  if (dimensions.back) {
-    parts.push(`BACK:${dimensions.back.width}x${dimensions.back.height}`);
-  }
+
   return parts.join("|") || "";
 }

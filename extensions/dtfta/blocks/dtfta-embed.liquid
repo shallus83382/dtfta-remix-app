@@ -1,0 +1,25 @@
+<script>
+  window.DTFTA = {
+    enabled: true,
+    proxyPath: {{ block.settings.proxy_path | json }},
+    shop: {{ shop.permanent_domain | json }},
+    templateId: {{ product.metafields.dtfta.template_id.value | default: product.metafields.dtfta.template_id | json }}
+  };
+  console.log("[DTFTA] inline config set", window.DTFTA);
+</script>
+
+{% schema %}
+{
+  "name": "DTFTA cart interceptor",
+  "target": "body",
+  "javascript": "dtfta-storefront.js",
+  "settings": [
+    {
+      "type": "text",
+      "id": "proxy_path",
+      "label": "App proxy path",
+      "default": "/apps/dtfta-line-item"
+    }
+  ]
+}
+{% endschema %}

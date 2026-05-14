@@ -1,8 +1,8 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "b1b89dde1455b94c139a5d941df1c942"
-name = "dtfta"
-application_url = "https://447f-122-180-87-40.ngrok-free.app"
+client_id = "2a775045666e04327c6e3dce7a14acb8"
+name = "DTFTANEW"
+application_url = "https://phpstack-1180784-6299772.cloudwaysapps.com"
 embedded = true
 
 [build]
@@ -12,20 +12,48 @@ automatically_update_urls_on_dev = true
 api_version = "2026-04"
 
   [[webhooks.subscriptions]]
+  uri = "/webhooks/compliance"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+
+  [[webhooks.subscriptions]]
+  topics = [ "orders/updated", "orders/create", "orders/delete" ]
+  uri = "/webhooks/orders"
+
+  [[webhooks.subscriptions]]
+  topics = [ "fulfillments/create", "fulfillments/update" ]
+  uri = "/webhooks/fulfillments"
+
+  [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
   uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [
+  "fulfillment_orders/cancellation_request_submitted",
+  "fulfillment_orders/fulfillment_request_submitted"
+]
+  uri = "/webhooks/fulfillment-orders"
 
   [[webhooks.subscriptions]]
   topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
 
+  [[webhooks.subscriptions]]
+  topics = [ "app_subscriptions/update", "app_subscriptions/approaching_capped_amount" ]
+  uri = "/webhooks/app/subscriptions"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_orders,write_products,write_fulfillments,read_assigned_fulfillment_orders,write_assigned_fulfillment_orders"
+scopes = "read_assigned_fulfillment_orders,read_inventory,read_locations,read_markets_home,read_orders,write_assigned_fulfillment_orders,write_fulfillments,write_inventory,write_products,write_shipping"
 
 [auth]
 redirect_urls = [
-  "https://447f-122-180-87-40.ngrok-free.app/auth",
-  "https://447f-122-180-87-40.ngrok-free.app/auth/callback",
-  "https://447f-122-180-87-40.ngrok-free.app/api/auth"
+  "https://phpstack-1180784-6299772.cloudwaysapps.com/auth",
+  "https://phpstack-1180784-6299772.cloudwaysapps.com/auth/callback",
+  "https://phpstack-1180784-6299772.cloudwaysapps.com/api/auth"
 ]
+
+[app_proxy]
+url = "https://phpstack-1180784-6299772.cloudwaysapps.com/apps/dtfta-line-item"
+subpath = "dtfta-line-item"
+prefix = "apps"

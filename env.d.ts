@@ -1,6 +1,9 @@
 /// <reference types="vite/client" />
 /// <reference types="@react-router/node" />
 
+/** Injected by Vite `define` from `AWS_COULD_FRONT_URL` (see vite.config.ts). */
+declare const __DTFTA_ASSET_BASE__: string;
+
 // env.d.ts (add to it)
 declare namespace NodeJS {
     interface ProcessEnv {
@@ -12,6 +15,7 @@ declare namespace NodeJS {
         SHOPIFY_API_VERSION?: string;
         EXTERNAL_API_BASE?: string;
         EXTERNAL_API_SECRET?: string;
+        AWS_COULD_FRONT_URL?: string;
         // add any other env keys you rely on
     }
 }

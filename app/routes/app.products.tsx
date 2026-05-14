@@ -5,5 +5,5 @@ import { Outlet } from "react-router";
  * Renders the index (products list) or the customize child in the Outlet.
  */
 export default function ProductsLayout() {
-  return <Outlet />;
+  return <Outlet />; 
 }

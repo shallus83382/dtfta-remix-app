@@ -14,9 +14,11 @@ import translations from "@shopify/polaris/locales/en.json";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 
 import { authenticate } from "../shopify.server";
+import appBrandShell from "../styles/app-brand-shell.css?url";
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: polarisStyles },
+  { rel: "stylesheet", href: appBrandShell },
 ];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -30,13 +32,16 @@ export default function App() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <PolarisAppProvider i18n={translations}>
-        <s-app-nav>
-          <s-link href="/app/dashboard">Dashboard</s-link>
-          <s-link href="/app/products">Products</s-link>
-          <s-link href="/app/orders">Orders</s-link>
-          <s-link href="/app/settings">Settings</s-link>
-        </s-app-nav>
-        <Outlet />
+        <div className="appBrandShell">
+          <s-app-nav>
+            <s-link href="/app/get-started">Get Started</s-link>
+            <s-link href="/app/dashboard">Dashboard</s-link>
+            <s-link href="/app/products">Products</s-link>
+            <s-link href="/app/orders">Orders</s-link>
+            <s-link href="/app/settings">Settings</s-link>
+          </s-app-nav>
+          <Outlet />
+        </div>
       </PolarisAppProvider>
     </AppProvider>
   );

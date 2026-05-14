@@ -1,37 +1,108 @@
+import { Badge, BlockStack, Card, InlineStack, List, Page, Text } from "@shopify/polaris";
+import AppHeroBanner from "../common/AppHeroBanner";
+import { brandPrimaryButtonBg, brandPrimaryCtaShadow } from "../lib/brand-theme";
+
 export default function AdditionalPage() {
+  const surfaceStyle = {
+    borderRadius: 14,
+    border: "1px solid #dbe3ec",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+    padding: 18,
+    boxShadow: "0 10px 24px rgba(15,23,42,0.08)",
+  } as const;
+
+  const sidebarSurfaceStyle = {
+    position: "relative" as const,
+    overflow: "hidden" as const,
+    borderRadius: 16,
+    border: "1px solid rgba(255, 106, 0, 0.28)",
+    background: "linear-gradient(145deg, #ffffff 0%, rgba(255, 106, 0, 0.08) 100%)",
+    padding: 16,
+    boxShadow: "0 14px 30px rgba(15,23,42,0.1)",
+  } as const;
+
   return (
-    <s-page heading="Additional page">
-      <s-section heading="Multiple pages">
-        <s-paragraph>
-          The app template comes with an additional page which demonstrates how
-          to create multiple pages within app navigation using{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
-          >
-            App Bridge
-          </s-link>
-          .
-        </s-paragraph>
-        <s-paragraph>
-          To create your own page and have it show up in the app navigation, add
-          a page inside <code>app/routes</code>, and a link to it in the{" "}
-          <code>&lt;ui-nav-menu&gt;</code> component found in{" "}
-          <code>app/routes/app.jsx</code>.
-        </s-paragraph>
-      </s-section>
-      <s-section slot="aside" heading="Resources">
-        <s-unordered-list>
-          <s-list-item>
-            <s-link
-              href="https://shopify.dev/docs/apps/design-guidelines/navigation#app-nav"
-              target="_blank"
-            >
-              App nav best practices
-            </s-link>
-          </s-list-item>
-        </s-unordered-list>
-      </s-section>
-    </s-page>
+    <Page fullWidth>
+      <div style={{ maxWidth: 1420, margin: "0 auto", width: "100%" }}>
+        <BlockStack gap="500">
+          <AppHeroBanner
+            title="Additional Page"
+            subtitle="This page is now aligned with the DTFTA design system used across dashboard, settings, and onboarding."
+            badges={<Badge tone="info">Design Updated</Badge>}
+          />
+
+          <InlineStack align="start" gap="400" blockAlign="start">
+            <div style={{ flex: "1", minWidth: 0, maxWidth: 980 }}>
+              <Card>
+                <BlockStack gap="500">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      Additional Module Overview
+                    </Text>
+                    <Badge tone="success">Ready</Badge>
+                  </InlineStack>
+
+                  <div style={surfaceStyle}>
+                    <BlockStack gap="300">
+                      <Text as="p" variant="bodyMd">
+                        This module now uses the same layout language as the rest of the app:
+                        elevated surfaces, readable spacing, and consistent typography.
+                      </Text>
+                      <List type="bullet">
+                        <List.Item>Consistent hero and page width</List.Item>
+                        <List.Item>Shared visual depth and card treatment</List.Item>
+                        <List.Item>Sidebar accent style matching other routes</List.Item>
+                      </List>
+                    </BlockStack>
+                  </div>
+                </BlockStack>
+              </Card>
+            </div>
+
+            <div style={{ minWidth: "280px", maxWidth: "320px", flexShrink: 0 }}>
+              <div style={sidebarSurfaceStyle}>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: -30,
+                    right: -22,
+                    width: 96,
+                    height: 96,
+                    borderRadius: "50%",
+                    background: "radial-gradient(circle, rgba(255, 106, 0, 0.18) 0%, rgba(255, 106, 0, 0) 72%)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      Style Guide
+                    </Text>
+                    <Badge tone="info">Reference</Badge>
+                  </InlineStack>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Keep new pages aligned with the existing UI system for visual consistency.
+                  </Text>
+                  <div
+                    style={{
+                      borderRadius: 10,
+                      background: brandPrimaryButtonBg,
+                      color: "#ffffff",
+                      padding: "10px 12px",
+                      boxShadow: brandPrimaryCtaShadow,
+                    }}
+                  >
+                    <Text as="p" variant="bodySm" fontWeight="semibold">
+                      Use brand gradient for key CTA actions
+                    </Text>
+                  </div>
+                </BlockStack>
+              </div>
+            </div>
+          </InlineStack>
+          <div style={{ marginBottom: 32 }} />
+        </BlockStack>
+      </div>
+    </Page>
   );
 }
