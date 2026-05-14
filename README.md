@@ -1,10 +1,86 @@
-# Shopify App Template - React Router
+# DTFTA — Shopify app (React Router)
 
-This is a template for building a [Shopify app](https://shopify.dev/docs/apps/getting-started) using [React Router](https://reactrouter.com/). It was forked from the [Shopify Remix app template](https://github.com/Shopify/shopify-app-template-remix) and converted to React Router.
+This repository is the embedded [Shopify admin app](https://shopify.dev/docs/apps/getting-started) for **DTFTA**, built with [React Router](https://reactrouter.com/) and the [Shopify app package for React Router](https://shopify.dev/docs/api/shopify-app-react-router). It started from the [Shopify React Router app template](https://github.com/Shopify/shopify-app-template-react-router) (evolved from the older Remix template).
 
-Rather than cloning this repo, follow the [Quick Start steps](https://github.com/Shopify/shopify-app-template-react-router#quick-start).
+Visit the [`shopify.dev` documentation](https://shopify.dev/docs/api/shopify-app-react-router) for Shopify-specific APIs (sessions, GraphQL, webhooks). To bootstrap a brand-new app from Shopify’s template instead of this repo, use [Quick start](#quick-start) below.
 
-Visit the [`shopify.dev` documentation](https://shopify.dev/docs/api/shopify-app-react-router) for more details on the React Router app package.
+## Front-end setup
+
+### Stack
+
+| Layer | Technology |
+| ----- | ---------- |
+| UI | [React 18](https://react.dev/), [TypeScript](https://www.typescriptlang.org/) |
+| Routing & SSR | [React Router 7](https://reactrouter.com/) (`loader` / `action`, nested routes) |
+| Build / dev server | [Vite 6](https://vite.dev/) via `@react-router/dev/vite` |
+| Shopify embedded shell | [`@shopify/shopify-app-react-router`](https://shopify.dev/docs/api/shopify-app-react-router) (`AppProvider`, `authenticate`, error boundaries) |
+| Admin UI | [Shopify Polaris](https://polaris.shopify.com/) React components (`@shopify/polaris` v13) |
+| Embedded bridge | [`@shopify/app-bridge-react`](https://shopify.dev/docs/api/app-bridge-library) (used with the embedded admin experience) |
+
+Node.js must match `package.json` **engines** (currently `>=20.19 <22 || >=22.12`).
+
+### Where the UI lives
+
+Routes are **filesystem-based** via [`@react-router/fs-routes`](https://reactrouter.com/how-to/file-route-conventions): `app/routes.ts` re-exports `flatRoutes()`, and files under `app/routes/` map to URLs by convention.
+
+| Path | Role |
+| ---- | ---- |
+| `app/root.tsx` | Document shell: `<html>`, Polaris base styles, Inter font from Shopify’s CDN |
+| `app/routes/app.tsx` | Authenticated embedded layout: Shopify `AppProvider`, Polaris `AppProvider`, **App Home** side navigation (`<s-app-nav>`, `<s-link>`), shared brand stylesheet |
+| `app/routes/app.*.tsx` | Logged-in app pages (dashboard, products, orders, settings, onboarding, product customize, etc.) |
+| `app/components/` | Feature UI (for example `product-customize`: canvas section, layers panel, color selector) |
+| `app/common/` | Shared presentational pieces (hero banner, product cards) |
+| `app/styles/` | Global and feature CSS (for example `app-brand-shell.css`) |
+| `app/lib/` | Hooks and domain logic; files named `*.server.ts` are server-only |
+
+Beyond Polaris, the UI uses **[Fabric.js](https://fabricjs.com/)** for the design canvas on product customization and **[Swiper](https://swiperjs.com/)** on the dashboard (news carousel).
+
+### Styling and brand
+
+- Polaris ESM styles are loaded from `root.tsx` and again via `links` in `app/routes/app.tsx` for the authenticated route tree.
+- `app/styles/app-brand-shell.css` wraps the embedded chrome (navigation and main content) for DTFTA layout and branding.
+- Additional CSS lives under `app/styles/` or as co-located CSS modules (for example `app/routes/_index/styles.module.css`).
+
+### Static assets (CDN base URL)
+
+Vite defines a compile-time constant **`__DTFTA_ASSET_BASE__`** (see `vite.config.ts`). It comes from the environment variable `AWS_COULD_FRONT_URL` when set, otherwise a default production base URL. Front-end modules such as `app/lib/design-assets.ts` use it for design and mockup-related asset URLs. For local development against another CDN, set `AWS_COULD_FRONT_URL` in your environment (see `env.d.ts`).
+
+### Commands relevant to the front end
+
+```shell
+npm run dev
+```
+
+Runs `shopify app dev` (CLI tunnel, env, hot reload). `vite.config.ts` aligns `SHOPIFY_APP_URL` and HMR with how the CLI exposes the app (localhost vs tunneled host).
+
+```shell
+npm run typecheck
+```
+
+Runs React Router type generation and `tsc --noEmit`.
+
+```shell
+npm run lint
+```
+
+ESLint over the codebase, including TSX.
+
+```shell
+npm run graphql-codegen
+```
+
+Regenerates typed GraphQL helpers when Admin API queries change (see `.graphqlrc.ts`).
+
+Production bundles and server:
+
+```shell
+npm run build
+npm run start
+```
+
+### Embedded navigation (important)
+
+Inside the Shopify admin iframe, use **`Link` from `react-router`** or Polaris-friendly navigation—not raw `<a href>`. For redirects after auth, use the **`redirect` from `authenticate.admin`**, not `redirect` from `react-router`. These points are repeated under [Gotchas / Troubleshooting](#gotchas--troubleshooting).
 
 ## Upgrading from Remix
 
