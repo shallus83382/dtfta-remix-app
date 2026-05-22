@@ -29,7 +29,11 @@ import {
   loadCustomizeProduct,
   publishCustomizeProduct,
 } from "../lib/product-customize/customize-product.server";
-import { normalizePlacementKey } from "../lib/product-customize/helpers";
+import {
+  formatVariantPrice,
+  normalizePlacementKey,
+  parseVariantPrice,
+} from "../lib/product-customize/helpers";
 import {
   brandColors,
   brandPrimaryButtonBg,
@@ -165,6 +169,55 @@ export default function ProductCustomize() {
     variants: product?.variants ?? [],
     defaultColor: product?.variants?.[0]?.colorCode ?? "",
   });
+
+  const selectedColorVariantPrices = useMemo(() => {
+    if (!selectedColor) return null;
+
+    const variants = (product?.variants ?? []).filter(
+      (v) => v.is_active !== false && v.colorCode === selectedColor
+    );
+    if (!variants.length) return null;
+
+    const sizeOrder = product?.sizes ?? [];
+    const colorName =
+      availableColors.find((c) => c.colorCode === selectedColor)?.colorName ??
+      variants[0]?.colorName ??
+      selectedColor;
+
+    const currency = product?.currency ?? "USD";
+    const items = variants
+      .map((variant) => {
+        const price = parseVariantPrice(variant.price) ?? 0; // TODO: Remove ?? 20 when API returns variant prices.
+        return {
+          size: variant.size,
+          priceLabel: formatVariantPrice(price, currency),
+        };
+      })
+      .sort((a, b) => {
+        const ai = sizeOrder.indexOf(a.size);
+        const bi = sizeOrder.indexOf(b.size);
+        if (ai !== -1 && bi !== -1) return ai - bi;
+        if (ai !== -1) return -1;
+        if (bi !== -1) return 1;
+        return a.size.localeCompare(b.size);
+      });
+
+    return { colorName, items };
+  }, [product?.variants, product?.sizes, product?.currency, selectedColor, availableColors]);
+
+  const printAreaPriceItems = useMemo(() => {
+    const currency = product?.currency ?? "USD";
+    return printAreas
+      .map((area) => {
+        const price = parseVariantPrice(area.price);
+        if (price === null) return null;
+        return {
+          title: area.title,
+          priceLabel: formatVariantPrice(price, currency),
+        };
+      })
+      .filter((item): item is { title: string; priceLabel: string } => item !== null);
+  }, [printAreas, product?.currency]);
 
   useEffect(() => {
     setDesignLayers([]);
@@ -501,6 +554,41 @@ export default function ProductCustomize() {
                       : "Use right panel to configure variants"}
                   </List.Item>
                 </List>
+
+                <Text as="h3" variant="headingSm">
+                    Pricing information:-
+                </Text>
+
+                {selectedColorVariantPrices ? (
+                  <BlockStack gap="050">
+                    <Text as="p" fontWeight="semibold">
+                      {selectedColorVariantPrices.colorName}
+                    </Text>
+                    {selectedColorVariantPrices.items.map((item) => (
+                      <Text
+                        key={`${selectedColorVariantPrices.colorName}-${item.size}`}
+                        as="p"
+                        tone="subdued"
+                        variant="bodySm"
+                      >
+                        {item.size.toUpperCase()}: {item.priceLabel}
+                      </Text>
+                    ))}
+                  </BlockStack>
+                ) : null}
+
+                {printAreaPriceItems.length > 0 ? (
+                  <BlockStack gap="050">
+                    <Text as="p" fontWeight="semibold">
+                      Print placements
+                    </Text>
+                    {printAreaPriceItems.map((item) => (
+                      <Text key={item.title} as="p" tone="subdued" variant="bodySm">
+                        {item.title}: {item.priceLabel}
+                      </Text>
+                    ))}
+                  </BlockStack>
+                ) : null}
               </BlockStack>
             </div>
           </div>

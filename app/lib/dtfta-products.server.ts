@@ -10,6 +10,7 @@ export interface DtftaVariant {
   size: string;
   sku: string;
   is_active?: boolean;
+  price?: number;
 }
 
 export interface DtftaPrintArea {
@@ -24,6 +25,7 @@ export interface DtftaPrintArea {
   display_order: number;
   is_active: boolean;
   image: string;
+  price?: number;
   /** Optional explicit physical print width in `unit` (when set, overrides heuristic / DPI derivation). */
   physical_print_width?: string;
   physical_print_height?: string;
@@ -324,6 +326,16 @@ export function normalizeDtftaVariant(input: unknown): DtftaVariant | null {
     variant.id = input.id;
   }
 
+  const price =
+    typeof input.price === "number"
+      ? input.price
+      : typeof input.price === "string"
+        ? Number.parseFloat(input.price)
+        : undefined;
+  if (price !== undefined && !Number.isNaN(price)) {
+    variant.price = price;
+  }
+
   return variant;
 }
 
@@ -382,6 +394,16 @@ export function normalizeDtftaPrintArea(input: unknown): DtftaPrintArea | null {
           ? input.isActive
           : true,
     image,
+    ...((): { price?: number } => {
+      const rawPrice = input.price;
+      const price =
+        typeof rawPrice === "number"
+          ? rawPrice
+          : typeof rawPrice === "string"
+            ? Number.parseFloat(rawPrice)
+            : undefined;
+      return price !== undefined && !Number.isNaN(price) ? { price } : {};
+    })(),
     ...(typeof input.physical_print_width === "string"
       ? { physical_print_width: input.physical_print_width }
       : typeof input.physicalPrintWidth === "string"

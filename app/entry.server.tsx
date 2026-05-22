@@ -5,6 +5,7 @@ import { createReadableStreamFromReadable } from "@react-router/node";
 import { type EntryContext } from "react-router";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
+import { appendSquareCspHeaders } from "./lib/square-csp.server";
 
 export const streamTimeout = 5000;
 
@@ -15,6 +16,11 @@ export default async function handleRequest(
   reactRouterContext: EntryContext
 ) {
   addDocumentResponseHeaders(request, responseHeaders);
+
+  const pathname = new URL(request.url).pathname;
+  if (pathname.startsWith("/app/wallet")) {
+    appendSquareCspHeaders(responseHeaders, process.env.SQUARE_ENVIRONMENT);
+  }
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? '')
     ? "onAllReady"

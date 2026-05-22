@@ -32,6 +32,24 @@ export function getRegionFromPrintArea(area?: DtftaPrintArea): DesignableRegion 
   return getDesignRegionFromPrintArea(area);
 }
 
+export function parseVariantPrice(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+export function formatVariantPrice(price: number, currency = "USD"): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(price);
+}
+
 export function normalizeApiVariants(input: unknown): DtftaVariant[] {
   if (!Array.isArray(input)) return [];
 
@@ -61,6 +79,11 @@ export function normalizeApiVariants(input: unknown): DtftaVariant[] {
 
       if (typeof variant.id === "number") {
         normalized.id = variant.id;
+      }
+
+      const price = parseVariantPrice(variant.price);
+      if (price !== null) {
+        normalized.price = price;
       }
 
       return normalized;
