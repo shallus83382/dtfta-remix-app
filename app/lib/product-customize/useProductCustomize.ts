@@ -1,6 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import type { Canvas } from "fabric";
-import type { DtftaPrintArea, DtftaVariant } from "../dtfta-products.server";
+import type {
+  DtftaColorMockups,
+  DtftaPrintArea,
+  DtftaVariant,
+} from "../dtfta-products.server";
+import { resolveColorMockupMapKey } from "../design-assets";
 import { buildCustomizeSubmission } from "./buildCustomizeSubmission";
 import { useCustomizeEditorState } from "./useCustomizeEditorState";
 import { useCustomizePublish } from "./useCustomizePublish";
@@ -19,6 +24,7 @@ type UseProductCustomizeArgs = {
   productId: string;
   printAreas: DtftaPrintArea[];
   variants: DtftaVariant[];
+  colorMockups?: DtftaColorMockups;
   defaultColor?: string;
 };
 
@@ -28,8 +34,13 @@ export function useProductCustomize({
   productId,
   printAreas,
   variants,
+  colorMockups,
   defaultColor = "",
 }: UseProductCustomizeArgs) {
+  const designAssetOptions = useMemo(
+    () => ({ colorMockups: colorMockups ?? null }),
+    [colorMockups]
+  );
   const [selectedColor, setSelectedColor] = useState(defaultColor);
 
   const editor = useCustomizeEditorState({
@@ -38,21 +49,32 @@ export function useProductCustomize({
   });
 
   const availableColors = useMemo(() => {
-    const map = new Map<string, { colorCode: string; colorName: string }>();
+    const map = new Map<
+      string,
+      { colorCode: string; colorName: string; hex?: string }
+    >();
 
     for (const variant of variants) {
       if (!variant.is_active) continue;
 
-      if (!map.has(variant.colorCode)) {
-        map.set(variant.colorCode, {
-          colorCode: variant.colorCode,
-          colorName: variant.colorName,
-        });
+      const colorCode = String(variant.colorCode || "").trim();
+      if (!colorCode || map.has(colorCode)) {
+        continue;
       }
+
+      const mockupKey = resolveColorMockupMapKey(colorCode, colorMockups);
+
+      const mockup = mockupKey ? colorMockups?.[mockupKey] : undefined;
+
+      map.set(colorCode, {
+        colorCode,
+        colorName: variant.colorName,
+        hex: mockup?.hex,
+      });
     }
 
     return Array.from(map.values());
-  }, [variants]);
+  }, [variants, colorMockups]);
 
   const selectedVariant = useMemo(() => {
     return (
@@ -95,6 +117,7 @@ export function useProductCustomize({
       regions: editor.regions,
       selectedColor,
       variants,
+      colorMockups,
     });
 
     if (!result.ok) {
@@ -163,7 +186,11 @@ export function useProductCustomize({
             colorCode: color.colorCode,
             colorName: color.colorName,
             backgroundImageUrl: area.image
-              ? getProductDesignAssetUrlForFabric(area.image, color.colorCode)
+              ? getProductDesignAssetUrlForFabric(
+                  area.image,
+                  color.colorCode,
+                  designAssetOptions
+                )
               : "",
           }));
 
@@ -204,6 +231,7 @@ export function useProductCustomize({
       printAreas,
       availableColors,
       selectedColor,
+      designAssetOptions,
     ]);
 
   return {

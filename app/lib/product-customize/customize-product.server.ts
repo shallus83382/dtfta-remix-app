@@ -1,11 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../../shopify.server";
 import { createExternalApiHeaders } from "../external-api.server";
-import {
-  getDtftaBlankByKey,
-  normalizeDtftaProduct,
-  resolveProductKeyFromApiProduct,
-} from "../dtfta-products.server";
+import { normalizeDtftaProduct, resolveProductKeyFromApiProduct } from "../dtfta-products.server";
+import { buildNormalizeInputFromApiProduct } from "../catalog-product";
 import { normalizeApiVariants } from "./helpers";
 import type {
   CustomizeSubmitResult,
@@ -56,22 +53,18 @@ export async function loadCustomizeProduct({ request }: LoaderFunctionArgs) {
     apiProduct = null;
   }
 
-  const fallbackBlank = productKeyParam
-    ? getDtftaBlankByKey(productKeyParam)
-    : undefined;
-
   const normalizedSource = apiProduct
-    ? {
-        ...apiProduct,
+    ? normalizeDtftaProduct({
+        ...buildNormalizeInputFromApiProduct(apiProduct),
         variants: normalizeApiVariants(apiProduct.variants),
-      }
-    : fallbackBlank;
+      })
+    : null;
 
-  const product = normalizeDtftaProduct(normalizedSource);
+  const product = normalizedSource;
 
   return {
-    productKey: product?.productKey ?? productKeyParam ?? product?.key ?? "",
-    productId: String(product?.id ?? productIdParam ?? productKeyParam ?? ""),
+    productKey: apiProduct?.productKey ?? productKeyParam ?? product?.productKey ?? product?.key ?? "",
+    productId: String(apiProduct?.id ?? productIdParam ?? productKeyParam ?? ""),
     product,
     productName: product?.name ?? "Product",
   };

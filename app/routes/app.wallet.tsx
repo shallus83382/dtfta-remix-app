@@ -13,7 +13,12 @@ import { authenticate } from "../shopify.server";
 import AppHeroBanner from "../common/AppHeroBanner";
 import SquareCardForm from "../components/wallet/SquareCardForm";
 import type { WalletCard } from "../types/wallet";
+import type { BillingStatus } from "../types";
 import { brandColors } from "../lib/brand-theme";
+import {
+  fetchBillingStatusFromApi,
+  notifyBillingStatusChanged,
+} from "../lib/billing-status.client";
 
 type LoaderData = {
   shop: string;
@@ -54,6 +59,9 @@ export default function WalletPage() {
   const [cardsLoading, setCardsLoading] = useState(true);
   const [cardsError, setCardsError] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [billingStatus, setBillingStatus] = useState<BillingStatus["status"]>("inactive");
+  const [billingLoading, setBillingLoading] = useState(true);
+  const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
 
   const loadCards = useCallback(async () => {
     setCardsLoading(true);
@@ -85,15 +93,75 @@ export default function WalletPage() {
     }
   }, []);
 
+  const loadBillingStatus = useCallback(async () => {
+    setBillingLoading(true);
+    try {
+      const result = await fetchBillingStatusFromApi();
+      setBillingStatus(result.status);
+    } catch {
+      setBillingStatus("inactive");
+    } finally {
+      setBillingLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadCards();
-  }, [loadCards]);
+    void loadBillingStatus();
+  }, [loadCards, loadBillingStatus]);
 
   const handleCardSaved = useCallback(() => {
     setShowAddForm(false);
     void loadCards();
+    void loadBillingStatus();
+    notifyBillingStatusChanged();
     revalidator.revalidate();
-  }, [loadCards, revalidator]);
+  }, [loadCards, loadBillingStatus, revalidator]);
+
+  const handleDeleteCard = useCallback(
+    async (card: WalletCard) => {
+      const confirmed = window.confirm(
+        `Remove ${card.brand} •••• ${card.last4} from your wallet? You will need another card on file before orders can be billed.`,
+      );
+      if (!confirmed) return;
+
+      setDeletingCardId(card.id);
+      setCardsError("");
+      try {
+        const res = await fetch("/app/api/wallet-cards", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cardId: card.id }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || !payload?.ok) {
+          throw new Error(
+            typeof payload?.error === "string" ? payload.error : "Failed to remove card.",
+          );
+        }
+
+        const list = Array.isArray(payload?.cards) ? payload.cards : [];
+        setCards(
+          list.map((c: Record<string, unknown>) => ({
+            id: String(c.id ?? ""),
+            brand: String(c.brand ?? "Card"),
+            last4: String(c.last4 ?? "****"),
+            expMonth: Number(c.expMonth ?? c.exp_month ?? 0),
+            expYear: Number(c.expYear ?? c.exp_year ?? 0),
+            isDefault: Boolean(c.isDefault ?? c.is_default),
+          })),
+        );
+        void loadBillingStatus();
+        notifyBillingStatusChanged();
+        revalidator.revalidate();
+      } catch (e) {
+        setCardsError(e instanceof Error ? e.message : "Failed to remove card.");
+      } finally {
+        setDeletingCardId(null);
+      }
+    },
+    [loadBillingStatus, revalidator],
+  );
 
   const surfaceStyle = {
     borderRadius: 14,
@@ -124,6 +192,17 @@ export default function WalletPage() {
               <InlineStack gap="200">
                 <Badge tone={loaderData.squareConfigured ? "success" : "warning"}>
                   {loaderData.squareConfigured ? "Square ready" : "Square not configured"}
+                </Badge>
+                <Badge
+                  tone={
+                    billingLoading
+                      ? "info"
+                      : billingStatus === "active"
+                        ? "success"
+                        : "attention"
+                  }
+                >
+                  {billingLoading ? "Checking billing…" : `Billing: ${billingStatus}`}
                 </Badge>
                 <Badge tone="info">{loaderData.squareEnvironment}</Badge>
               </InlineStack>
@@ -178,7 +257,7 @@ export default function WalletPage() {
                       <BlockStack gap="300">
                         {cards.map((card) => (
                           <div key={card.id} style={surfaceStyle}>
-                            <InlineStack align="space-between" blockAlign="center">
+                            <InlineStack align="space-between" blockAlign="center" gap="300">
                               <BlockStack gap="100">
                                 <Text as="span" variant="bodyMd" fontWeight="semibold">
                                   {card.brand} •••• {card.last4}
@@ -187,7 +266,28 @@ export default function WalletPage() {
                                   Expires {formatExpiry(card.expMonth, card.expYear)}
                                 </Text>
                               </BlockStack>
-                              {card.isDefault ? <Badge tone="success">Default</Badge> : null}
+                              <InlineStack gap="200" blockAlign="center">
+                                {card.isDefault ? <Badge tone="success">Default</Badge> : null}
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteCard(card)}
+                                  disabled={deletingCardId === card.id}
+                                  style={{
+                                    border: "1px solid #fecaca",
+                                    borderRadius: 8,
+                                    padding: "6px 12px",
+                                    background: "#fff1f2",
+                                    color: "#b91c1c",
+                                    fontWeight: 600,
+                                    fontSize: 12,
+                                    cursor:
+                                      deletingCardId === card.id ? "not-allowed" : "pointer",
+                                    opacity: deletingCardId === card.id ? 0.6 : 1,
+                                  }}
+                                >
+                                  {deletingCardId === card.id ? "Removing…" : "Remove"}
+                                </button>
+                              </InlineStack>
                             </InlineStack>
                           </div>
                         ))}
@@ -229,7 +329,7 @@ export default function WalletPage() {
                   </Text>
                   <BlockStack gap="200">
                     <Text as="p" variant="bodySm" tone="subdued">
-                      • One default card per store
+                      • One default card per store (remove anytime)
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
                       • Charged only when an order is processed

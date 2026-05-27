@@ -3,6 +3,15 @@
  * Extended to support both legacy blank format and API product response format.
  */
 
+export interface DtftaColorMockupEntry {
+  name?: string;
+  hex?: string;
+  front?: string;
+  back?: string;
+}
+
+export type DtftaColorMockups = Record<string, DtftaColorMockupEntry>;
+
 export interface DtftaVariant {
   id?: number;
   colorCode: string;
@@ -65,6 +74,7 @@ export interface DtftaProductBlank {
   sizes?: string[];
   variants: DtftaVariant[];
   print_areas?: DtftaPrintArea[];
+  color_mockups?: DtftaColorMockups;
   created_at?: string;
   updated_at?: string;
 }
@@ -285,6 +295,41 @@ export const DTFTA_PRODUCT_BLANKS: DtftaProductBlank[] = [
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+export function normalizeColorMockups(input: unknown): DtftaColorMockups | undefined {
+  if (!isRecord(input)) {
+    return undefined;
+  }
+
+  const result: DtftaColorMockups = {};
+
+  for (const [key, value] of Object.entries(input)) {
+    if (!isRecord(value)) {
+      continue;
+    }
+
+    const entry: DtftaColorMockupEntry = {};
+
+    if (typeof value.name === "string" && value.name.trim()) {
+      entry.name = value.name.trim();
+    }
+    if (typeof value.hex === "string" && value.hex.trim()) {
+      entry.hex = value.hex.trim();
+    }
+    if (typeof value.front === "string" && value.front.trim()) {
+      entry.front = value.front.trim().replace(/^\/+/, "");
+    }
+    if (typeof value.back === "string" && value.back.trim()) {
+      entry.back = value.back.trim().replace(/^\/+/, "");
+    }
+
+    if (entry.front || entry.back || entry.hex || entry.name) {
+      result[key] = entry;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 export function normalizeDtftaVariant(input: unknown): DtftaVariant | null {
@@ -536,6 +581,7 @@ export function normalizeDtftaProduct(
     sizes,
     variants,
     print_areas: printAreas,
+    color_mockups: normalizeColorMockups(product.color_mockups),
     created_at: product.created_at,
     updated_at: product.updated_at,
   };

@@ -13,6 +13,10 @@ import {
 import { authenticate } from '../shopify.server';
 import type { BillingStatus, Order, OrderStatus } from '../types';
 import { createExternalApiHeaders } from '../lib/external-api.server';
+import {
+  BILLING_STATUS_CHANGED_EVENT,
+  fetchBillingStatusFromApi,
+} from '../lib/billing-status.client';
 import AppHeroBanner from '../common/AppHeroBanner';
 import {
   brandColors,
@@ -154,28 +158,16 @@ export default function Orders() {
       setBillingError('');
 
       try {
-        const res = await fetch('/app/api/billing-status');
-        const payload = await res.json();
-
-        const isOk = Boolean(payload?.ok ?? payload?.success);
-        if (!res.ok || !isOk) {
-          throw new Error(payload?.error || payload?.message || 'Failed to load billing status.');
+        const result = await fetchBillingStatusFromApi();
+        if (cancelled) return;
+        if (result.error) {
+          setBillingError(result.error);
         }
-
-        const normalizedStatus =
-          payload?.billingStatus ?? payload?.data?.billing_status ?? payload?.billing_status ?? 'inactive';
-        const normalizedRequired =
-          payload?.isBillingRequired ?? payload?.data?.is_billing_required ?? payload?.is_billing_required ?? false;
-        const normalizedLineItemId =
-          payload?.lineItemId ?? payload?.data?.line_item_id ?? payload?.line_item_id ?? null;
-
-        if (!cancelled) {
-          setBillingStatus({
-            status: normalizedStatus,
-            required: Boolean(normalizedRequired),
-            lineItemId: normalizedLineItemId,
-          });
-        }
+        setBillingStatus({
+          status: result.status,
+          required: result.required,
+          lineItemId: result.lineItemId,
+        });
       } catch (error) {
         if (!cancelled) {
           setBillingError(error instanceof Error ? error.message : 'Failed to load billing status.');
@@ -185,10 +177,15 @@ export default function Orders() {
       }
     };
 
-    loadBilling();
+    void loadBilling();
+    const onBillingChanged = () => {
+      void loadBilling();
+    };
+    window.addEventListener(BILLING_STATUS_CHANGED_EVENT, onBillingChanged);
 
     return () => {
       cancelled = true;
+      window.removeEventListener(BILLING_STATUS_CHANGED_EVENT, onBillingChanged);
     };
   }, []);
 
@@ -197,6 +194,9 @@ export default function Orders() {
     setBillingError('');
 
     try {
+      // Wallet-first CTA:
+      // Legacy Shopify managed billing approval flow (kept now, but disabled).
+      /*
       const res = await fetch('/app/api/billing-approve', { method: 'POST' });
       const payload = await res.json();
 
@@ -205,6 +205,9 @@ export default function Orders() {
       }
 
       window.open(payload.confirmationUrl, '_blank', 'noopener,noreferrer');
+      */
+
+      window.location.href = '/app/wallet';
     } catch (error) {
       setBillingError(error instanceof Error ? error.message : 'Unable to generate billing approval link.');
     } finally {
@@ -504,7 +507,8 @@ export default function Orders() {
                     onClick={handleActivateBilling}
                     disabled={isGeneratingBillingLink}
                   >
-                    {isGeneratingBillingLink ? 'Preparing...' : 'Activate Billing'}
+                    
+                    {isGeneratingBillingLink ? 'Redirecting...' : 'Add Card'}
                   </button>
                 ) : null}
               </>

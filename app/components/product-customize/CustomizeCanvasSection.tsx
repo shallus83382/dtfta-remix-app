@@ -5,7 +5,10 @@ import DesignCanvas, {
   type DesignableRegion,
   type DesignLayerSummary,
 } from "../DesignCanvas";
-import type { DtftaPrintArea } from "../../lib/dtfta-products.server";
+import type {
+  DtftaColorMockups,
+  DtftaPrintArea,
+} from "../../lib/dtfta-products.server";
 import { getProductDesignAssetUrlForFabric } from "../../lib/design-assets";
 import {
   formatPrintMeasurement,
@@ -26,6 +29,7 @@ type CanvasActions = {
 type Props = {
   placement: string;
   selectedColor?: string;
+  colorMockups?: DtftaColorMockups;
   selectedPrintArea?: DtftaPrintArea;
   selectedRegion: DesignableRegion;
   selectedPrintSize: { width: number; height: number };
@@ -42,6 +46,7 @@ type Props = {
 export default function CustomizeCanvasSection({
   placement,
   selectedColor,
+  colorMockups,
   selectedPrintArea,
   selectedRegion,
   selectedPrintSize,
@@ -71,7 +76,9 @@ export default function CustomizeCanvasSection({
   }
 
   const backgroundImageUrl = selectedPrintArea.image
-    ? getProductDesignAssetUrlForFabric(selectedPrintArea.image, selectedColor)
+    ? getProductDesignAssetUrlForFabric(selectedPrintArea.image, selectedColor, {
+        colorMockups: colorMockups ?? null,
+      })
     : "";
 
   const handleRegisterActions = useCallback(

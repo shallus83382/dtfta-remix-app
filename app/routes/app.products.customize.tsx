@@ -167,6 +167,7 @@ export default function ProductCustomize() {
     productId: loaderData.productId,
     printAreas,
     variants: product?.variants ?? [],
+    colorMockups: product?.color_mockups,
     defaultColor: product?.variants?.[0]?.colorCode ?? "",
   });
 
@@ -605,6 +606,7 @@ export default function ProductCustomize() {
             <CustomizeCanvasSection
               placement={placement}
               selectedColor={selectedColor}
+              colorMockups={product?.color_mockups}
               selectedPrintArea={selectedPrintArea}
               selectedRegion={selectedRegion}
               selectedPrintSize={selectedPrintSize}

@@ -14,16 +14,10 @@ import {
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { createExternalApiHeaders } from "../lib/external-api.server";
-import {
-  resolveProductKeyFromApiProduct,
-  getPlaceholderImageForApiProduct,
-  getPlaceholderProducts,
-  normalizeDtftaProduct,
-} from "../lib/dtfta-products.server";
+import { mapApiProductForDisplay } from "../lib/catalog-product";
 import ProductCard from "../common/ProductCard";
 import AppHeroBanner from "../common/AppHeroBanner";
 import type { Product } from "../types";
-import {getProductDesignAssetUrl} from "../lib/design-assets";
 import {
   brandColors,
   brandHeroBadgePillStyle,
@@ -73,65 +67,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const rawProducts: Product[] = Array.isArray(response?.data) ? response.data : [];
 
     if (rawProducts.length === 0) {
-      return { products: getPlaceholderProducts() as ProductWithKey[] };
+      return { products: [] as ProductWithKey[] };
     }
 
-    const products: ProductWithKey[] = rawProducts.map((p) => {
-      const apiProductKey = (p as ProductWithKey).productKey?.trim();
-
-      const normalized = normalizeDtftaProduct({
-        id: p.id,
-        productKey: apiProductKey,
-        key: apiProductKey ?? String(p.id ?? ""),
-        name: p.name,
-        category: p.category,
-        brandCode: (p as ProductWithKey & { brandCode?: string }).brandCode ?? "",
-        brand: p.brand,
-        style: (p as ProductWithKey & { style?: string }).style ?? p.model ?? "",
-        model: p.model ?? "",
-        image: p.image,
-        images: (p as ProductWithKey & { images?: string[] }).images,
-        description: (p as ProductWithKey & { description?: string | null }).description ?? null,
-        status: (p as ProductWithKey & { status?: string }).status ?? "active",
-        price: p.price ?? 0,
-        currency: p.currency ?? "USD",
-        colors: (p as ProductWithKey).colors,
-        sizes: (p as ProductWithKey).sizes,
-        variants: ((p as ProductWithKey & { variants?: any[] }).variants ?? []) as any[],
-        print_areas: (p as ProductWithKey).print_areas,
-        created_at: (p as ProductWithKey & { created_at?: string }).created_at,
-        updated_at: (p as ProductWithKey & { updated_at?: string }).updated_at,
-      });
-
-      const productKey =
-        apiProductKey ||
-        normalized?.productKey ||
-        normalized?.key ||
-        resolveProductKeyFromApiProduct({
-          id: p.id,
-          model: p.model,
-          productKey: apiProductKey,
-        });
-
-      const placeholderImage = getPlaceholderImageForApiProduct({
-        id: String(p.id ?? ""),
-        model: p.model,
-        productKey: apiProductKey,
-      });
-
-      return {
-        ...p,
-        productKey: productKey ?? undefined,
-        image: p.image?.trim() ? getProductDesignAssetUrl(p.image) : placeholderImage ?? p.image,
-        colors: normalized?.colors ?? (p as ProductWithKey).colors ?? [],
-        sizes: normalized?.sizes ?? (p as ProductWithKey).sizes ?? [],
-        print_areas: normalized?.print_areas ?? (p as ProductWithKey).print_areas ?? [],
-      };
-    });
+    const products: ProductWithKey[] = rawProducts.map((p) =>
+      mapApiProductForDisplay({
+        ...(p as ProductWithKey),
+        brandCode: (p as ProductWithKey & { brandCode?: string }).brandCode,
+      }) as ProductWithKey
+    );
 
     return { products };
   } catch {
-    return { products: getPlaceholderProducts() as ProductWithKey[] };
+    return { products: [] as ProductWithKey[] };
   }
 };
 

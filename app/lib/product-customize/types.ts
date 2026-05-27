@@ -1,5 +1,9 @@
 import type { Product } from "../../types";
-import type { DtftaPrintArea, DtftaVariant } from "../dtfta-products.server";
+import type {
+  DtftaColorMockups,
+  DtftaPrintArea,
+  DtftaVariant,
+} from "../dtfta-products.server";
 import type { DesignableRegion } from "../../components/DesignCanvas";
 
 export type ProductWithApiFields = Product & {
@@ -7,6 +11,7 @@ export type ProductWithApiFields = Product & {
   colors?: string[];
   sizes?: string[];
   print_areas?: DtftaPrintArea[];
+  color_mockups?: DtftaColorMockups;
   variants?: DtftaVariant[];
   status?: string;
   description?: string | null;

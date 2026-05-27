@@ -1,6 +1,10 @@
 import type { Canvas } from "fabric";
 import { buildPrintPlan } from "../dtfta-design";
-import type { DtftaPrintArea, DtftaVariant } from "../dtfta-products.server";
+import type {
+  DtftaColorMockups,
+  DtftaPrintArea,
+  DtftaVariant,
+} from "../dtfta-products.server";
 import type {
   PlacementCanvasStateMap,
   PlacementPrintSizeMap,
@@ -18,6 +22,7 @@ import { getPhysicalPrintSize } from "./print-area-dimensions";
 import {
   getProductDesignAssetUrl,
   getProductDesignAssetUrlForFabric,
+  type ProductDesignAssetOptions,
 } from "../design-assets";
 import {
   buildPlacementMockups,
@@ -85,6 +90,7 @@ type BuildCustomizeSubmissionArgs = {
   regions: PlacementRegionMap;
   selectedColor: string;
   variants: DtftaVariant[];
+  colorMockups?: DtftaColorMockups;
 };
 
 type BuildCustomizeSubmissionResult =
@@ -107,6 +113,7 @@ function buildPrintableAreasForSelectedColor({
   regions,
   artworkUrls,
   canvasStateByPlacement,
+  designAssetOptions,
 }: {
   selectedColor: string;
   printAreas: DtftaPrintArea[];
@@ -114,6 +121,7 @@ function buildPrintableAreasForSelectedColor({
   regions: PlacementRegionMap;
   artworkUrls: Record<string, ArtworkUrlPayload>;
   canvasStateByPlacement: PlacementCanvasStateMap;
+  designAssetOptions?: ProductDesignAssetOptions;
 }): PrintableAreaPayload[] {
   return printAreas.map((area) => {
     const placement = normalizePlacementKey(area.title);
@@ -130,7 +138,9 @@ function buildPrintableAreasForSelectedColor({
       printSize: size,
       designableRegion: region,
       unit: area.unit ?? null,
-      backgroundImage: getProductDesignAssetUrl(area.image, selectedColor) ?? null,
+      backgroundImage:
+        getProductDesignAssetUrl(area.image, selectedColor, designAssetOptions) ??
+        null,
       editorState: canvasStateByPlacement[placement] ?? null,
     };
   });
@@ -172,7 +182,12 @@ export async function buildCustomizeSubmission({
   regions,
   selectedColor,
   variants,
+  colorMockups,
 }: BuildCustomizeSubmissionArgs): Promise<BuildCustomizeSubmissionResult> {
+  const designAssetOptions: ProductDesignAssetOptions = {
+    colorMockups: colorMockups ?? null,
+  };
+
   const allColorCodes = Array.from(
     new Set([
       selectedColor,
@@ -200,7 +215,11 @@ export async function buildCustomizeSubmission({
       colorCode,
       colorName: colorCode,
       backgroundImageUrl: area.image
-        ? getProductDesignAssetUrlForFabric(area.image, colorCode)
+        ? getProductDesignAssetUrlForFabric(
+            area.image,
+            colorCode,
+            designAssetOptions
+          )
         : "",
     }));
 
@@ -249,6 +268,7 @@ export async function buildCustomizeSubmission({
     regions,
     artworkUrls,
     canvasStateByPlacement,
+    designAssetOptions,
   });
 
   const printPlan = buildPrintPlanForSharedPlacements({

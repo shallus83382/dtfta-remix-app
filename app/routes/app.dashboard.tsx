@@ -17,14 +17,13 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { authenticate } from '../shopify.server';
 import { createExternalApiHeaders } from '../lib/external-api.server';
+import { mapApiProductForDisplay } from "../lib/catalog-product";
 import {
-  resolveProductKeyFromApiProduct,
-  getPlaceholderImageForApiProduct,
-  normalizeDtftaProduct,
-} from "../lib/dtfta-products.server";
+  BILLING_STATUS_CHANGED_EVENT,
+  fetchBillingStatusFromApi,
+} from "../lib/billing-status.client";
 import ProductCard from '../common/ProductCard';
 import type { Order, Product, DashboardStats, BrandSettings, SetupStatus, BillingStatus } from '../types';
-import {getProductDesignAssetUrl} from "../lib/design-assets";
 import {
   brandAccentTint,
   brandColors,
@@ -266,59 +265,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     : Array.isArray(rawProductsRes?.data)
       ? rawProductsRes.data
       : [];
-      const products: ProductWithKey[] = rawProducts.map((p) => {
-
-        const apiProductKey = (p as ProductWithKey).productKey?.trim();
-  
-        const normalized = normalizeDtftaProduct({
-          id: p.id,
-          productKey: apiProductKey,
-          key: apiProductKey ?? String(p.id ?? ""),
-          name: p.name,
-          category: p.category,
-          brandCode: (p as ProductWithKey & { brandCode?: string }).brandCode ?? "",
-          brand: p.brand,
-          style: (p as ProductWithKey & { style?: string }).style ?? p.model ?? "",
-          model: p.model ?? "",
-          image: p.image,
-          images: (p as ProductWithKey & { images?: string[] }).images,
-          description: (p as ProductWithKey & { description?: string | null }).description ?? null,
-          status: (p as ProductWithKey & { status?: string }).status ?? "active",
-          price: p.price ?? 0,
-          currency: p.currency ?? "USD",
-          colors: (p as ProductWithKey).colors,
-          sizes: (p as ProductWithKey).sizes,
-          variants: ((p as ProductWithKey & { variants?: any[] }).variants ?? []) as any[],
-          print_areas: (p as ProductWithKey).print_areas,
-          created_at: (p as ProductWithKey & { created_at?: string }).created_at,
-          updated_at: (p as ProductWithKey & { updated_at?: string }).updated_at,
-        });
-  
-        const productKey =
-          apiProductKey ||
-          normalized?.productKey ||
-          normalized?.key ||
-          resolveProductKeyFromApiProduct({
-            id: p.id,
-            model: p.model,
-            productKey: apiProductKey,
-          });
-  
-        const placeholderImage = getPlaceholderImageForApiProduct({
-          id: String(p.id ?? ""),
-          model: p.model,
-          productKey: apiProductKey,
-        });
-  
-        return {
-          ...p,
-          productKey: productKey ?? undefined,
-          image: p.image?.trim() ? getProductDesignAssetUrl(p.image) : placeholderImage ?? p.image,
-          colors: normalized?.colors ?? (p as ProductWithKey).colors ?? [],
-          sizes: normalized?.sizes ?? (p as ProductWithKey).sizes ?? [],
-          print_areas: normalized?.print_areas ?? (p as ProductWithKey).print_areas ?? [],
-        };
-      });
+      const products: ProductWithKey[] = rawProducts.map((p) =>
+        mapApiProductForDisplay({
+          ...(p as ProductWithKey),
+          brandCode: (p as ProductWithKey & { brandCode?: string }).brandCode,
+        }) as ProductWithKey
+      );
 
 
   return {
@@ -391,31 +343,21 @@ export default function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
+
     const loadBillingStatus = async () => {
       setBillingLoading(true);
       setBillingError('');
       try {
-        const res = await fetch('/app/api/billing-status');
-        const payload = await res.json();
-        const isOk = Boolean(payload?.ok ?? payload?.success);
-        if (!res.ok || !isOk) {
-          throw new Error(payload?.error || payload?.message || 'Failed to load billing status.');
+        const result = await fetchBillingStatusFromApi();
+        if (cancelled) return;
+        if (result.error) {
+          setBillingError(result.error);
         }
-
-        const normalizedStatus =
-          payload?.billingStatus ?? payload?.data?.billing_status ?? payload?.billing_status ?? 'inactive';
-        const normalizedRequired =
-          payload?.isBillingRequired ?? payload?.data?.is_billing_required ?? payload?.is_billing_required ?? false;
-        const normalizedLineItemId =
-          payload?.lineItemId ?? payload?.data?.line_item_id ?? payload?.line_item_id ?? null;
-
-        if (!cancelled) {
-          setBillingStatus({
-            status: normalizedStatus,
-            required: Boolean(normalizedRequired),
-            lineItemId: normalizedLineItemId,
-          });
-        }
+        setBillingStatus({
+          status: result.status,
+          required: result.required,
+          lineItemId: result.lineItemId,
+        });
       } catch (error) {
         if (!cancelled) {
           setBillingError(error instanceof Error ? error.message : 'Failed to load billing status.');
@@ -424,9 +366,16 @@ export default function Dashboard() {
         if (!cancelled) setBillingLoading(false);
       }
     };
-    loadBillingStatus();
+
+    void loadBillingStatus();
+    const onBillingChanged = () => {
+      void loadBillingStatus();
+    };
+    window.addEventListener(BILLING_STATUS_CHANGED_EVENT, onBillingChanged);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(BILLING_STATUS_CHANGED_EVENT, onBillingChanged);
     };
   }, []);
 
@@ -442,12 +391,18 @@ export default function Dashboard() {
     setIsGeneratingBillingLink(true);
     setBillingError('');
     try {
+      // Wallet-first CTA:
+      // Legacy Shopify managed billing approval flow (kept for now, but disabled).
+      /*
       const res = await fetch('/app/api/billing-approve', { method: 'POST' });
       const payload = await res.json();
       if (!res.ok || !payload?.ok || !payload?.confirmationUrl) {
         throw new Error(payload?.error || 'Unable to generate billing approval link.');
       }
       window.open(payload.confirmationUrl, '_blank', 'noopener,noreferrer');
+      */
+
+      window.location.href = '/app/wallet';
     } catch (error) {
       setBillingError(error instanceof Error ? error.message : 'Unable to generate billing approval link.');
     } finally {
@@ -881,7 +836,7 @@ export default function Dashboard() {
                     onClick={handleActivateBilling}
                     disabled={isGeneratingBillingLink}
                   >
-                    {isGeneratingBillingLink ? 'Preparing billing link...' : 'Activate Billing'}
+                    {isGeneratingBillingLink ? 'Redirecting...' : 'Add Card'}
                   </button>
                 ) : null}
               </InlineStack>

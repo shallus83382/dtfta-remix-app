@@ -29,14 +29,62 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
-/** Tokenize result from Square Web Payments — forward to Laravel when endpoint exists. */
+/** Save or delete a saved payment card. */
 export async function action({ request }: ActionFunctionArgs) {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
+
+  if (request.method === "DELETE") {
+    const body = await request.json().catch(() => ({}));
+    const cardIdRaw = body?.cardId ?? body?.card_id;
+    const cardId =
+      typeof cardIdRaw === "number"
+        ? cardIdRaw
+        : typeof cardIdRaw === "string"
+          ? Number.parseInt(cardIdRaw, 10)
+          : NaN;
+
+    if (!Number.isFinite(cardId) || cardId <= 0) {
+      return Response.json({ ok: false, error: "Missing or invalid card id." }, { status: 400 });
+    }
+
+    const payload = { shop, cardId };
+    const headers = createExternalApiHeaders(payload, { "X-Shop": shop });
+    const endpoint = `${API_BASE.replace(/\/$/, "")}/wallet/cards/${cardId}`;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "DELETE",
+        headers,
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data?.success === false) {
+        return Response.json(
+          { ok: false, error: data?.message || "Failed to remove card." },
+          { status: response.status },
+        );
+      }
+
+      const cards = Array.isArray(data?.data?.cards) ? data.data.cards : [];
+      return Response.json({ ok: true, cards });
+    } catch (error) {
+      return Response.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : "Failed to remove card.",
+        },
+        { status: 500 },
+      );
+    }
+  }
+
   if (request.method !== "POST") {
     return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
   }
 
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
   const body = await request.json().catch(() => ({}));
   const sourceId = typeof body?.sourceId === "string" ? body.sourceId.trim() : "";
 
@@ -44,7 +92,6 @@ export async function action({ request }: ActionFunctionArgs) {
     return Response.json({ ok: false, error: "Missing card token from Square." }, { status: 400 });
   }
 
-  const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
   const endpoint = `${API_BASE.replace(/\/$/, "")}/wallet/cards`;
   const payload = { shop, sourceId };
   const headers = createExternalApiHeaders(payload, { "X-Shop": shop });
