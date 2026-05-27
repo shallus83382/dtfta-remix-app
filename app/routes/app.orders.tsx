@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LoaderFunctionArgs } from 'react-router';
-import { useLoaderData } from 'react-router';
+import { useLoaderData, useNavigate } from 'react-router';
 import {
   Page,
   Card,
@@ -137,6 +137,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function Orders() {
+  const navigate = useNavigate();
   const loaderData = useLoaderData<typeof loader>() as { orders?: Order[] } | undefined;
   const [orders] = useState<Order[]>((loaderData && loaderData.orders) || []);
   const [selectedOrderFilter, setSelectedOrderFilter] = useState<OrderStatus | 'All'>('All');
@@ -207,7 +208,7 @@ export default function Orders() {
       window.open(payload.confirmationUrl, '_blank', 'noopener,noreferrer');
       */
 
-      window.location.href = '/app/wallet';
+      navigate('/app/wallet');
     } catch (error) {
       setBillingError(error instanceof Error ? error.message : 'Unable to generate billing approval link.');
     } finally {

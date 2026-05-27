@@ -402,7 +402,7 @@ export default function Dashboard() {
       window.open(payload.confirmationUrl, '_blank', 'noopener,noreferrer');
       */
 
-      window.location.href = '/app/wallet';
+      navigate('/app/wallet');
     } catch (error) {
       setBillingError(error instanceof Error ? error.message : 'Unable to generate billing approval link.');
     } finally {
