@@ -20,8 +20,8 @@ import {
 } from "./helpers";
 import { getPhysicalPrintSize } from "./print-area-dimensions";
 import {
-  getProductDesignAssetUrl,
-  getProductDesignAssetUrlForFabric,
+  getPrintAreaBackgroundImageUrl,
+  getPrintAreaBackgroundImageUrlForFabric,
   type ProductDesignAssetOptions,
 } from "../design-assets";
 import {
@@ -139,7 +139,7 @@ function buildPrintableAreasForSelectedColor({
       designableRegion: region,
       unit: area.unit ?? null,
       backgroundImage:
-        getProductDesignAssetUrl(area.image, selectedColor, designAssetOptions) ??
+        getPrintAreaBackgroundImageUrl(area, selectedColor, designAssetOptions) ||
         null,
       editorState: canvasStateByPlacement[placement] ?? null,
     };
@@ -214,13 +214,11 @@ export async function buildCustomizeSubmission({
     const colors: ColorMockupOption[] = allColorCodes.map((colorCode) => ({
       colorCode,
       colorName: colorCode,
-      backgroundImageUrl: area.image
-        ? getProductDesignAssetUrlForFabric(
-            area.image,
-            colorCode,
-            designAssetOptions
-          )
-        : "",
+      backgroundImageUrl: getPrintAreaBackgroundImageUrlForFabric(
+        area,
+        colorCode,
+        designAssetOptions
+      ),
     }));
 
     const result = await buildPlacementMockups({

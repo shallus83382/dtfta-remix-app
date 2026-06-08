@@ -16,7 +16,7 @@ import {
   type PlacementPreviewEntry,
 } from "./mockup-composer";
 import { getRegionFromPrintArea, normalizePlacementKey } from "./helpers";
-import { getProductDesignAssetUrlForFabric } from "../design-assets";
+import { getPrintAreaBackgroundImageUrlForFabric } from "../design-assets";
 
 type UseProductCustomizeArgs = {
   productKey: string;
@@ -185,13 +185,11 @@ export function useProductCustomize({
           const colorOptions: ColorMockupOption[] = colorList.map((color) => ({
             colorCode: color.colorCode,
             colorName: color.colorName,
-            backgroundImageUrl: area.image
-              ? getProductDesignAssetUrlForFabric(
-                  area.image,
-                  color.colorCode,
-                  designAssetOptions
-                )
-              : "",
+            backgroundImageUrl: getPrintAreaBackgroundImageUrlForFabric(
+              area,
+              color.colorCode,
+              designAssetOptions
+            ),
           }));
 
           const result = await buildPlacementMockups({

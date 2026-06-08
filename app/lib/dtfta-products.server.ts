@@ -8,6 +8,8 @@ export interface DtftaColorMockupEntry {
   hex?: string;
   front?: string;
   back?: string;
+  left_sleeve?: string;
+  right_sleeve?: string;
 }
 
 export type DtftaColorMockups = Record<string, DtftaColorMockupEntry>;
@@ -323,8 +325,14 @@ export function normalizeColorMockups(input: unknown): DtftaColorMockups | undef
     if (typeof value.back === "string" && value.back.trim()) {
       entry.back = value.back.trim().replace(/^\/+/, "");
     }
+    if (typeof value.left_sleeve === "string" && value.left_sleeve.trim()) {
+      entry.left_sleeve = value.left_sleeve.trim().replace(/^\/+/, "");
+    }
+    if (typeof value.right_sleeve === "string" && value.right_sleeve.trim()) {
+      entry.right_sleeve = value.right_sleeve.trim().replace(/^\/+/, "");
+    }
 
-    if (entry.front || entry.back || entry.hex || entry.name) {
+    if (entry.front || entry.back || entry.left_sleeve || entry.right_sleeve || entry.hex || entry.name) {
       result[key] = entry;
     }
   }

@@ -31,16 +31,26 @@ export const PRODUCT_KEY_TO_DESIGN_ASSET: Record<string, Record<string, string>>
     long_sleeve_tee_back: "assets/customizer/back/long-sleeve-tee-back.png",
     heavyweight_hoodie_back: "assets/customizer/back/heavyweight-hoodie-back.png",
     heavy_blend_hoodie_back: "assets/customizer/back/heavy-blend-hoodie-back.png",
+
+    long_sleeve_tee_left_sleeve: "assets/customizer/left-sleeve/long-sleeve-tee-left-sleeves.png",
+    heavyweight_hoodie_left_sleeve: "assets/customizer/left-sleeve/heavyweight-hoodie-left-sleeves.png",
+    heavy_blend_hoodie_left_sleeve: "assets/customizer/left-sleeve/heavy-blend-hoodie-left-sleeves.png",
+
+    long_sleeve_tee_right_sleeve: "assets/customizer/right-sleeve/long-sleeve-tee-right-sleeves.png",
+    heavyweight_hoodie_right_sleeve: "assets/customizer/right-sleeve/heavyweight-hoodie-right-sleeves.png",
+    heavy_blend_hoodie_right_sleeve: "assets/customizer/right-sleeve/heavy-blend-hoodie-right-sleeves.png",
   },
 };
 
-export type DesignPlacement = "front" | "back";
+export type DesignPlacement = "front" | "back" | "left_sleeve" | "right_sleeve";
 
 export type ColorMockupEntry = {
   name?: string;
   hex?: string;
   front?: string;
   back?: string;
+  left_sleeve?: string;
+  right_sleeve?: string;
 };
 
 export type ProductColorMockups = Record<string, ColorMockupEntry>;
@@ -63,13 +73,23 @@ const COLOR_MOCKUP_LOOKUP_ALIASES: Record<string, string> = {
   hgr: "heather_gray",
 };
 
+function slugifyColorKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function colorMockupLookupKeys(color: string): string[] {
   const trimmed = color.trim();
   const lower = trimmed.toLowerCase();
+  const slug = slugifyColorKey(trimmed);
   const keys: string[] = [];
 
   if (trimmed) keys.push(trimmed);
   if (lower && lower !== trimmed) keys.push(lower);
+  if (slug && !keys.includes(slug)) keys.push(slug);
 
   const alias = COLOR_MOCKUP_LOOKUP_ALIASES[lower];
   if (alias && !keys.includes(alias)) {
@@ -96,6 +116,18 @@ export function resolveColorMockupMapKey(
     }
   }
 
+  const targetSlug = slugifyColorKey(colorCode);
+  if (targetSlug) {
+    for (const [key, entry] of Object.entries(colorMockups)) {
+      if (slugifyColorKey(key) === targetSlug) {
+        return key;
+      }
+      if (entry.name && slugifyColorKey(entry.name) === targetSlug) {
+        return key;
+      }
+    }
+  }
+
   return null;
 }
 
@@ -110,13 +142,63 @@ export function mapColorToAssetCategory(color?: string): string {
 
 function placementFromAssetKey(assetKey: string): DesignPlacement | null {
   const key = assetKey.trim().toLowerCase();
-  if (key.endsWith("_front")) {
+  if (key.endsWith("_front") || key === "front") {
     return "front";
   }
-  if (key.endsWith("_back")) {
+  if (key.endsWith("_back") || key === "back") {
     return "back";
   }
+  if (key.includes("left_sleeve") || key.includes("left-sleeve")) {
+    return "left_sleeve";
+  }
+  if (key.includes("right_sleeve") || key.includes("right-sleeve")) {
+    return "right_sleeve";
+  }
   return null;
+}
+
+function placementFromPrintAreaTitle(title: string): DesignPlacement | null {
+  const normalized = title.trim().toLowerCase();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (/right[\s_-]*sleeve/.test(normalized)) {
+    return "right_sleeve";
+  }
+  if (/left[\s_-]*sleeve/.test(normalized)) {
+    return "left_sleeve";
+  }
+  if (normalized === "front" || /\bfront\b/.test(normalized)) {
+    return "front";
+  }
+  if (normalized === "back" || /\bback\b/.test(normalized)) {
+    return "back";
+  }
+
+  return null;
+}
+
+export type PrintAreaImageSource = {
+  title: string;
+  image?: string | null;
+};
+
+export function resolveDesignPlacementFromPrintArea(
+  printArea: PrintAreaImageSource
+): DesignPlacement | null {
+  return (
+    placementFromPrintAreaTitle(printArea.title) ??
+    (printArea.image ? placementFromAssetKey(printArea.image) : null)
+  );
+}
+
+function colorMockupPathForPlacement(
+  entry: ColorMockupEntry,
+  placement: DesignPlacement
+): string | undefined {
+  return entry[placement];
 }
 
 function resolveColorMockupEntry(
@@ -128,19 +210,15 @@ function resolveColorMockupEntry(
     return null;
   }
 
-  for (const key of colorMockupLookupKeys(color)) {
-    const entry = colorMockups[key];
-    if (!entry) {
-      continue;
-    }
-
-    const path = placement === "front" ? entry.front : entry.back;
-    if (path?.trim()) {
-      return entry;
-    }
+  const mapKey = resolveColorMockupMapKey(color, colorMockups);
+  if (!mapKey) {
+    return null;
   }
 
-  return null;
+  const entry = colorMockups[mapKey];
+  const path = entry ? colorMockupPathForPlacement(entry, placement) : undefined;
+
+  return path?.trim() ? entry : null;
 }
 
 function colorMockupAssetUrl(path: string): string {
@@ -153,6 +231,23 @@ function defaultDesignAssetUrl(assetKey: string): string {
   return path ? `${APP_ASSET_BASE}/${path}` : "";
 }
 
+function resolveColorMockupAssetUrl(
+  placement: DesignPlacement,
+  color: string | undefined,
+  options?: ProductDesignAssetOptions
+): string {
+  const mockupEntry = resolveColorMockupEntry(color, placement, options?.colorMockups);
+  const mockupPath = mockupEntry
+    ? colorMockupPathForPlacement(mockupEntry, placement)
+    : undefined;
+
+  if (mockupPath?.trim()) {
+    return colorMockupAssetUrl(mockupPath.trim().replace(/^\/+/, ""));
+  }
+
+  return "";
+}
+
 /**
  * Resolve mockup/background URL: CRM color mockup first, then generic default product asset.
  */
@@ -163,19 +258,37 @@ export function getProductDesignAssetUrl(
 ): string {
   const placement = placementFromAssetKey(assetKey);
   if (placement) {
-    const mockupEntry = resolveColorMockupEntry(
-      color,
-      placement,
-      options?.colorMockups
-    );
-    const mockupPath =
-      placement === "front" ? mockupEntry?.front : mockupEntry?.back;
-    if (mockupPath?.trim()) {
-      return colorMockupAssetUrl(mockupPath.trim().replace(/^\/+/, ""));
+    const mockupUrl = resolveColorMockupAssetUrl(placement, color, options);
+    if (mockupUrl) {
+      return mockupUrl;
     }
   }
 
   return defaultDesignAssetUrl(assetKey);
+}
+
+/**
+ * Resolve a print-area canvas background from CRM color mockups (by placement title)
+ * with optional fallback to the print-area catalog asset key.
+ */
+export function getPrintAreaBackgroundImageUrl(
+  printArea: PrintAreaImageSource,
+  color?: string,
+  options?: ProductDesignAssetOptions
+): string {
+  const placement = resolveDesignPlacementFromPrintArea(printArea);
+  if (placement) {
+    const mockupUrl = resolveColorMockupAssetUrl(placement, color, options);
+    if (mockupUrl) {
+      return mockupUrl;
+    }
+  }
+
+  if (printArea.image?.trim()) {
+    return getProductDesignAssetUrl(printArea.image, color, options);
+  }
+
+  return "";
 }
 
 const FABRIC_IMAGE_PROXY_PATH = "/app/api/artworks-image";
@@ -204,6 +317,16 @@ export function getProductDesignAssetUrlForFabric(
   options?: ProductDesignAssetOptions
 ): string {
   const remote = getProductDesignAssetUrl(assetKey, color, options);
+  return remote ? toProxiedFabricImageUrl(remote) : "";
+}
+
+/** Print-area background URL safe for Fabric (`fromURL` + export). */
+export function getPrintAreaBackgroundImageUrlForFabric(
+  printArea: PrintAreaImageSource,
+  color?: string,
+  options?: ProductDesignAssetOptions
+): string {
+  const remote = getPrintAreaBackgroundImageUrl(printArea, color, options);
   return remote ? toProxiedFabricImageUrl(remote) : "";
 }
 

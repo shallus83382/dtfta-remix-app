@@ -9,7 +9,7 @@ import type {
   DtftaColorMockups,
   DtftaPrintArea,
 } from "../../lib/dtfta-products.server";
-import { getProductDesignAssetUrlForFabric } from "../../lib/design-assets";
+import { getPrintAreaBackgroundImageUrlForFabric } from "../../lib/design-assets";
 import {
   formatPrintMeasurement,
   normalizePrintUnitDisplay,
@@ -75,11 +75,11 @@ export default function CustomizeCanvasSection({
     );
   }
 
-  const backgroundImageUrl = selectedPrintArea.image
-    ? getProductDesignAssetUrlForFabric(selectedPrintArea.image, selectedColor, {
-        colorMockups: colorMockups ?? null,
-      })
-    : "";
+  const backgroundImageUrl = getPrintAreaBackgroundImageUrlForFabric(
+    selectedPrintArea,
+    selectedColor,
+    { colorMockups: colorMockups ?? null }
+  );
 
   const handleRegisterActions = useCallback(
     (actions: CanvasActions | null) => {
