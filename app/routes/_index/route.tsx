@@ -150,7 +150,7 @@ export default function App() {
               |
             </span>
             <a href="/terms-of-service" className={styles.footerLink}>
-              Terms of Use
+              Terms of Service
             </a>
           </div>
         </footer>

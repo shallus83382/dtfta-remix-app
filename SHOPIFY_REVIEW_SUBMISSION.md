@@ -14,7 +14,7 @@ This document is prepared for Shopify App Store review submission for the embedd
 ## 2) Core Features Reviewer Should Test
 
 1. **Product customization flow**
-   - Merchant selects a product and customizes artwork (front/back placements).
+   - Merchant selects a product and customizes artwork.
    - App saves and creates custom product data in Shopify.
 
 2. **Order + fulfillment operations**
@@ -22,26 +22,43 @@ This document is prepared for Shopify App Store review submission for the embedd
    - Merchant can view order operations inside the app.
 
 3. **Billing / plan gating / pre-fulfillment charge**
-   - App uses Shopify managed app pricing with merchant-side billing approval.
-   - Before fulfillment starts, app checks billing readiness.
-   - App creates a per-order usage charge and blocks fulfillment if billing is not approved or charge fails.
+   - Merchant adds a payment card in the app **Wallet** (powered by Square).
+   - Before fulfillment starts, app checks that a chargeable card is on file.
+   - App charges the merchant's saved card via Square for each order and blocks fulfillment if no card is on file or the charge fails.
 
-## 3) Billing Model (Shopify Managed App Pricing)
+## 3) Billing Model (Square Wallet — Merchant Card on File)
 
 - **Pricing model:** Free app installation + per-order charge to merchant.
-- **Charge owner:** Merchant (store owner), via Shopify managed app billing.
-- **Charge timing:** At fulfillment start.
+- **Charge owner:** Merchant (store owner).
+- **Payment processor:** Square (merchant card on file in the app Wallet).
+- **Charge timing:** Before fulfillment starts (pre-fulfillment billing).
 - **Charge formula used by app:**  
-  `total fulfillment charge = local product subtotal + shipping + tax (if present)`
-- **Failure behavior:** Hard block fulfillment and return actionable billing message until billing is approved/charge succeeds.
+  `total fulfillment charge = product variant subtotal + print area fees + shipping + tax (if present)`
+- **Failure behavior:** Hard block fulfillment and return actionable billing message until a valid card is saved and the charge succeeds.
 
 ### Billing implementation notes
 
-- The app requests/creates managed subscription approval URL for the merchant when needed.
-- Billing status is synchronized and enforced through backend checks.
-- Usage records are created with idempotency protection to prevent duplicate charges.
+- Merchants tokenize and save a card through Square Web Payments SDK in the embedded app **Wallet** page.
+- Full card numbers and CVV are **not** stored by DTFTA. Only limited card metadata is retained locally (e.g. card brand, last 4 digits, expiry month/year) for display and reconciliation, in line with Shopify app policy and PCI expectations.
+- Square stores the vaulted card reference (`square_card_id`) used to process charges.
+- Billing status is **active** when the shop has a Square customer on file and at least one active saved card.
+- Per-order charges are created with idempotency protection to prevent duplicate charges.
+- End customers are never billed by DTFTA — only the merchant (store owner) is charged for fulfillment costs.
 
-## 4) Required Access Scopes and Justification
+## 4) Transparent Pricing
+
+Merchants see fulfillment costs upfront across the product workflow:
+
+- View fulfillment costs before publishing products.
+- See product pricing based on selected color and size variants.
+- View print area fees for each placement, including front, back, and other available print locations.
+- Shipping costs are included in fulfillment calculations.
+- Know costs upfront and set profitable retail margins.
+- Pay only when customer orders are processed.
+- No inventory investment or storage costs.
+- No minimum order quantities.
+
+## 5) Required Access Scopes and Justification
 
 Configured scopes:
 
@@ -56,7 +73,7 @@ Configured scopes:
 - `write_assigned_fulfillment_orders` - Required to accept/manage fulfillment order requests.
 - `write_shipping` - Required for shipping profile/rate related setup workflows.
 
-## 5) Webhooks Used
+## 6) Webhooks Used
 
 Configured webhook API version: `2026-04`
 
@@ -72,21 +89,6 @@ Webhook topics:
 - `fulfillment_orders/fulfillment_request_submitted`
 - `fulfillment_orders/cancellation_request_submitted`
 
-## 6) App URLs / Auth Configuration
-
-- **Embedded:** Yes
-- **Application URL:** `https://phpstack-1180784-6299772.cloudwaysapps.com`
-- **Privacy Policy URL:** `https://phpstack-1180784-6299772.cloudwaysapps.com/privacy-policy`
-- **Terms of Service URL:** `https://phpstack-1180784-6299772.cloudwaysapps.com/terms-of-service`
-- **Billing return URL:** `https://phpstack-1180784-6299772.cloudwaysapps.com/billing/return`
-- **Auth redirect URLs:**
-  - `https://phpstack-1180784-6299772.cloudwaysapps.com/auth`
-  - `https://phpstack-1180784-6299772.cloudwaysapps.com/auth/callback`
-  - `https://phpstack-1180784-6299772.cloudwaysapps.com/api/auth`
-- **App proxy:**
-  - Prefix: `apps`
-  - Subpath: `dtfta-line-item`
-  - URL: `https://phpstack-1180784-6299772.cloudwaysapps.com/apps/dtfta-line-item`
 
 ## 7) Theme Editor Requirement (Important)
 
@@ -99,17 +101,29 @@ Webhook topics:
 
 1. Install the app on a development store.
 2. In Shopify Admin, open **Online Store > Themes > Customize > App embeds** and enable the DTFTA app extension/embed, then save.
-3. Open the embedded app admin and complete onboarding/setup if prompted.
+3. Open the embedded app admin and complete onboarding/setup if prompted, or set up our profile in **Settings**.
 4. Go to dashboard/orders pages and verify app loads merchant data.
-5. Trigger billing approval flow:
-   - Click **Activate Billing** (shown when billing is required/inactive).
-   - Approve managed billing in Shopify.
-   - Shopify redirects to `/billing/return`, then the app redirects to `/app/orders`.
-6. Create/prepare a fulfillment scenario and start fulfillment:
-   - App should calculate pre-fulfillment charge using product subtotal + shipping + tax.
-   - App should create usage charge before fulfillment.
-7. Verify failure behavior:
-   - If billing is inactive/unapproved, fulfillment is blocked and app returns billing action info.
+5. Create and publish a customized product:
+   - Open **Products** in the embedded app.
+   - Choose a product from the catalog.
+   - Click **Customize and Add to Store** (shown after a product is selected; before selection the button reads **Choose a Product to Continue**).
+   - In the Product Customizer, upload artwork and place it on available print areas (front, back, etc.).
+   - Preview the product mockup by color/variant to confirm the design.
+   - Click **Add to Store** to sync the customized product to the merchant's Shopify store.
+   - Verify the product appears in Shopify Admin under **Products**.
+6. Verify transparent pricing in the Product Customizer:
+   - Open a product and confirm variant pricing updates by color and size.
+   - Confirm print area fees are shown per placement (front, back, and other locations).
+   - Confirm fulfillment cost visibility is available before publishing/syncing to Shopify.
+7. Set up merchant billing (Wallet):
+   - Open **Wallet** in the embedded app (or click **Activate Billing** when prompted — this routes to Wallet).
+   - Add a payment card using the Square card form.
+   - Confirm billing status shows **active** after a card is saved.
+8. Create/prepare a fulfillment scenario and start fulfillment:
+   - App should calculate pre-fulfillment charge using variant subtotal + print area fees + shipping + tax.
+   - App should charge the merchant's saved Square card before fulfillment proceeds.
+9. Verify failure behavior:
+   - If no card is on file or a charge fails, fulfillment is blocked and the app prompts the merchant to add or update their payment method in Wallet.
 
 ## 9) Data Handling and Security Notes
 
@@ -117,26 +131,11 @@ Webhook topics:
 - Shopify webhooks are validated and then synced into backend workflow processing.
 - App uses signed internal requests between app layers for backend sync routes.
 - App stores operational data required for order/fulfillment/customization processing.
-- No customer payment card data is stored or processed by this app.
+- Merchant payment cards are tokenized and vaulted through **Square**. DTFTA does not store full card numbers or CVV.
+- DTFTA stores only limited merchant card metadata for Wallet display (card brand, last 4 digits, expiry) plus Square customer/card references for charging.
+- No end-customer payment card data is stored or processed by this app.
 
 ## 10) Uninstall Behavior
 
 - On `app/uninstalled`, app clears/deactivates session-linked shop state and marks related operational records inactive per backend logic.
-
-## 11) Support and Review Contact
-
-- **Support email:** `<REPLACE_WITH_SUPPORT_EMAIL>`
-- **Primary reviewer contact name:** `<REPLACE_WITH_NAME>`
-- **Primary reviewer contact email:** `<REPLACE_WITH_EMAIL>`
-- **Optional screencast URL:** `<REPLACE_WITH_SCREENCAST_URL>`
-
-## 12) Notes for Submission Form
-
-When filling the Shopify review form, align answers with this document for:
-
-- App purpose and merchant workflow
-- Scope justifications
-- Billing behavior and timing
-- Webhook topics and usage
-- Step-by-step reviewer testing flow
 
