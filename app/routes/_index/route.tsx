@@ -5,7 +5,7 @@ import { login } from "../../shopify.server";
 
 import styles from "./styles.module.css";
 
-const LOGO_SRC = "/assets/get-started/logo.png";
+const LOGO_SRC = "/assets/get-started/logo2.jpeg";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
@@ -66,8 +66,7 @@ export default function App() {
               className={styles.logo}
               src={LOGO_SRC}
               alt="DTF Transfer Authority"
-              width={320}
-              height={120}
+              loading="eager"
               decoding="async"
             />
           </div>
