@@ -39,7 +39,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const awsAssetBase =
     (env.AWS_COULD_FRONT_URL && env.AWS_COULD_FRONT_URL.trim()) ||
-    "https://dtfashopify.elyriasoft.com";
+    "https://dtfauthority.elyriasoft.com";
 
   return {
     define: {
