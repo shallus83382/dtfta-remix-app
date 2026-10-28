@@ -130,7 +130,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return {
       success: true,
-      brandSettings: data,
+      brandSettings: data?.data ?? data,
     } satisfies ActionData;
   } catch (e) {
     return {
