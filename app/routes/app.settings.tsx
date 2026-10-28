@@ -107,7 +107,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   };
 
   const API_BASE = process.env.EXTERNAL_API_BASE || '/api';
-  const headers = createExternalApiHeaders(brandSettings, { 'X-Shop': session.shop });
+  const headers = createExternalApiHeaders('', { 'X-Shop': session.shop });
 
   try {
     const res = await fetch(
