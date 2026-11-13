@@ -16,21 +16,13 @@ type Props = {
 const NEUTRAL_SWATCH = "#e2e8f0";
 
 function resolveColorValue(color: ColorOption) {
-  const candidates = [
-    color.hex?.trim() ?? "",
-    color.colorCode?.trim() ?? "",
-    color.colorName?.trim() ?? "",
-  ].filter(Boolean);
-
-  for (const candidate of candidates) {
-    if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(candidate)) {
-      return candidate;
-    }
-    if (/^[0-9a-fA-F]{6}$/.test(candidate)) {
-      return `#${candidate}`;
-    }
+  const apiHex = color.hex?.trim() ?? "";
+  if (/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(apiHex)) {
+    return apiHex;
   }
-
+  if (/^[0-9a-fA-F]{6}$/.test(apiHex)) {
+    return `#${apiHex}`;
+  }
   return NEUTRAL_SWATCH;
 }
 
@@ -42,14 +34,7 @@ export default function ColorSelector({
   if (!colors.length) return null;
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(28px, 1fr))",
-        gap: 8,
-        width: "100%",
-      }}
-    >
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
       {colors.map((color) => {
         const bg = resolveColorValue(color);
         const isSelected = selectedColor === color.colorCode;
@@ -62,21 +47,19 @@ export default function ColorSelector({
             title={color.colorName}
             onClick={() => onChange(color.colorCode)}
             style={{
-              borderRadius: 6,
+              borderRadius: 4,
               border: isSelected
                 ? `2px solid ${brandPalette.teal}`
                 : `1px solid ${brandColors.surfaceBorder}`,
-              width: 28,
-              height: 28,
-              minWidth: 28,
-              minHeight: 28,
+              width: 30,
+              height: 30,
               padding: 0,
               cursor: "pointer",
               transition: "all 180ms ease",
               background: bg,
               boxShadow: isSelected
-                ? "0 0 0 2px rgba(37,99,235,0.18)"
-                : "0 1px 2px rgba(15,23,42,0.08)",
+                ? "0 0 0 2px rgba(37,99,235,0.24)"
+                : "0 1px 2px rgba(15,23,42,0.12)",
             }}
           />
         );
