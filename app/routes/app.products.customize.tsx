@@ -498,45 +498,50 @@ export default function ProductCustomize() {
 
         <div
           style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 8,
+            minHeight: 44,
             borderRadius: 12,
             border: "1px solid #dbe3ec",
             background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
-            padding: "10px 12px",
+            padding: "8px 12px",
+            marginBottom: 8,
             boxShadow: "0 8px 18px rgba(22,22,31,0.06)",
           }}
         >
-          <InlineStack align="center" gap="200" blockAlign="center" wrap>
-            {printAreas.map((area) => {
-              const key = normalizePlacementKey(area.title);
-              const isActive = placement === key;
-              return (
-                <button
-                  key={area.id}
-                  type="button"
-                  onClick={() => handlePlacementChange(key)}
-                  style={{
-                    borderRadius: 999,
-                    border: isActive ? "1px solid transparent" : "1px solid #cfd8e3",
-                    height: 30,
-                    padding: "0 12px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    background: isActive
-                      ? brandPrimaryButtonBg
-                      : "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
-                    color: isActive ? "#ffffff" : brandColors.text,
-                    boxShadow: isActive
-                      ? brandPrimaryCtaShadow
-                      : "0 2px 6px rgba(22,22,31,0.08)",
-                    transition: "all 150ms ease",
-                  }}
-                >
-                  {area.title}
-                </button>
-              );
-            })}
-          </InlineStack>
+          {printAreas.map((area) => {
+            const key = normalizePlacementKey(area.title);
+            const isActive = placement === key;
+            return (
+              <button
+                key={area.id}
+                type="button"
+                onClick={() => handlePlacementChange(key)}
+                style={{
+                  borderRadius: 999,
+                  border: isActive ? "1px solid transparent" : "1px solid #cfd8e3",
+                  height: 30,
+                  padding: "0 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  background: isActive
+                    ? brandPrimaryButtonBg
+                    : "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+                  color: isActive ? "#ffffff" : brandColors.text,
+                  boxShadow: isActive
+                    ? brandPrimaryCtaShadow
+                    : "0 2px 6px rgba(22,22,31,0.08)",
+                  transition: "all 150ms ease",
+                }}
+              >
+                {area.title}
+              </button>
+            );
+          })}
         </div>
 
         <div
