@@ -708,20 +708,6 @@ export default function ProductCustomize() {
                   <ProductMeta product={product} />
 
                   <div>
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text as="p" fontWeight="semibold">Choose Color</Text>
-                      <Badge tone="info">Step 1</Badge>
-                    </InlineStack>
-                    <div style={{ marginTop: 8 }}>
-                      <ColorSelector
-                        colors={availableColors}
-                        selectedColor={selectedColor}
-                        onChange={handleColorChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
                     <Text as="p" fontWeight="semibold">
                       Canvas Actions
                     </Text>
@@ -780,57 +766,75 @@ export default function ProductCustomize() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => void handlePreview()}
-                    disabled={isBuildingPreview}
-                    style={{
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      height: 40,
-                      width: "100%",
-                      padding: "0 14px",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: isBuildingPreview ? "not-allowed" : "pointer",
-                      transition: "all 180ms ease",
-                      background: isBuildingPreview
-                        ? "#e2e8f0"
-                        : "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
-                      color: brandColors.text,
-                      boxShadow: "0 4px 10px rgba(15,23,42,0.08)",
-                    }}
-                  >
-                    {isBuildingPreview ? "Generating preview..." : "Preview"}
-                  </button>
+                  <div style={{ marginTop: 12 }}>
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="p" fontWeight="semibold">Choose Color</Text>
+                      <Badge tone="info">Step 1</Badge>
+                    </InlineStack>
+                    <div style={{ marginTop: 8 }}>
+                      <ColorSelector
+                        colors={availableColors}
+                        selectedColor={selectedColor}
+                        onChange={handleColorChange}
+                      />
+                    </div>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={handleAddToStore}
-                    disabled={fetcher.state !== "idle"}
-                    style={{
-                      borderRadius: 10,
-                      border: "1px solid transparent",
-                      height: 40,
-                      width: "100%",
-                      padding: "0 14px",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: fetcher.state !== "idle" ? "not-allowed" : "pointer",
-                      transition: "all 180ms ease",
-                      background:
-                        fetcher.state !== "idle"
-                          ? "#cbd5e1"
-                          : brandPrimaryButtonBg,
-                      color: "#ffffff",
-                      boxShadow:
-                        fetcher.state !== "idle"
-                          ? "none"
-                          : brandPrimaryCtaShadow,
-                    }}
-                  >
-                    {fetcher.state !== "idle" ? "Adding..." : "Add to Store"}
-                  </button>
+                  <div style={{ marginTop: 12 }}>
+                    <button
+                      type="button"
+                      onClick={() => void handlePreview()}
+                      disabled={isBuildingPreview}
+                      style={{
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        height: 40,
+                        width: "100%",
+                        padding: "0 14px",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: isBuildingPreview ? "not-allowed" : "pointer",
+                        transition: "all 180ms ease",
+                        background: isBuildingPreview
+                          ? "#e2e8f0"
+                          : "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+                        color: brandColors.text,
+                        boxShadow: "0 4px 10px rgba(15,23,42,0.08)",
+                      }}
+                    >
+                      {isBuildingPreview ? "Generating preview..." : "Preview"}
+                    </button>
+                  </div>
+
+                  <div style={{ marginTop: 8 }}>
+                    <button
+                      type="button"
+                      onClick={handleAddToStore}
+                      disabled={fetcher.state !== "idle"}
+                      style={{
+                        borderRadius: 10,
+                        border: "1px solid transparent",
+                        height: 40,
+                        width: "100%",
+                        padding: "0 14px",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: fetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        transition: "all 180ms ease",
+                        background:
+                          fetcher.state !== "idle"
+                            ? "#cbd5e1"
+                            : brandPrimaryButtonBg,
+                        color: "#ffffff",
+                        boxShadow:
+                          fetcher.state !== "idle"
+                            ? "none"
+                            : brandPrimaryCtaShadow,
+                      }}
+                    >
+                      {fetcher.state !== "idle" ? "Adding..." : "Add to Store"}
+                    </button>
+                  </div>
                 </BlockStack>
               </div>
           </div>
