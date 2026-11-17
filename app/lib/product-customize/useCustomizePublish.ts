@@ -33,9 +33,16 @@ export function useCustomizePublish({
         return;
       }
 
+      const actionUrl = new URL(
+        `${routerLocation.pathname}${routerLocation.search}`,
+        window.location.origin
+      );
+      // Artwork generation can outlast the session token captured when the page loaded.
+      actionUrl.searchParams.set("id_token", await shopify.idToken());
+
       fetcher.submit(result.formData, {
         method: "POST",
-        action: `${routerLocation.pathname}${routerLocation.search}`,
+        action: `${actionUrl.pathname}${actionUrl.search}`,
       });
     } catch (error) {
       shopify.toast.show(
