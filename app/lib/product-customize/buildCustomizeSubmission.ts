@@ -225,6 +225,7 @@ export async function buildCustomizeSubmission({
       placement,
       placementTitle: area.title,
       region,
+      perspectiveCorners: area.perspective_corners,
       liveCanvas: canvases[placement] ?? null,
       savedPrintOnlyUrl: artworkByPlacement[placement] ?? "",
       savedCanvasSize: canvasSizesByPlacement?.[placement] ?? null,

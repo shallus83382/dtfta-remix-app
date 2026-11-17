@@ -14,6 +14,16 @@ export interface DtftaColorMockupEntry {
 
 export type DtftaColorMockups = Record<string, DtftaColorMockupEntry>;
 
+export type PerspectivePoint = { x: number; y: number };
+
+/** Ordered top-left, top-right, bottom-right, bottom-left in 0–500 design coordinates. */
+export type PerspectiveCorners = [
+  PerspectivePoint,
+  PerspectivePoint,
+  PerspectivePoint,
+  PerspectivePoint,
+];
+
 export interface DtftaVariant {
   id?: number;
   colorCode: string;
@@ -54,6 +64,7 @@ export interface DtftaPrintArea {
    */
   position_reference_width?: string;
   position_reference_height?: string;
+  perspective_corners?: PerspectiveCorners;
 }
 
 export interface DtftaProductBlank {
@@ -299,6 +310,41 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function normalizePerspectiveCorners(value: unknown): PerspectiveCorners | null {
+  if (!Array.isArray(value) || value.length !== 4) return null;
+
+  const points = value.map((point) => {
+    if (!isRecord(point)) return null;
+    const parseCoordinate = (coordinate: unknown) =>
+      typeof coordinate === "number"
+        ? coordinate
+        : typeof coordinate === "string" && coordinate.trim()
+          ? Number(coordinate)
+          : NaN;
+    const x = parseCoordinate(point.x);
+    const y = parseCoordinate(point.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 500 || y < 0 || y > 500) {
+      return null;
+    }
+    return { x, y };
+  });
+  if (!points.every((point) => point !== null)) return null;
+  const [topLeft, topRight, bottomRight, bottomLeft] = points;
+  if (!topLeft || !topRight || !bottomRight || !bottomLeft) return null;
+  const corners: PerspectiveCorners = [topLeft, topRight, bottomRight, bottomLeft];
+  const crosses = corners.map((point, index) => {
+    const next = corners[(index + 1) % 4];
+    const afterNext = corners[(index + 2) % 4];
+    return (
+      (next.x - point.x) * (afterNext.y - next.y) -
+      (next.y - point.y) * (afterNext.x - next.x)
+    );
+  });
+  return crosses.every((cross) => cross > 0) || crosses.every((cross) => cross < 0)
+    ? corners
+    : null;
+}
+
 export function normalizeColorMockups(input: unknown): DtftaColorMockups | undefined {
   if (!isRecord(input)) {
     return undefined;
@@ -397,8 +443,16 @@ export function normalizeDtftaPrintArea(input: unknown): DtftaPrintArea | null {
 
   const title = typeof input.title === "string" ? input.title : "";
   const image = typeof input.image === "string" ? input.image : "";
+  const rawPerspectiveCorners = input.perspective_corners ?? input.perspectiveCorners;
+  const perspectiveCorners =
+    rawPerspectiveCorners == null
+      ? null
+      : normalizePerspectiveCorners(rawPerspectiveCorners);
 
   if (!title) return null;
+  if (rawPerspectiveCorners != null && !perspectiveCorners) {
+    console.error(`Invalid perspective_corners for print area "${title}"`);
+  }
 
   return {
     id: typeof input.id === "number" ? input.id : 0,
@@ -502,6 +556,7 @@ export function normalizeDtftaPrintArea(input: unknown): DtftaPrintArea | null {
       : typeof input.positionReferenceHeight === "string"
         ? { position_reference_height: input.positionReferenceHeight }
         : {}),
+    ...(perspectiveCorners ? { perspective_corners: perspectiveCorners } : {}),
   };
 }
 

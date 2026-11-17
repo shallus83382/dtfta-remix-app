@@ -196,6 +196,7 @@ export function useProductCustomize({
             placement: placementKey,
             placementTitle: area.title,
             region,
+            perspectiveCorners: area.perspective_corners,
             liveCanvas,
             savedPrintOnlyUrl: editor.artworkRef.current[placementKey] ?? "",
             savedCanvasSize:

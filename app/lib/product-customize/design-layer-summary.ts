@@ -43,13 +43,14 @@ export function ensureDesignLayerId(obj: FabricObject): string {
       typed.data && typeof typed.data === "object"
         ? { ...(typed.data as Record<string, unknown>) }
         : {};
-    (typed as FabricObject & { data: Record<string, unknown> }).data = {
+    const data = {
       __internal: false,
       kind: "design",
       ...preserved,
       layerId: newLayerId(),
     };
-    return (typed.data as { layerId: string }).layerId;
+    (typed as FabricObject & { data: Record<string, unknown> }).data = data;
+    return data.layerId;
   }
   if (typeof typed.data.layerId === "string" && typed.data.layerId.trim()) {
     return typed.data.layerId;
@@ -162,30 +163,21 @@ export function computeDesignLayerSummaries(
     const leftPrint = ((bounds.left - rL) / rW) * printWidth;
     const topPrint = ((bounds.top - rT) / rH) * printHeight;
 
-    const cxCanvas = obj.left ?? rL + rW / 2;
-    const cyCanvas = obj.top ?? rT + rH / 2;
+    const center = obj.getCenterPoint();
+    const cxCanvas = center.x;
+    const cyCanvas = center.y;
     const centerX = ((cxCanvas - rL) / rW) * printWidth;
     const centerY = ((cyCanvas - rT) / rH) * printHeight;
 
-    const scaledWidth =
-      typeof (obj as FabricObject & { getScaledWidth?: () => number }).getScaledWidth === "function"
-        ? (obj as FabricObject & { getScaledWidth: () => number }).getScaledWidth()
-        : bounds.width;
-
-    const scaledHeight =
-      typeof (obj as FabricObject & { getScaledHeight?: () => number }).getScaledHeight === "function"
-        ? (obj as FabricObject & { getScaledHeight: () => number }).getScaledHeight()
-        : bounds.height;
-
-    const halfW = scaledWidth / 2;
-    const halfH = scaledHeight / 2;
+    const halfW = bounds.width / 2;
+    const halfH = bounds.height / 2;
 
     let centerXMin = 0;
     let centerXMax = printWidth;
     let centerYMin = 0;
     let centerYMax = printHeight;
 
-    if (scaledWidth < rW) {
+    if (bounds.width < rW) {
       centerXMin = roundUnit((halfW / rW) * printWidth);
       centerXMax = roundUnit(printWidth - (halfW / rW) * printWidth);
     } else {
@@ -194,7 +186,7 @@ export function computeDesignLayerSummaries(
       centerXMax = mid;
     }
 
-    if (scaledHeight < rH) {
+    if (bounds.height < rH) {
       centerYMin = roundUnit((halfH / rH) * printHeight);
       centerYMax = roundUnit(printHeight - (halfH / rH) * printHeight);
     } else {

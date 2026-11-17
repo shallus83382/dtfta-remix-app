@@ -174,6 +174,10 @@ function isFabricCanvasObject(value: unknown): value is FabricObject {
   return !!value && typeof value === "object" && "setCoords" in value && "set" in value;
 }
 
+function lockArtworkResizeAspectRatio(obj: FabricObject) {
+  obj.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
+}
+
 export default function DesignCanvas({
   label,
   fillWidth = false,
@@ -351,45 +355,27 @@ export default function DesignCanvas({
     const regionWidth = regionRect.width ?? 0;
     const regionHeight = regionRect.height ?? 0;
 
-    const scaledWidth =
-      typeof (obj as FabricObject & { getScaledWidth?: () => number }).getScaledWidth === "function"
-        ? (obj as FabricObject & { getScaledWidth: () => number }).getScaledWidth()
-        : obj.getBoundingRect().width;
-
-    const scaledHeight =
-      typeof (obj as FabricObject & { getScaledHeight?: () => number }).getScaledHeight ===
-      "function"
-        ? (obj as FabricObject & { getScaledHeight: () => number }).getScaledHeight()
-        : obj.getBoundingRect().height;
-
-    const halfW = scaledWidth / 2;
-    const halfH = scaledHeight / 2;
-
-    let nextLeft = obj.left ?? 0;
-    let nextTop = obj.top ?? 0;
-
+    const bounds = obj.getBoundingRect();
+    const halfW = bounds.width / 2;
+    const halfH = bounds.height / 2;
+    const center = obj.getCenterPoint();
     const minLeft = regionLeft + halfW;
     const maxLeft = regionLeft + regionWidth - halfW;
     const minTop = regionTop + halfH;
     const maxTop = regionTop + regionHeight - halfH;
 
-    if (scaledWidth >= regionWidth) {
-      nextLeft = regionLeft + regionWidth / 2;
-    } else {
-      nextLeft = Math.max(minLeft, Math.min(nextLeft, maxLeft));
-    }
-
-    if (scaledHeight >= regionHeight) {
-      nextTop = regionTop + regionHeight / 2;
-    } else {
-      nextTop = Math.max(minTop, Math.min(nextTop, maxTop));
-    }
+    const clampedCenterX =
+      bounds.width >= regionWidth
+        ? regionLeft + regionWidth / 2
+        : Math.max(minLeft, Math.min(center.x, maxLeft));
+    const clampedCenterY =
+      bounds.height >= regionHeight
+        ? regionTop + regionHeight / 2
+        : Math.max(minTop, Math.min(center.y, maxTop));
 
     obj.set({
-      left: nextLeft,
-      top: nextTop,
-      originX: "center",
-      originY: "center",
+      left: (obj.left ?? 0) + clampedCenterX - center.x,
+      top: (obj.top ?? 0) + clampedCenterY - center.y,
     });
 
     obj.setCoords();
@@ -455,6 +441,7 @@ export default function DesignCanvas({
       const fabricCanvas = new fabric.Canvas(canvasEl, {
         width,
         height,
+        uniformScaling: true,
       });
 
       canvasRef.current = fabricCanvas;
@@ -744,6 +731,7 @@ export default function DesignCanvas({
         fabricObjects.forEach((obj) => {
           currentCanvas.add(obj);
           ensureDesignLayerId(obj);
+          lockArtworkResizeAspectRatio(obj);
 
           const cw = currentCanvas.getWidth?.() ?? CANVAS_SIZE;
           const ch = currentCanvas.getHeight?.() ?? CANVAS_SIZE;
@@ -991,6 +979,7 @@ export default function DesignCanvas({
 
       canvas.add(text);
       ensureDesignLayerId(text);
+      lockArtworkResizeAspectRatio(text);
       text.setCoords();
 
       constrainScaleToRegion(text);
@@ -1072,6 +1061,7 @@ export default function DesignCanvas({
 
         canvas.add(img);
         ensureDesignLayerId(img);
+        lockArtworkResizeAspectRatio(img);
         img.setCoords();
 
         constrainScaleToRegion(img);

@@ -1,4 +1,5 @@
 import type { Canvas } from "fabric";
+import type { PerspectiveCorners } from "../dtfta-products.server";
 import { exportCanvasToDataUrl, FABRIC_EXPORT_MULTIPLIER } from "../../components/DesignCanvas";
 import { designRegionToPixelRect, DESIGN_REGION_EDGE_BLEED_PX } from "./design-region-pixel-rect";
 
@@ -62,6 +63,171 @@ function getScaledRegionPixels({
   );
 }
 
+function solveLinearSystem(matrix: number[][], values: number[]): number[] | null {
+  const size = values.length;
+  const rows = matrix.map((row, index) => [...row, values[index]]);
+
+  for (let column = 0; column < size; column += 1) {
+    let pivot = column;
+    for (let row = column + 1; row < size; row += 1) {
+      if (Math.abs(rows[row][column]) > Math.abs(rows[pivot][column])) {
+        pivot = row;
+      }
+    }
+
+    if (Math.abs(rows[pivot][column]) < 1e-10) return null;
+    [rows[column], rows[pivot]] = [rows[pivot], rows[column]];
+
+    const divisor = rows[column][column];
+    for (let entry = column; entry <= size; entry += 1) {
+      rows[column][entry] /= divisor;
+    }
+
+    for (let row = 0; row < size; row += 1) {
+      if (row === column) continue;
+      const factor = rows[row][column];
+      for (let entry = column; entry <= size; entry += 1) {
+        rows[row][entry] -= factor * rows[column][entry];
+      }
+    }
+  }
+
+  return rows.map((row) => row[size]);
+}
+
+function getPerspectiveTransform(
+  corners: PerspectiveCorners,
+  canvasWidth: number,
+  canvasHeight: number,
+  multiplier: number
+): number[] | null {
+  const points = corners.map((corner) => ({
+    x: (corner.x / MOCKUP_CANVAS_SIZE) * canvasWidth * multiplier,
+    y: (corner.y / MOCKUP_CANVAS_SIZE) * canvasHeight * multiplier,
+  }));
+  const source = [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+    { x: 0, y: 1 },
+  ];
+  const matrix: number[][] = [];
+  const values: number[] = [];
+
+  source.forEach(({ x, y }, index) => {
+    const { x: targetX, y: targetY } = points[index];
+    matrix.push([x, y, 1, 0, 0, 0, -targetX * x, -targetX * y]);
+    values.push(targetX);
+    matrix.push([0, 0, 0, x, y, 1, -targetY * x, -targetY * y]);
+    values.push(targetY);
+  });
+
+  return solveLinearSystem(matrix, values);
+}
+
+function drawPerspectiveArtwork({
+  context,
+  image,
+  corners,
+  canvasWidth,
+  canvasHeight,
+  multiplier,
+}: {
+  context: CanvasRenderingContext2D;
+  image: HTMLImageElement;
+  corners: PerspectiveCorners;
+  canvasWidth: number;
+  canvasHeight: number;
+  multiplier: number;
+}) {
+  const transform = getPerspectiveTransform(
+    corners,
+    canvasWidth,
+    canvasHeight,
+    multiplier
+  );
+  if (!transform) {
+    throw new Error("Unable to map artwork onto perspective print area");
+  }
+
+  const imageWidth = image.naturalWidth || image.width || 1;
+  const imageHeight = image.naturalHeight || image.height || 1;
+  const mapPoint = (u: number, v: number) => {
+    const denominator = transform[6] * u + transform[7] * v + 1;
+    return {
+      x: (transform[0] * u + transform[1] * v + transform[2]) / denominator,
+      y: (transform[3] * u + transform[4] * v + transform[5]) / denominator,
+    };
+  };
+  const drawTriangle = (
+    source: Array<{ x: number; y: number }>,
+    destination: Array<{ x: number; y: number }>
+  ) => {
+    const [source0, source1, source2] = source;
+    const [destination0, destination1, destination2] = destination;
+    const sourceX1 = source1.x - source0.x;
+    const sourceY1 = source1.y - source0.y;
+    const sourceX2 = source2.x - source0.x;
+    const sourceY2 = source2.y - source0.y;
+    const determinant = sourceX1 * sourceY2 - sourceX2 * sourceY1;
+    if (Math.abs(determinant) < 1e-10) return;
+
+    const destinationX1 = destination1.x - destination0.x;
+    const destinationY1 = destination1.y - destination0.y;
+    const destinationX2 = destination2.x - destination0.x;
+    const destinationY2 = destination2.y - destination0.y;
+    const a = (destinationX1 * sourceY2 - destinationX2 * sourceY1) / determinant;
+    const c = (destinationX2 * sourceX1 - destinationX1 * sourceX2) / determinant;
+    const b = (destinationY1 * sourceY2 - destinationY2 * sourceY1) / determinant;
+    const d = (destinationY2 * sourceX1 - destinationY1 * sourceX2) / determinant;
+    const e = destination0.x - a * source0.x - c * source0.y;
+    const f = destination0.y - b * source0.x - d * source0.y;
+
+    context.save();
+    context.beginPath();
+    context.moveTo(destination0.x, destination0.y);
+    context.lineTo(destination1.x, destination1.y);
+    context.lineTo(destination2.x, destination2.y);
+    context.closePath();
+    context.clip();
+    context.transform(a, b, c, d, e, f);
+    context.drawImage(image, 0, 0, imageWidth, imageHeight);
+    context.restore();
+  };
+
+  const divisions = 16;
+  const sourcePoint = (u: number, v: number) => ({
+    x: u * imageWidth,
+    y: v * imageHeight,
+  });
+
+  for (let row = 0; row < divisions; row += 1) {
+    for (let column = 0; column < divisions; column += 1) {
+      const u0 = column / divisions;
+      const u1 = (column + 1) / divisions;
+      const v0 = row / divisions;
+      const v1 = (row + 1) / divisions;
+      const source00 = sourcePoint(u0, v0);
+      const source10 = sourcePoint(u1, v0);
+      const source11 = sourcePoint(u1, v1);
+      const source01 = sourcePoint(u0, v1);
+      const destination00 = mapPoint(u0, v0);
+      const destination10 = mapPoint(u1, v0);
+      const destination11 = mapPoint(u1, v1);
+      const destination01 = mapPoint(u0, v1);
+
+      drawTriangle(
+        [source00, source10, source11],
+        [destination00, destination10, destination11]
+      );
+      drawTriangle(
+        [source00, source11, source01],
+        [destination00, destination11, destination01]
+      );
+    }
+  }
+}
+
 /**
  * Builds a product-media mockup for one color/placement.
  *
@@ -75,6 +241,7 @@ export async function composeMockupImage({
   backgroundImageUrl,
   artworkDataUrl,
   region,
+  perspectiveCorners,
   canvasWidth,
   canvasHeight,
   multiplier = FABRIC_EXPORT_MULTIPLIER,
@@ -82,6 +249,7 @@ export async function composeMockupImage({
   backgroundImageUrl: string;
   artworkDataUrl: string;
   region: MockupRegion;
+  perspectiveCorners?: PerspectiveCorners;
   canvasWidth: number;
   canvasHeight: number;
   multiplier?: number;
@@ -134,26 +302,33 @@ export async function composeMockupImage({
 
   ctx.drawImage(backgroundImage, 0, 0, bgWidth, bgHeight, bgDx, bgDy, bgDw, bgDh);
 
-  const drawRegion = getScaledRegionPixels({ region, canvasWidth: cw, canvasHeight: ch });
+  if (perspectiveCorners) {
+    drawPerspectiveArtwork({
+      context: ctx,
+      image: artworkImage,
+      corners: perspectiveCorners,
+      canvasWidth: cw,
+      canvasHeight: ch,
+      multiplier: m,
+    });
+  } else {
+    const drawRegion = getScaledRegionPixels({ region, canvasWidth: cw, canvasHeight: ch });
 
-  let dx = drawRegion.left * m;
-  let dy = drawRegion.top * m;
-  let dw = drawRegion.width * m;
-  let dh = drawRegion.height * m;
+    let dx = drawRegion.left * m;
+    let dy = drawRegion.top * m;
+    let dw = drawRegion.width * m;
+    let dh = drawRegion.height * m;
 
-  dx = Math.max(0, Math.min(dx, outW - 1));
-  dy = Math.max(0, Math.min(dy, outH - 1));
-  dw = Math.max(1, Math.min(dw, outW - dx));
-  dh = Math.max(1, Math.min(dh, outH - dy));
+    dx = Math.max(0, Math.min(dx, outW - 1));
+    dy = Math.max(0, Math.min(dy, outH - 1));
+    dw = Math.max(1, Math.min(dw, outW - dx));
+    dh = Math.max(1, Math.min(dh, outH - dy));
 
-  const iw = artworkImage.naturalWidth || artworkImage.width || 1;
-  const ih = artworkImage.naturalHeight || artworkImage.height || 1;
-  if (iw > 0 && ih > 0) {
-    /**
-     * Map the full exported print crop into the destination rect (same math as before,
-     * but device-pixel explicit so rounding never paints past the canvas edge).
-     */
-    ctx.drawImage(artworkImage, 0, 0, iw, ih, dx, dy, dw, dh);
+    const iw = artworkImage.naturalWidth || artworkImage.width || 1;
+    const ih = artworkImage.naturalHeight || artworkImage.height || 1;
+    if (iw > 0 && ih > 0) {
+      ctx.drawImage(artworkImage, 0, 0, iw, ih, dx, dy, dw, dh);
+    }
   }
 
   return output.toDataURL("image/png");
@@ -169,12 +344,14 @@ export async function composeMockupImage({
 export async function composeMockupsForColors({
   printOnlyUrl,
   region,
+  perspectiveCorners,
   canvasWidth,
   canvasHeight,
   colors,
 }: {
   printOnlyUrl: string;
   region: MockupRegion;
+  perspectiveCorners?: PerspectiveCorners;
   canvasWidth: number;
   canvasHeight: number;
   colors: ColorMockupOption[];
@@ -190,6 +367,7 @@ export async function composeMockupsForColors({
           backgroundImageUrl: color.backgroundImageUrl,
           artworkDataUrl: printOnlyUrl,
           region,
+          perspectiveCorners,
           canvasWidth,
           canvasHeight,
           multiplier: FABRIC_EXPORT_MULTIPLIER,
@@ -220,6 +398,8 @@ export type PlacementMockupInput = {
   placementTitle: string;
   /** Designable region in MOCKUP_CANVAS_SIZE (500) coordinate space. */
   region: MockupRegion;
+  /** Perspective surface corners in 0–500 design coordinates, ordered clockwise from top-left. */
+  perspectiveCorners?: PerspectiveCorners;
   /** Live Fabric canvas if this placement is currently active, else null. */
   liveCanvas: Canvas | null;
   /** Saved print-only artwork data URL from a previous snapshot, if any. */
@@ -290,6 +470,7 @@ export async function buildPlacementMockups(
   const mockupsByColor = await composeMockupsForColors({
     printOnlyUrl,
     region: input.region,
+    perspectiveCorners: input.perspectiveCorners,
     canvasWidth,
     canvasHeight,
     colors: input.colors,
