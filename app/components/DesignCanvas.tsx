@@ -652,12 +652,11 @@ export default function DesignCanvas({
       const currentCanvas = canvasRef.current;
       if (cancelled || !currentCanvas) return;
 
-      if (backgroundImageRef.current) {
-        currentCanvas.remove(backgroundImageRef.current);
-        backgroundImageRef.current = null;
-      }
-
       if (!backgroundImageUrl) {
+        if (backgroundImageRef.current) {
+          currentCanvas.remove(backgroundImageRef.current);
+          backgroundImageRef.current = null;
+        }
         if (regionRectRef.current) {
           currentCanvas.bringObjectToFront(regionRectRef.current);
         }
@@ -696,6 +695,9 @@ export default function DesignCanvas({
         const liveCanvas = canvasRef.current;
         if (!liveCanvas) return;
 
+        if (backgroundImageRef.current) {
+          liveCanvas.remove(backgroundImageRef.current);
+        }
         liveCanvas.add(img);
         liveCanvas.sendObjectToBack(img);
         backgroundImageRef.current = img;
@@ -1472,6 +1474,86 @@ export default function DesignCanvas({
               cursor: "pointer",
             }}
           />
+
+          {selectedImage ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
+                flex: isNarrowToolbar ? "1 1 100%" : "0 0 auto",
+                marginLeft: isNarrowToolbar ? 0 : "auto",
+              }}
+            >
+              {removingBackgroundFor === selectedImage ? (
+                <span role="status" style={{ fontSize: 12, color: brandColors.textSubtle }}>
+                  {backgroundOperation === "restore"
+                    ? "Restoring original image..."
+                    : "Removing background..."}
+                </span>
+              ) : backgroundRemovalError?.image === selectedImage ? (
+                <>
+                  <span role="alert" style={{ fontSize: 12, color: "#b42318" }}>
+                    {backgroundRemovalError.message}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void (backgroundRemovalError.action === "restore"
+                        ? handleRestoreOriginalImage()
+                        : handleRemoveBackground())
+                    }
+                    style={actionButtonStyle}
+                  >
+                    Retry
+                  </button>
+                </>
+              ) : readBackgroundRemovalData(selectedImage).status === "preview" ? (
+                <>
+                  <span style={{ fontSize: 12, color: brandColors.textSubtle }}>
+                    Previewing the transparent result on the shirt.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleApplyBackgroundRemoval}
+                    style={actionButtonStyle}
+                  >
+                    Apply
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleRestoreOriginalImage()}
+                    style={actionButtonStyle}
+                  >
+                    Restore original
+                  </button>
+                </>
+              ) : readBackgroundRemovalData(selectedImage).status === "applied" ? (
+                <>
+                  <span style={{ fontSize: 12, color: brandColors.textSubtle }}>
+                    Background removed.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void handleRestoreOriginalImage()}
+                    style={actionButtonStyle}
+                  >
+                    Restore original
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleRemoveBackground()}
+                  style={actionButtonStyle}
+                  disabled={Boolean(removingBackgroundFor)}
+                >
+                  Remove Background
+                </button>
+              )}
+            </div>
+          ) : null}
         </InlineStack>
       </div>
 
@@ -1532,89 +1614,6 @@ export default function DesignCanvas({
           <button type="button" onClick={handleClear} style={actionButtonStyle}>
             Clear
           </button>
-        </div>
-      ) : null}
-
-      {selectedImage ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-            marginTop: 10,
-            padding: "10px 12px",
-            border: "1px solid #dbe3ec",
-            borderRadius: 10,
-            background: "#f8fafc",
-          }}
-        >
-          {removingBackgroundFor === selectedImage ? (
-            <span role="status" style={{ fontSize: 12, color: brandColors.textSubtle }}>
-              {backgroundOperation === "restore"
-                ? "Restoring original image..."
-                : "Removing background..."}
-            </span>
-          ) : backgroundRemovalError?.image === selectedImage ? (
-            <>
-              <span role="alert" style={{ fontSize: 12, color: "#b42318" }}>
-                {backgroundRemovalError.message}
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  void (backgroundRemovalError.action === "restore"
-                    ? handleRestoreOriginalImage()
-                    : handleRemoveBackground())
-                }
-                style={actionButtonStyle}
-              >
-                Retry
-              </button>
-            </>
-          ) : readBackgroundRemovalData(selectedImage).status === "preview" ? (
-            <>
-              <span style={{ fontSize: 12, color: brandColors.textSubtle }}>
-                Previewing the transparent result on the shirt.
-              </span>
-              <button
-                type="button"
-                onClick={handleApplyBackgroundRemoval}
-                style={actionButtonStyle}
-              >
-                Apply
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleRestoreOriginalImage()}
-                style={actionButtonStyle}
-              >
-                Restore original
-              </button>
-            </>
-          ) : readBackgroundRemovalData(selectedImage).status === "applied" ? (
-            <>
-              <span style={{ fontSize: 12, color: brandColors.textSubtle }}>
-                Background removed.
-              </span>
-              <button
-                type="button"
-                onClick={() => void handleRestoreOriginalImage()}
-                style={actionButtonStyle}
-              >
-                Restore original
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void handleRemoveBackground()}
-              style={actionButtonStyle}
-              disabled={Boolean(removingBackgroundFor)}
-            >
-              Remove Background
-            </button>
-          )}
         </div>
       ) : null}
 

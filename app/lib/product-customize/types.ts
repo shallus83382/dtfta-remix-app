@@ -6,6 +6,8 @@ import type {
 } from "../dtfta-products.server";
 import type { DesignableRegion } from "../../components/DesignCanvas";
 
+export const GENERATED_ARTWORK_NAME_PREFIX = "__dtfta-publish__";
+
 export type ProductWithApiFields = Product & {
   productKey?: string;
   colors?: string[];

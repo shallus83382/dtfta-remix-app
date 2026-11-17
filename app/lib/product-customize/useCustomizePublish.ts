@@ -1,7 +1,11 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFetcher, useLocation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import type { CustomizeSubmitResult } from "./types";
+import {
+  GeneratedArtworkUploadError,
+  uploadGeneratedArtworkUrls,
+} from "./publish-artwork.client";
 
 type UseCustomizePublishArgs = {
   buildFormData: () => Promise<
@@ -19,11 +23,19 @@ export function useCustomizePublish({
   const successHandled = useRef(false);
   const errorHandled = useRef(false);
   const isBuilding = useRef(false);
+  const uploadedUrlCache = useRef(new Map<string, string>());
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [canRetryArtworkUploads, setCanRetryArtworkUploads] = useState(false);
+  const [artworkUploadProgress, setArtworkUploadProgress] = useState<{
+    completed: number;
+    total: number;
+  } | null>(null);
 
   const handleSubmit = useCallback(async () => {
     if (isBuilding.current || fetcher.state !== "idle") return;
 
     isBuilding.current = true;
+    setIsPreparing(true);
 
     try {
       const result = await buildFormData();
@@ -33,16 +45,35 @@ export function useCustomizePublish({
         return;
       }
 
+      try {
+        await uploadGeneratedArtworkUrls(
+          result.formData,
+          uploadedUrlCache.current,
+          (completed, total) => {
+            setArtworkUploadProgress({ completed, total });
+          }
+        );
+        setCanRetryArtworkUploads(false);
+      } catch (error) {
+        setCanRetryArtworkUploads(
+          error instanceof GeneratedArtworkUploadError && error.retryable
+        );
+        throw error;
+      }
+
       fetcher.submit(result.formData, {
         method: "POST",
         action: `${routerLocation.pathname}${routerLocation.search}`,
       });
     } catch (error) {
       shopify.toast.show(
-        error instanceof Error ? error.message : "Failed to prepare product"
+        error instanceof Error ? error.message : "Failed to prepare product",
+        { isError: true }
       );
     } finally {
       isBuilding.current = false;
+      setIsPreparing(false);
+      setArtworkUploadProgress(null);
     }
   }, [buildFormData, fetcher, routerLocation.pathname, routerLocation.search, shopify]);
 
@@ -63,6 +94,8 @@ export function useCustomizePublish({
   useEffect(() => {
     if (fetcher.data?.ok && fetcher.data.productId && !successHandled.current) {
       successHandled.current = true;
+      uploadedUrlCache.current.clear();
+      setCanRetryArtworkUploads(false);
       shopify.toast.show("Product created");
 
       try {
@@ -78,5 +111,8 @@ export function useCustomizePublish({
   return {
     fetcher,
     handleSubmit,
+    isPreparing,
+    artworkUploadProgress,
+    canRetryArtworkUploads,
   };
 }

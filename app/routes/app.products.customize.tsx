@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { useLoaderData, useSearchParams } from "react-router";
 import {
@@ -24,6 +24,7 @@ import ColorSelector from "../components/product-customize/ColorSelector";
 import ProductMeta from "../components/product-customize/ProductMeta";
 import AppHeroBanner from "../common/AppHeroBanner";
 import { useProductCustomize } from "../lib/product-customize/useProductCustomize";
+import { GENERATED_ARTWORK_NAME_PREFIX } from "../lib/product-customize/types";
 import type { MultiPlacementPreview } from "../lib/product-customize/mockup-composer";
 import {
   loadCustomizeProduct,
@@ -78,6 +79,10 @@ export default function ProductCustomize() {
   const [apiArtworkAssets, setApiArtworkAssets] = useState<
     Array<{ id: string; name: string; url: string; createdAt?: string; source?: string }>
   >([]);
+  const apiArtworkAssetsRef = useRef(apiArtworkAssets);
+  useEffect(() => {
+    apiArtworkAssetsRef.current = apiArtworkAssets;
+  }, [apiArtworkAssets]);
   const [isLoadingArtwork, setIsLoadingArtwork] = useState(false);
   const [isUploadingArtwork, setIsUploadingArtwork] = useState(false);
   const [artworkLoadError, setArtworkLoadError] = useState<string | null>(null);
@@ -159,6 +164,9 @@ export default function ProductCustomize() {
     handlePlacementChange,
     handleColorChange,
     handleAddToStore,
+    isPreparingPublish,
+    artworkUploadProgress,
+    canRetryArtworkUploads,
     setArtworkLibraryIdForPlacement,
     buildCurrentPreview,
   } = useProductCustomize({
@@ -314,44 +322,71 @@ export default function ProductCustomize() {
 
     try {
       const append = Boolean(opts?.append);
-      const nextCursor = opts?.cursor ?? "";
-      const params = new URLSearchParams({
-        limit: "60",
-        cursor: nextCursor,
-        search: artworkSearch.trim(),
-        type: artworkType,
-        sort: artworkSort,
-      });
+      const currentItems = append ? apiArtworkAssetsRef.current : [];
+      const targetCount = currentItems.length + 60;
+      const normalized: typeof apiArtworkAssets = [];
+      let cursor = opts?.cursor ?? "";
+      let nextCursor = "";
+      let hasNextPage = true;
 
-      const response = await fetch(`/app/api/artworks?${params.toString()}`);
-      const payload = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-        nextCursor?: string;
-        items?: Array<{
-          id?: string;
-          name?: string;
-          url?: string;
-          createdAt?: string;
-          source?: string;
-        }>;
-      };
+      while (hasNextPage) {
+        const params = new URLSearchParams({
+          limit: "60",
+          cursor,
+          search: artworkSearch.trim(),
+          type: artworkType,
+          sort: artworkSort,
+        });
 
-      if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error || "Unable to load artwork library");
+        const response = await fetch(`/app/api/artworks?${params.toString()}`);
+        const payload = (await response.json()) as {
+          ok?: boolean;
+          error?: string;
+          nextCursor?: string;
+          items?: Array<{
+            id?: string;
+            name?: string;
+            url?: string;
+            createdAt?: string;
+            source?: string;
+          }>;
+        };
+
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error || "Unable to load artwork library");
+        }
+
+        const rows = Array.isArray(payload.items) ? payload.items : [];
+        normalized.push(
+          ...rows
+            .filter(
+              (row) =>
+                typeof row?.id === "string" &&
+                typeof row?.url === "string" &&
+                !String(row.name ?? "").startsWith(GENERATED_ARTWORK_NAME_PREFIX)
+            )
+            .map((row) => ({
+              id: row.id as string,
+              name: typeof row.name === "string" && row.name.trim() ? row.name : "Artwork",
+              url: row.url as string,
+              createdAt: typeof row.createdAt === "string" ? row.createdAt : undefined,
+              source: typeof row.source === "string" ? row.source : undefined,
+            }))
+        );
+
+        nextCursor = typeof payload.nextCursor === "string" ? payload.nextCursor : "";
+        if (
+          !nextCursor ||
+          currentItems.length + normalized.length >= targetCount
+        ) {
+          hasNextPage = false;
+          continue;
+        }
+        if (nextCursor === cursor) {
+          throw new Error("Artwork library pagination did not advance.");
+        }
+        cursor = nextCursor;
       }
-
-      const rows = Array.isArray(payload.items) ? payload.items : [];
-
-      const normalized = rows
-        .filter((row) => typeof row?.id === "string" && typeof row?.url === "string")
-        .map((row) => ({
-          id: row.id as string,
-          name: typeof row.name === "string" && row.name.trim() ? row.name : "Artwork",
-          url: row.url as string,
-          createdAt: typeof row.createdAt === "string" ? row.createdAt : undefined,
-          source: typeof row.source === "string" ? row.source : undefined,
-        }));
 
       setApiArtworkAssets((prev) => {
         if (!append) return normalized;
@@ -360,9 +395,8 @@ export default function ProductCustomize() {
         merged.forEach((item) => deduped.set(item.id, item));
         return Array.from(deduped.values());
       });
-      const next = typeof payload.nextCursor === "string" ? payload.nextCursor : "";
-      setArtworkCursor(next);
-      setHasMoreArtwork(Boolean(next));
+      setArtworkCursor(nextCursor);
+      setHasMoreArtwork(Boolean(nextCursor));
     } catch (error) {
       setArtworkLoadError(error instanceof Error ? error.message : "Failed to load artwork");
       if (!opts?.append) {
@@ -811,7 +845,7 @@ export default function ProductCustomize() {
                   <button
                     type="button"
                     onClick={handleAddToStore}
-                    disabled={fetcher.state !== "idle"}
+                    disabled={fetcher.state !== "idle" || isPreparingPublish}
                     style={{
                       borderRadius: 10,
                       border: "1px solid transparent",
@@ -820,20 +854,31 @@ export default function ProductCustomize() {
                       padding: "0 14px",
                       fontSize: 13,
                       fontWeight: 700,
-                      cursor: fetcher.state !== "idle" ? "not-allowed" : "pointer",
+                      cursor:
+                        fetcher.state !== "idle" || isPreparingPublish
+                          ? "not-allowed"
+                          : "pointer",
                       transition: "all 180ms ease",
                       background:
-                        fetcher.state !== "idle"
+                        fetcher.state !== "idle" || isPreparingPublish
                           ? "#cbd5e1"
                           : brandPrimaryButtonBg,
                       color: "#ffffff",
                       boxShadow:
-                        fetcher.state !== "idle"
+                        fetcher.state !== "idle" || isPreparingPublish
                           ? "none"
                           : brandPrimaryCtaShadow,
                     }}
                   >
-                    {fetcher.state !== "idle" ? "Adding..." : "Add to Store"}
+                    {fetcher.state !== "idle"
+                      ? "Adding..."
+                      : isPreparingPublish
+                        ? artworkUploadProgress
+                          ? `${canRetryArtworkUploads ? "Retrying" : "Uploading"} artwork ${artworkUploadProgress.completed}/${artworkUploadProgress.total}...`
+                          : "Preparing artwork..."
+                        : canRetryArtworkUploads
+                          ? "Retry uploads & Add to Store"
+                          : "Add to Store"}
                   </button>
                 </BlockStack>
               </div>

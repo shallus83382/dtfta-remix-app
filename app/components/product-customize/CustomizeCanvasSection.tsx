@@ -127,7 +127,7 @@ export default function CustomizeCanvasSection({
         >
           {backgroundImageUrl ? (
             <DesignCanvas
-              key={`${placement}-${selectedColor ?? "default"}`}
+              key={placement}
               label={selectedPrintArea.title}
               fillWidth
               showInlineActions={false}
