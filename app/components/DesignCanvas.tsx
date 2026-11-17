@@ -1,13 +1,14 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import { Select, InlineStack, useMediaQuery } from "@shopify/polaris";
 import { brandColors } from "../lib/brand-theme";
-import type { Canvas, FabricObject, Rect } from "fabric";
+import type { Canvas, FabricImage as FabricImageObject, FabricObject, Rect } from "fabric";
 import {
   computeDesignLayerSummaries,
   ensureDesignLayerId,
   type DesignLayerSummary,
 } from "../lib/product-customize/design-layer-summary";
 import { designRegionToPixelRect, DESIGN_REGION_EDGE_BLEED_PX } from "../lib/product-customize/design-region-pixel-rect";
+import { removeSolidBackground } from "../lib/product-customize/remove-solid-background.client";
 
 export type { DesignLayerSummary };
 
@@ -174,6 +175,42 @@ function isFabricCanvasObject(value: unknown): value is FabricObject {
   return !!value && typeof value === "object" && "setCoords" in value && "set" in value;
 }
 
+type BackgroundRemovalData = {
+  originalSrc?: string;
+  processedSrc?: string;
+  status?: "preview" | "applied" | "restored";
+};
+
+type FabricImageWithRemovalData = FabricImageObject & {
+  data?: Record<string, unknown> & {
+    backgroundRemoval?: BackgroundRemovalData;
+  };
+};
+
+function isRemovableFabricImage(value: FabricObject | undefined): value is FabricImageWithRemovalData {
+  return Boolean(
+    value &&
+      value.type === "image" &&
+      "getSrc" in value &&
+      "setElement" in value &&
+      "getElement" in value
+  );
+}
+
+function readBackgroundRemovalData(image: FabricImageWithRemovalData): BackgroundRemovalData {
+  return image.data?.backgroundRemoval ?? {};
+}
+
+function writeBackgroundRemovalData(
+  image: FabricImageWithRemovalData,
+  removal: BackgroundRemovalData
+) {
+  image.data = {
+    ...(image.data ?? {}),
+    backgroundRemoval: removal,
+  };
+}
+
 function configureProportionalResizeControls(
   obj: FabricObject,
   scalingEqually: typeof import("fabric").controlsUtils.scalingEqually
@@ -236,6 +273,18 @@ export default function DesignCanvas({
   const [canvasReadyTick, setCanvasReadyTick] = useState(0);
   const [textColor, setTextColor] = useState(DEFAULT_TEXT_COLOR);
   const [fontFamily, setFontFamily] = useState(DEFAULT_FONT_FAMILY);
+  const [selectedImage, setSelectedImage] = useState<FabricImageWithRemovalData | null>(null);
+  const [removingBackgroundFor, setRemovingBackgroundFor] =
+    useState<FabricImageWithRemovalData | null>(null);
+  const [backgroundOperation, setBackgroundOperation] = useState<
+    "remove" | "restore" | null
+  >(null);
+  const [, setImageRemovalRevision] = useState(0);
+  const [backgroundRemovalError, setBackgroundRemovalError] = useState<{
+    image: FabricImageWithRemovalData;
+    message: string;
+    action: "remove" | "restore";
+  } | null>(null);
 
   const region = designableRegion ?? DEFAULT_REGION;
   const isNarrowToolbar = useMediaQuery("(max-width: 560px)");
@@ -492,6 +541,13 @@ export default function DesignCanvas({
       };
 
       const bumpDesignLayers = () => scheduleDesignLayersEmitRef.current();
+      const updateSelectedImage = () => {
+        const activeObject = fabricCanvas.getActiveObject();
+        setSelectedImage(
+          isRemovableFabricImage(activeObject) ? activeObject : null
+        );
+        setBackgroundRemovalError(null);
+      };
 
       const onMovingWithLayers = (e: { target?: FabricObject }) => {
         onMoving(e);
@@ -512,6 +568,9 @@ export default function DesignCanvas({
       fabricCanvas.on("selection:created", bumpDesignLayers);
       fabricCanvas.on("selection:updated", bumpDesignLayers);
       fabricCanvas.on("selection:cleared", bumpDesignLayers);
+      fabricCanvas.on("selection:created", updateSelectedImage);
+      fabricCanvas.on("selection:updated", updateSelectedImage);
+      fabricCanvas.on("selection:cleared", updateSelectedImage);
 
       cleanupListeners = () => {
         fabricCanvas.off("object:moving", onMovingWithLayers);
@@ -523,6 +582,9 @@ export default function DesignCanvas({
         fabricCanvas.off("selection:created", bumpDesignLayers);
         fabricCanvas.off("selection:updated", bumpDesignLayers);
         fabricCanvas.off("selection:cleared", bumpDesignLayers);
+        fabricCanvas.off("selection:created", updateSelectedImage);
+        fabricCanvas.off("selection:updated", updateSelectedImage);
+        fabricCanvas.off("selection:cleared", updateSelectedImage);
       };
 
       fabricCanvas.requestRenderAll();
@@ -1032,6 +1094,9 @@ export default function DesignCanvas({
           img = await fabric.FabricImage.fromURL(imageSource, {
             crossOrigin: "anonymous",
           });
+          if (isRemovableFabricImage(img)) {
+            writeBackgroundRemovalData(img, { originalSrc: imageSource });
+          }
         }
 
         if (!img || !canvasRef.current || !regionRectRef.current) return;
@@ -1104,6 +1169,114 @@ export default function DesignCanvas({
       handleAddImageFromSource(url, options),
     [handleAddImageFromSource]
   );
+
+  const replaceImageSource = useCallback(
+    async (
+      image: FabricImageWithRemovalData,
+      source: string,
+      status: BackgroundRemovalData["status"]
+    ) => {
+      const fabric = await import("fabric");
+      const replacement = await fabric.FabricImage.fromURL(source, {
+        crossOrigin: "anonymous",
+      });
+      const originalWidth = image.width ?? replacement.width ?? 1;
+      const originalHeight = image.height ?? replacement.height ?? 1;
+      image.setElement(replacement.getElement(), {
+        width: originalWidth,
+        height: originalHeight,
+      });
+      const removal = readBackgroundRemovalData(image);
+      writeBackgroundRemovalData(image, { ...removal, status });
+      image.setCoords();
+      canvasRef.current?.requestRenderAll();
+      scheduleDesignLayersEmitRef.current();
+    },
+    []
+  );
+
+  const handleRemoveBackground = useCallback(async () => {
+    if (!selectedImage || removingBackgroundFor) return;
+
+    const image = selectedImage;
+    setRemovingBackgroundFor(image);
+    setBackgroundOperation("remove");
+    setBackgroundRemovalError(null);
+
+    try {
+      const removal = readBackgroundRemovalData(image);
+      const originalSrc = removal.originalSrc ?? image.getSrc();
+      const response = await fetch(originalSrc);
+      if (!response.ok) {
+        throw new Error("Could not load the original image. Try again.");
+      }
+      const transparentPng = await removeSolidBackground(await response.blob());
+      const processedSrc = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") resolve(reader.result);
+          else reject(new Error("Could not prepare the transparent image."));
+        };
+        reader.onerror = () =>
+          reject(reader.error ?? new Error("Could not prepare the transparent image."));
+        reader.readAsDataURL(transparentPng);
+      });
+
+      await replaceImageSource(image, processedSrc, "preview");
+      writeBackgroundRemovalData(image, {
+        originalSrc,
+        processedSrc,
+        status: "preview",
+      });
+    } catch (error) {
+      setBackgroundRemovalError({
+        image,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not remove the background. Try again.",
+        action: "remove",
+      });
+    } finally {
+      setRemovingBackgroundFor((current) => (current === image ? null : current));
+      setBackgroundOperation(null);
+    }
+  }, [selectedImage, removingBackgroundFor, replaceImageSource]);
+
+  const handleApplyBackgroundRemoval = useCallback(() => {
+    if (!selectedImage) return;
+    const removal = readBackgroundRemovalData(selectedImage);
+    if (!removal.processedSrc) return;
+    writeBackgroundRemovalData(selectedImage, { ...removal, status: "applied" });
+    setImageRemovalRevision((revision) => revision + 1);
+    canvasRef.current?.requestRenderAll();
+  }, [selectedImage]);
+
+  const handleRestoreOriginalImage = useCallback(async () => {
+    if (!selectedImage || removingBackgroundFor) return;
+    const image = selectedImage;
+    const removal = readBackgroundRemovalData(image);
+    if (!removal.originalSrc) return;
+
+    setRemovingBackgroundFor(image);
+    setBackgroundOperation("restore");
+    setBackgroundRemovalError(null);
+    try {
+      await replaceImageSource(image, removal.originalSrc, "restored");
+    } catch (error) {
+      setBackgroundRemovalError({
+        image,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not restore the original image. Try again.",
+        action: "restore",
+      });
+    } finally {
+      setRemovingBackgroundFor((current) => (current === image ? null : current));
+      setBackgroundOperation(null);
+    }
+  }, [selectedImage, removingBackgroundFor, replaceImageSource]);
 
   const handleClear = useCallback(() => {
     if (!canvasRef.current) return;
@@ -1359,6 +1532,89 @@ export default function DesignCanvas({
           <button type="button" onClick={handleClear} style={actionButtonStyle}>
             Clear
           </button>
+        </div>
+      ) : null}
+
+      {selectedImage ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            marginTop: 10,
+            padding: "10px 12px",
+            border: "1px solid #dbe3ec",
+            borderRadius: 10,
+            background: "#f8fafc",
+          }}
+        >
+          {removingBackgroundFor === selectedImage ? (
+            <span role="status" style={{ fontSize: 12, color: brandColors.textSubtle }}>
+              {backgroundOperation === "restore"
+                ? "Restoring original image..."
+                : "Removing background..."}
+            </span>
+          ) : backgroundRemovalError?.image === selectedImage ? (
+            <>
+              <span role="alert" style={{ fontSize: 12, color: "#b42318" }}>
+                {backgroundRemovalError.message}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  void (backgroundRemovalError.action === "restore"
+                    ? handleRestoreOriginalImage()
+                    : handleRemoveBackground())
+                }
+                style={actionButtonStyle}
+              >
+                Retry
+              </button>
+            </>
+          ) : readBackgroundRemovalData(selectedImage).status === "preview" ? (
+            <>
+              <span style={{ fontSize: 12, color: brandColors.textSubtle }}>
+                Previewing the transparent result on the shirt.
+              </span>
+              <button
+                type="button"
+                onClick={handleApplyBackgroundRemoval}
+                style={actionButtonStyle}
+              >
+                Apply
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleRestoreOriginalImage()}
+                style={actionButtonStyle}
+              >
+                Restore original
+              </button>
+            </>
+          ) : readBackgroundRemovalData(selectedImage).status === "applied" ? (
+            <>
+              <span style={{ fontSize: 12, color: brandColors.textSubtle }}>
+                Background removed.
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleRestoreOriginalImage()}
+                style={actionButtonStyle}
+              >
+                Restore original
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleRemoveBackground()}
+              style={actionButtonStyle}
+              disabled={Boolean(removingBackgroundFor)}
+            >
+              Remove Background
+            </button>
+          )}
         </div>
       ) : null}
 
