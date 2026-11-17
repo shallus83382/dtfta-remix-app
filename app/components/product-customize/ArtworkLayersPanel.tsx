@@ -50,7 +50,9 @@ export default function ArtworkLayersPanel({
         <Text as="h3" variant="headingSm">
           Artwork on print area
         </Text>
-        <Badge tone="info">{layers.length} layer{layers.length === 1 ? "" : "s"}</Badge>
+        <Badge tone="info">
+          {`${layers.length} layer${layers.length === 1 ? "" : "s"}`}
+        </Badge>
       </InlineStack>
 
       <div style={{ marginTop: 6, marginBottom: 10 }}>

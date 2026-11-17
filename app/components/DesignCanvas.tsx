@@ -174,8 +174,17 @@ function isFabricCanvasObject(value: unknown): value is FabricObject {
   return !!value && typeof value === "object" && "setCoords" in value && "set" in value;
 }
 
-function lockArtworkResizeAspectRatio(obj: FabricObject) {
-  obj.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
+function configureProportionalResizeControls(
+  obj: FabricObject,
+  scalingEqually: typeof import("fabric").controlsUtils.scalingEqually
+) {
+  obj.setControlsVisibility({ mt: true, mb: true, ml: true, mr: true });
+
+  // Fabric's default edge handlers scale only one axis; use its uniform handler instead.
+  obj.controls.mt.actionHandler = scalingEqually;
+  obj.controls.mb.actionHandler = scalingEqually;
+  obj.controls.ml.actionHandler = scalingEqually;
+  obj.controls.mr.actionHandler = scalingEqually;
 }
 
 export default function DesignCanvas({
@@ -731,7 +740,10 @@ export default function DesignCanvas({
         fabricObjects.forEach((obj) => {
           currentCanvas.add(obj);
           ensureDesignLayerId(obj);
-          lockArtworkResizeAspectRatio(obj);
+          configureProportionalResizeControls(
+            obj,
+            fabric.controlsUtils.scalingEqually
+          );
 
           const cw = currentCanvas.getWidth?.() ?? CANVAS_SIZE;
           const ch = currentCanvas.getHeight?.() ?? CANVAS_SIZE;
@@ -979,7 +991,10 @@ export default function DesignCanvas({
 
       canvas.add(text);
       ensureDesignLayerId(text);
-      lockArtworkResizeAspectRatio(text);
+      configureProportionalResizeControls(
+        text,
+        fabric.controlsUtils.scalingEqually
+      );
       text.setCoords();
 
       constrainScaleToRegion(text);
@@ -1061,7 +1076,10 @@ export default function DesignCanvas({
 
         canvas.add(img);
         ensureDesignLayerId(img);
-        lockArtworkResizeAspectRatio(img);
+        configureProportionalResizeControls(
+          img,
+          fabric.controlsUtils.scalingEqually
+        );
         img.setCoords();
 
         constrainScaleToRegion(img);
