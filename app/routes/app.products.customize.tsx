@@ -917,6 +917,7 @@ export default function ProductCustomize() {
                       <div style={{ marginTop: 2 }}>
                         <TextField
                           label="Customer retail price"
+                          helpText={`Applied to every color in size ${selectedSize || "selected"}.`}
                           type="number"
                           value={retailPrice}
                           prefix={costBreakdown.currency === "USD" ? "$" : undefined}
