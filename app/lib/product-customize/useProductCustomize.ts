@@ -26,6 +26,8 @@ type UseProductCustomizeArgs = {
   variants: DtftaVariant[];
   colorMockups?: DtftaColorMockups;
   defaultColor?: string;
+  selectedSize?: string;
+  retailPrice?: string;
 };
 
 export function useProductCustomize({
@@ -36,6 +38,8 @@ export function useProductCustomize({
   variants,
   colorMockups,
   defaultColor = "",
+  selectedSize = "",
+  retailPrice = "",
 }: UseProductCustomizeArgs) {
   const designAssetOptions = useMemo(
     () => ({ colorMockups: colorMockups ?? null }),
@@ -116,6 +120,8 @@ export function useProductCustomize({
       printSizes: editor.printSizes,
       regions: editor.regions,
       selectedColor,
+      selectedSize,
+      retailPrice,
       variants,
       colorMockups,
     });
@@ -131,6 +137,8 @@ export function useProductCustomize({
     productId,
     printAreas,
     selectedColor,
+    selectedSize,
+    retailPrice,
     variants,
     editor.placement,
     editor.canvases,

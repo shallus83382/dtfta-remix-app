@@ -14,6 +14,7 @@ import {
   DropZone,
   Thumbnail,
   Scrollable,
+  TextField,
   useMediaQuery,
 } from "@shopify/polaris";
 import translations from "@shopify/polaris/locales/en.json";
@@ -87,6 +88,9 @@ export default function ProductCustomize() {
   const [artworkSort, setArtworkSort] = useState<"recent" | "name_asc" | "name_desc">("recent");
   const [artworkSearch, setArtworkSearch] = useState("");
   const [designLayers, setDesignLayers] = useState<DesignLayerSummary[]>([]);
+  const [selectedSize, setSelectedSize] = useState("");
+  const [retailPrice, setRetailPrice] = useState("");
+  const [retailPriceTouched, setRetailPriceTouched] = useState(false);
 
   const loaderData = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
@@ -169,6 +173,8 @@ export default function ProductCustomize() {
     variants: product?.variants ?? [],
     colorMockups: product?.color_mockups,
     defaultColor: product?.variants?.[0]?.colorCode ?? "",
+    selectedSize,
+    retailPrice,
   });
 
   const selectedColorVariantPrices = useMemo(() => {
@@ -219,6 +225,85 @@ export default function ProductCustomize() {
       })
       .filter((item): item is { title: string; priceLabel: string } => item !== null);
   }, [printAreas, product?.currency]);
+
+  const selectedSizeVariants = useMemo(() => {
+    if (!selectedColor) return [];
+    return (product?.variants ?? [])
+      .filter((variant) => variant.is_active !== false && variant.colorCode === selectedColor)
+      .sort((a, b) => {
+        const sizeOrder = product?.sizes ?? [];
+        const ai = sizeOrder.indexOf(a.size);
+        const bi = sizeOrder.indexOf(b.size);
+        if (ai !== -1 && bi !== -1) return ai - bi;
+        if (ai !== -1) return -1;
+        if (bi !== -1) return 1;
+        return a.size.localeCompare(b.size);
+      });
+  }, [product?.variants, product?.sizes, selectedColor]);
+
+  useEffect(() => {
+    if (!selectedSizeVariants.length) {
+      setSelectedSize("");
+      return;
+    }
+    setSelectedSize((current) =>
+      selectedSizeVariants.some((variant) => variant.size === current)
+        ? current
+        : selectedSizeVariants[0].size
+    );
+  }, [selectedSizeVariants]);
+
+  const costBreakdown = useMemo(() => {
+    const currency = product?.currency ?? "USD";
+    const variants = (product?.variants ?? []).filter(
+      (variant) => variant.is_active !== false
+    );
+    const pricedVariants = variants
+      .map((variant) => parseVariantPrice(variant.price))
+      .filter((price): price is number => price !== null);
+    const selectedVariant = selectedSizeVariants.find(
+      (variant) => variant.size === selectedSize
+    );
+    const selectedVariantPrice =
+      parseVariantPrice(selectedVariant?.price) ??
+      parseVariantPrice(product?.price) ??
+      (pricedVariants.length ? Math.min(...pricedVariants) : null);
+
+    const basePrice =
+      parseVariantPrice(product?.price) ??
+      (pricedVariants.length ? Math.min(...pricedVariants) : selectedVariantPrice);
+    const variantSurcharge =
+      selectedVariantPrice !== null && basePrice !== null
+        ? Math.max(0, selectedVariantPrice - basePrice)
+        : 0;
+    const placementCosts = printAreas.map((area) => {
+      const charge = parseVariantPrice(area.price) ?? 0;
+      return {
+        title: area.title,
+        charge,
+        label: charge > 0 ? formatVariantPrice(charge, currency) : "Included",
+      };
+    });
+    const printTotal = placementCosts.reduce((sum, item) => sum + item.charge, 0);
+    const totalStoreCost =
+      selectedVariantPrice !== null ? selectedVariantPrice + printTotal : null;
+
+    return {
+      basePrice,
+      variantSurcharge,
+      selectedVariantPrice,
+      placementCosts,
+      printTotal,
+      totalStoreCost,
+      currency,
+    };
+  }, [product?.price, product?.variants, product?.currency, selectedSizeVariants, selectedSize, printAreas]);
+
+  useEffect(() => {
+    if (retailPriceTouched) return;
+    if (costBreakdown.selectedVariantPrice === null) return;
+    setRetailPrice(costBreakdown.selectedVariantPrice.toFixed(2));
+  }, [costBreakdown.selectedVariantPrice, retailPriceTouched]);
 
   useEffect(() => {
     setDesignLayers([]);
@@ -712,8 +797,47 @@ export default function ProductCustomize() {
 
                   <div>
                     <InlineStack align="space-between" blockAlign="center">
-                      <Text as="p" fontWeight="semibold">Choose Color</Text>
+                      <Text as="p" fontWeight="semibold">Choose Size</Text>
                       <Badge tone="info">Step 1</Badge>
+                    </InlineStack>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                      {selectedSizeVariants.map((variant) => {
+                        const isSelected = selectedSize === variant.size;
+                        return (
+                          <button
+                            type="button"
+                            key={`${variant.colorCode}-${variant.size}`}
+                            onClick={() => setSelectedSize(variant.size)}
+                            style={{
+                              minWidth: 44,
+                              height: 34,
+                              borderRadius: 8,
+                              border: isSelected
+                                ? "1px solid transparent"
+                                : "1px solid #cbd5e1",
+                              background: isSelected
+                                ? brandPrimaryButtonBg
+                                : "#ffffff",
+                              color: isSelected ? "#ffffff" : brandColors.text,
+                              boxShadow: isSelected
+                                ? brandPrimaryCtaShadow
+                                : "0 1px 3px rgba(15,23,42,0.08)",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {variant.size}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="p" fontWeight="semibold">Choose Color</Text>
+                      <Badge tone="info">Step 2</Badge>
                     </InlineStack>
                     <div style={{ marginTop: 8 }}>
                       <ColorSelector
@@ -721,6 +845,89 @@ export default function ProductCustomize() {
                         selectedColor={selectedColor}
                         onChange={handleColorChange}
                       />
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      borderRadius: 12,
+                      border: "1px solid #dbe3ec",
+                      background: "rgba(255,255,255,0.92)",
+                      padding: 12,
+                    }}
+                  >
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text as="h3" variant="headingSm">Cost breakdown</Text>
+                      <Badge tone="info">
+                        {`${selectedSize || "Size"} / ${selectedColor || "Color"}`}
+                      </Badge>
+                    </InlineStack>
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: 8,
+                        marginTop: 10,
+                        paddingTop: 10,
+                        borderTop: "1px solid #e5e7eb",
+                      }}
+                    >
+                      <InlineStack align="space-between" blockAlign="center">
+                        <Text as="p" variant="bodySm" tone="subdued">Base shirt cost</Text>
+                        <Text as="p" variant="bodySm" fontWeight="semibold">
+                          {costBreakdown.basePrice === null
+                            ? "Unavailable"
+                            : formatVariantPrice(costBreakdown.basePrice, costBreakdown.currency)}
+                        </Text>
+                      </InlineStack>
+                      <InlineStack align="space-between" blockAlign="center">
+                        <Text as="p" variant="bodySm" tone="subdued">Variant surcharge</Text>
+                        <Text as="p" variant="bodySm" fontWeight="semibold">
+                          {costBreakdown.variantSurcharge > 0
+                            ? formatVariantPrice(costBreakdown.variantSurcharge, costBreakdown.currency)
+                            : "Included"}
+                        </Text>
+                      </InlineStack>
+
+                      {costBreakdown.placementCosts.map((placementCost) => (
+                        <InlineStack
+                          key={placementCost.title}
+                          align="space-between"
+                          blockAlign="center"
+                        >
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {placementCost.title} print
+                          </Text>
+                          <Text as="p" variant="bodySm" fontWeight="semibold">
+                            {placementCost.label}
+                          </Text>
+                        </InlineStack>
+                      ))}
+
+                      <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text as="p" fontWeight="semibold">Total store cost</Text>
+                          <Text as="p" fontWeight="bold">
+                            {costBreakdown.totalStoreCost === null
+                              ? "Unavailable"
+                              : formatVariantPrice(costBreakdown.totalStoreCost, costBreakdown.currency)}
+                          </Text>
+                        </InlineStack>
+                      </div>
+
+                      <div style={{ marginTop: 2 }}>
+                        <TextField
+                          label="Customer retail price"
+                          type="number"
+                          value={retailPrice}
+                          prefix={costBreakdown.currency === "USD" ? "$" : undefined}
+                          onChange={(value) => {
+                            setRetailPriceTouched(true);
+                            setRetailPrice(value);
+                          }}
+                          autoComplete="off"
+                          monospaced
+                        />
+                      </div>
                     </div>
                   </div>
 

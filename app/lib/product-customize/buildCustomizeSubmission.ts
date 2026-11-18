@@ -91,6 +91,8 @@ type BuildCustomizeSubmissionArgs = {
   selectedColor: string;
   variants: DtftaVariant[];
   colorMockups?: DtftaColorMockups;
+  selectedSize?: string;
+  retailPrice?: string;
 };
 
 type BuildCustomizeSubmissionResult =
@@ -183,6 +185,8 @@ export async function buildCustomizeSubmission({
   selectedColor,
   variants,
   colorMockups,
+  selectedSize,
+  retailPrice,
 }: BuildCustomizeSubmissionArgs): Promise<BuildCustomizeSubmissionResult> {
   const designAssetOptions: ProductDesignAssetOptions = {
     colorMockups: colorMockups ?? null,
@@ -306,6 +310,8 @@ export async function buildCustomizeSubmission({
 
   formData.set("printableAreas", JSON.stringify(printableAreasPayload));
   formData.set("selectedColor", selectedColor || "");
+  formData.set("selectedSize", selectedSize || "");
+  formData.set("retailPrice", retailPrice || "");
   formData.set("artworkUrls", JSON.stringify(artworkUrls));
 
   return {

@@ -163,6 +163,8 @@ export async function publishCustomizeProduct({
   const artworkUrlsRaw = String(formData.get("artworkUrls") || "{}");
 
   const selectedColor = String(formData.get("selectedColor") || "");
+  const selectedSize = String(formData.get("selectedSize") || "");
+  const retailPrice = String(formData.get("retailPrice") || "");
 
   if (!productKey.trim()) {
     return { ok: false, error: "Missing product key" };
@@ -201,6 +203,8 @@ export async function publishCustomizeProduct({
     printableAreas: printableAreasWithoutArtwork,
     selectedColor,
     selectedColorName: "",
+    selectedSize,
+    retailPrice,
     selectedVariantId: "",
     selectedVariantSku: "",
   };
