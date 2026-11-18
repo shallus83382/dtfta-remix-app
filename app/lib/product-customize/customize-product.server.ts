@@ -9,6 +9,7 @@ import type {
   PrintableAreaPayload,
   ProductWithApiFields,
   ArtworkUrlPayload,
+  VariantRetailPrice,
 } from "./types";
 
 export async function loadCustomizeProduct({ request }: LoaderFunctionArgs) {
@@ -103,6 +104,26 @@ function parsePrintableAreas(raw: string): PrintableAreaPayload[] {
   return parsed;
 }
 
+function parseVariantRetailPrices(raw: string): VariantRetailPrice[] {
+  const parsed: unknown = JSON.parse(raw);
+  if (!Array.isArray(parsed)) {
+    throw new Error("Invalid variantPrices payload");
+  }
+
+  return parsed.map((item): VariantRetailPrice => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new Error("Invalid variantPrices entry");
+    }
+
+    const entry = item as Record<string, unknown>;
+    if (typeof entry.sku !== "string" || typeof entry.price !== "string") {
+      throw new Error("Each variant price requires a SKU and price");
+    }
+
+    return { sku: entry.sku, price: entry.price };
+  });
+}
+
 function attachArtworkToPrintableAreas({
   printableAreas,
   flatArtworkUrls,
@@ -161,10 +182,9 @@ export async function publishCustomizeProduct({
   const printPlan = String(formData.get("printPlan") || "");
   const printableAreasRaw = String(formData.get("printableAreas") || "[]");
   const artworkUrlsRaw = String(formData.get("artworkUrls") || "{}");
+  const variantPricesRaw = formData.get("variantPrices");
 
   const selectedColor = String(formData.get("selectedColor") || "");
-  const selectedSize = String(formData.get("selectedSize") || "");
-  const retailPrice = String(formData.get("retailPrice") || "");
 
   if (!productKey.trim()) {
     return { ok: false, error: "Missing product key" };
@@ -174,9 +194,13 @@ export async function publishCustomizeProduct({
 
   let printableAreas: PrintableAreaPayload[] = [];
   let artworkUrlsPayload: Record<string, ArtworkUrlPayload> = {};
+  let variantPrices: VariantRetailPrice[] | undefined;
   try {
     printableAreas = parsePrintableAreas(printableAreasRaw);
     artworkUrlsPayload = parseArtworkUrlsPayload(artworkUrlsRaw);
+    if (typeof variantPricesRaw === "string") {
+      variantPrices = parseVariantRetailPrices(variantPricesRaw);
+    }
   } catch (error) {
     return {
       ok: false,
@@ -203,8 +227,7 @@ export async function publishCustomizeProduct({
     printableAreas: printableAreasWithoutArtwork,
     selectedColor,
     selectedColorName: "",
-    selectedSize,
-    retailPrice,
+    ...(variantPrices !== undefined ? { variantPrices } : {}),
     selectedVariantId: "",
     selectedVariantSku: "",
   };
@@ -247,6 +270,7 @@ export async function publishCustomizeProduct({
     return {
       ok: true,
       productId: data?.data?.shopify?.product?.id ?? "",
+      productKey,
       handle: data?.handle,
     };
   } catch (error) {

@@ -17,6 +17,7 @@ import {
 } from "./mockup-composer";
 import { getRegionFromPrintArea, normalizePlacementKey } from "./helpers";
 import { getPrintAreaBackgroundImageUrlForFabric } from "../design-assets";
+import type { VariantRetailPrice } from "./types";
 
 type UseProductCustomizeArgs = {
   productKey: string;
@@ -26,8 +27,7 @@ type UseProductCustomizeArgs = {
   variants: DtftaVariant[];
   colorMockups?: DtftaColorMockups;
   defaultColor?: string;
-  selectedSize?: string;
-  retailPrice?: string;
+  variantPrices: VariantRetailPrice[];
 };
 
 export function useProductCustomize({
@@ -38,8 +38,7 @@ export function useProductCustomize({
   variants,
   colorMockups,
   defaultColor = "",
-  selectedSize = "",
-  retailPrice = "",
+  variantPrices,
 }: UseProductCustomizeArgs) {
   const designAssetOptions = useMemo(
     () => ({ colorMockups: colorMockups ?? null }),
@@ -120,10 +119,9 @@ export function useProductCustomize({
       printSizes: editor.printSizes,
       regions: editor.regions,
       selectedColor,
-      selectedSize,
-      retailPrice,
       variants,
       colorMockups,
+      variantPrices,
     });
 
     if (!result.ok) {
@@ -137,8 +135,7 @@ export function useProductCustomize({
     productId,
     printAreas,
     selectedColor,
-    selectedSize,
-    retailPrice,
+    variantPrices,
     variants,
     editor.placement,
     editor.canvases,

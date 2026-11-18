@@ -12,6 +12,7 @@ import type {
   PrintableAreaPayload,
   ArtworkUrlPayload,
   ArtworkLayerMeta,
+  VariantRetailPrice,
 } from "./types";
 import type { DesignLayerSummary } from "./design-layer-summary";
 import {
@@ -91,8 +92,7 @@ type BuildCustomizeSubmissionArgs = {
   selectedColor: string;
   variants: DtftaVariant[];
   colorMockups?: DtftaColorMockups;
-  selectedSize?: string;
-  retailPrice?: string;
+  variantPrices: VariantRetailPrice[];
 };
 
 type BuildCustomizeSubmissionResult =
@@ -185,8 +185,7 @@ export async function buildCustomizeSubmission({
   selectedColor,
   variants,
   colorMockups,
-  selectedSize,
-  retailPrice,
+  variantPrices,
 }: BuildCustomizeSubmissionArgs): Promise<BuildCustomizeSubmissionResult> {
   const designAssetOptions: ProductDesignAssetOptions = {
     colorMockups: colorMockups ?? null,
@@ -310,8 +309,7 @@ export async function buildCustomizeSubmission({
 
   formData.set("printableAreas", JSON.stringify(printableAreasPayload));
   formData.set("selectedColor", selectedColor || "");
-  formData.set("selectedSize", selectedSize || "");
-  formData.set("retailPrice", retailPrice || "");
+  formData.set("variantPrices", JSON.stringify(variantPrices));
   formData.set("artworkUrls", JSON.stringify(artworkUrls));
 
   return {

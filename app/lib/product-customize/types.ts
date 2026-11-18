@@ -78,10 +78,16 @@ export type ArtworkUrlPayload = {
   };
 };
 
+export type VariantRetailPrice = {
+  sku: string;
+  price: string;
+};
+
 export type CustomizeSubmitResult =
   | {
       ok: true;
       productId: string;
+      productKey: string;
       handle?: string;
     }
   | {

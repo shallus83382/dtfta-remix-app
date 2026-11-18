@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { useLoaderData, useSearchParams } from "react-router";
 import {
@@ -51,6 +51,48 @@ export const action = async (args: ActionFunctionArgs) => {
 
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
+type VariantPriceStore = {
+  storageKey: string;
+  prices: Record<string, string>;
+};
+
+function getVariantPriceStorageKey(productKey: string): string {
+  return `dtfta:variant-retail-prices:${productKey}`;
+}
+
+function getVariantPriceKey(colorCode: string, size: string): string {
+  return JSON.stringify([
+    colorCode.trim().toLowerCase(),
+    size.trim().toLowerCase(),
+  ]);
+}
+
+function isValidRetailPrice(value: string): boolean {
+  if (!/^\d+(?:\.\d{1,2})?$/.test(value.trim())) return false;
+  const price = Number(value);
+  return Number.isFinite(price) && price >= 0 && price <= 999999.99;
+}
+
+function parseStoredVariantPrices(raw: string | null): Record<string, string> {
+  if (raw === null) return {};
+
+  const parsed: unknown = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Saved variant prices are not a valid object.");
+  }
+
+  const entries = Object.entries(parsed);
+  const prices: Record<string, string> = {};
+  for (const [key, value] of entries) {
+    if (typeof value !== "string") {
+      throw new Error("Saved variant prices contain an invalid value.");
+    }
+    prices[key] = value;
+  }
+
+  return prices;
+}
+
 export default function ProductCustomize() {
   const acceptedArtworkMimeTypes = "image/svg+xml,image/png,image/jpeg,image/jpg,image/gif,image/webp,image/avif,image/bmp,image/tiff";
   const [canvasActions, setCanvasActions] = useState<{
@@ -89,8 +131,13 @@ export default function ProductCustomize() {
   const [artworkSearch, setArtworkSearch] = useState("");
   const [designLayers, setDesignLayers] = useState<DesignLayerSummary[]>([]);
   const [selectedSize, setSelectedSize] = useState("");
-  const [retailPrice, setRetailPrice] = useState("");
-  const [retailPriceTouched, setRetailPriceTouched] = useState(false);
+  const [variantPriceStore, setVariantPriceStore] =
+    useState<VariantPriceStore | null>(null);
+  const [variantPriceStorageError, setVariantPriceStorageError] = useState<{
+    storageKey: string;
+    message: string;
+  } | null>(null);
+  const clearedPriceStorageKeys = useRef(new Set<string>());
 
   const loaderData = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
@@ -102,6 +149,42 @@ export default function ProductCustomize() {
     searchParams.get("productKey") ||
     searchParams.get("productId") ||
     "";
+  const variantPriceStorageKey = getVariantPriceStorageKey(productKey);
+  const storedVariantPrices =
+    variantPriceStore?.storageKey === variantPriceStorageKey
+      ? variantPriceStore.prices
+      : {};
+  const isVariantPriceStoreReady =
+    variantPriceStore?.storageKey === variantPriceStorageKey;
+  const currentVariantPriceStorageError =
+    variantPriceStorageError?.storageKey === variantPriceStorageKey
+      ? variantPriceStorageError.message
+      : null;
+
+  useEffect(() => {
+    try {
+      const savedPrices = parseStoredVariantPrices(
+        window.localStorage.getItem(variantPriceStorageKey)
+      );
+      setVariantPriceStore({
+        storageKey: variantPriceStorageKey,
+        prices: savedPrices,
+      });
+      setVariantPriceStorageError(null);
+    } catch (error) {
+      setVariantPriceStore({
+        storageKey: variantPriceStorageKey,
+        prices: {},
+      });
+      setVariantPriceStorageError({
+        storageKey: variantPriceStorageKey,
+        message:
+          error instanceof Error
+            ? `Could not load saved variant prices: ${error.message}`
+            : "Could not load saved variant prices from this browser.",
+      });
+    }
+  }, [variantPriceStorageKey]);
 
   const product = loaderData.product;
   const productName = loaderData.productName;
@@ -148,6 +231,39 @@ export default function ProductCustomize() {
     [product]
   );
 
+  const variantPricesForPublish = useMemo(() => {
+    const activeVariants = (product?.variants ?? []).filter(
+      (variant) => variant.is_active !== false
+    );
+    const knownPrices = activeVariants
+      .map((variant) => parseVariantPrice(variant.price))
+      .filter((price): price is number => price !== null);
+    const productPrice = parseVariantPrice(product?.price);
+    const fallbackBasePrice =
+      productPrice ?? (knownPrices.length ? Math.min(...knownPrices) : null);
+    const printTotal = printAreas.reduce(
+      (total, area) => total + (parseVariantPrice(area.price) ?? 0),
+      0
+    );
+
+    return activeVariants.flatMap((variant) => {
+      const sku = variant.sku.trim();
+      const savedPrice =
+        storedVariantPrices[getVariantPriceKey(variant.colorCode, variant.size)];
+      const variantBasePrice =
+        parseVariantPrice(variant.price) ?? fallbackBasePrice;
+      const defaultPrice =
+        variantBasePrice === null
+          ? null
+          : (variantBasePrice + printTotal).toFixed(2);
+      const price = isValidRetailPrice(savedPrice ?? "")
+        ? Number(savedPrice).toFixed(2)
+        : defaultPrice;
+
+      return sku && price !== null ? [{ sku, price }] : [];
+    });
+  }, [product?.variants, product?.price, printAreas, storedVariantPrices]);
+
   const {
     fetcher,
     placement,
@@ -173,8 +289,7 @@ export default function ProductCustomize() {
     variants: product?.variants ?? [],
     colorMockups: product?.color_mockups,
     defaultColor: product?.variants?.[0]?.colorCode ?? "",
-    selectedSize,
-    retailPrice,
+    variantPrices: variantPricesForPublish,
   });
 
   const selectedColorVariantPrices = useMemo(() => {
@@ -299,15 +414,90 @@ export default function ProductCustomize() {
     };
   }, [product?.price, product?.variants, product?.currency, selectedSizeVariants, selectedSize, printAreas]);
 
-  useEffect(() => {
-    if (retailPriceTouched) return;
-    if (costBreakdown.selectedVariantPrice === null) return;
-    setRetailPrice(costBreakdown.selectedVariantPrice.toFixed(2));
-  }, [costBreakdown.selectedVariantPrice, retailPriceTouched]);
+  const selectedVariantPriceKey = getVariantPriceKey(selectedColor, selectedSize);
+  const selectedRetailPrice = Object.prototype.hasOwnProperty.call(
+    storedVariantPrices,
+    selectedVariantPriceKey
+  )
+    ? storedVariantPrices[selectedVariantPriceKey]
+    : costBreakdown.totalStoreCost?.toFixed(2) ?? "";
+
+  const handleRetailPriceChange = useCallback(
+    (value: string) => {
+      const nextPrices = {
+        ...storedVariantPrices,
+        [selectedVariantPriceKey]: value,
+      };
+      setVariantPriceStore({
+        storageKey: variantPriceStorageKey,
+        prices: nextPrices,
+      });
+
+      try {
+        window.localStorage.setItem(
+          variantPriceStorageKey,
+          JSON.stringify(nextPrices)
+        );
+        setVariantPriceStorageError(null);
+      } catch {
+        setVariantPriceStorageError({
+          storageKey: variantPriceStorageKey,
+          message: "Could not save this retail price in this browser.",
+        });
+      }
+    },
+    [
+      storedVariantPrices,
+      selectedVariantPriceKey,
+      variantPriceStorageKey,
+    ]
+  );
 
   useEffect(() => {
     setDesignLayers([]);
   }, [placement]);
+
+  useEffect(() => {
+    const result = fetcher.data;
+    const savedProductKey = result?.ok ? result.productKey : "";
+    const cleanupId = result?.ok
+      ? `${savedProductKey}:${result.productId}`
+      : "";
+    if (
+      !savedProductKey ||
+      clearedPriceStorageKeys.current.has(cleanupId)
+    ) {
+      return;
+    }
+
+    const savedProductStorageKey = getVariantPriceStorageKey(savedProductKey);
+    try {
+      window.localStorage.removeItem(savedProductStorageKey);
+      if (savedProductStorageKey === variantPriceStorageKey) {
+        setVariantPriceStore({
+          storageKey: savedProductStorageKey,
+          prices: {},
+        });
+      }
+      setVariantPriceStorageError(null);
+    } catch {
+      setVariantPriceStorageError({
+        storageKey: savedProductStorageKey,
+        message:
+          "Product was added, but saved variant prices could not be cleared from this browser.",
+      });
+    }
+    clearedPriceStorageKeys.current.add(cleanupId);
+  }, [fetcher.data, variantPriceStorageKey]);
+
+  const activeVariantCount = (product?.variants ?? []).filter(
+    (variant) => variant.is_active !== false
+  ).length;
+  const isAddToStoreDisabled =
+    fetcher.state !== "idle" ||
+    !isVariantPriceStoreReady ||
+    !isValidRetailPrice(selectedRetailPrice) ||
+    variantPricesForPublish.length !== activeVariantCount;
 
   const handleLibraryArtworkBindingChange = useCallback(
     (libraryArtworkId: string | null) => {
@@ -917,17 +1107,26 @@ export default function ProductCustomize() {
                       <div style={{ marginTop: 2 }}>
                         <TextField
                           label="Customer retail price"
-                          helpText={`Applied to every color in size ${selectedSize || "selected"}.`}
+                          helpText="Saved for this color and size in this browser."
                           type="number"
-                          value={retailPrice}
+                          value={selectedRetailPrice}
                           prefix={costBreakdown.currency === "USD" ? "$" : undefined}
-                          onChange={(value) => {
-                            setRetailPriceTouched(true);
-                            setRetailPrice(value);
-                          }}
+                          onChange={handleRetailPriceChange}
+                          disabled={!isVariantPriceStoreReady || !selectedColor || !selectedSize}
+                          error={
+                            selectedRetailPrice !== "" &&
+                            !isValidRetailPrice(selectedRetailPrice)
+                              ? "Enter a valid price with up to 2 decimal places."
+                              : undefined
+                          }
                           autoComplete="off"
                           monospaced
                         />
+                        {currentVariantPriceStorageError ? (
+                          <Text as="p" tone="critical" variant="bodySm">
+                            {currentVariantPriceStorageError}
+                          </Text>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1018,7 +1217,7 @@ export default function ProductCustomize() {
                   <button
                     type="button"
                     onClick={handleAddToStore}
-                    disabled={fetcher.state !== "idle"}
+                    disabled={isAddToStoreDisabled}
                     style={{
                       borderRadius: 10,
                       border: "1px solid transparent",
@@ -1027,21 +1226,27 @@ export default function ProductCustomize() {
                       padding: "0 14px",
                       fontSize: 13,
                       fontWeight: 700,
-                      cursor: fetcher.state !== "idle" ? "not-allowed" : "pointer",
+                      cursor: isAddToStoreDisabled ? "not-allowed" : "pointer",
                       transition: "all 180ms ease",
                       background:
-                        fetcher.state !== "idle"
+                        isAddToStoreDisabled
                           ? "#cbd5e1"
                           : brandPrimaryButtonBg,
                       color: "#ffffff",
                       boxShadow:
-                        fetcher.state !== "idle"
+                        isAddToStoreDisabled
                           ? "none"
                           : brandPrimaryCtaShadow,
                     }}
                   >
                     {fetcher.state !== "idle" ? "Adding..." : "Add to Store"}
                   </button>
+                  {isVariantPriceStoreReady &&
+                  variantPricesForPublish.length !== activeVariantCount ? (
+                    <Text as="p" tone="critical" variant="bodySm">
+                      Retail prices could not be prepared for every product variant. Check the catalog prices and SKUs.
+                    </Text>
+                  ) : null}
                 </BlockStack>
               </div>
           </div>
