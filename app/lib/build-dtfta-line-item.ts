@@ -6,12 +6,14 @@ type BuildDtftaLineItemArgs = {
   color: string;
   size: string;
   printPlan?: string;
+  adminProductId?: string | number | null;
+  originalProductName?: string;
   artworksByPlacement?: Record<
     string,
     {
       id?: string | number;
       title?: string;
-      artwork_url?: string;
+      artwork_url?: string | null;
       custom_product_variant_id?: string | number | null;
       meta?: Record<string, unknown> | null;
     }
@@ -28,6 +30,12 @@ export function buildDtftaLineItem(input: BuildDtftaLineItemArgs) {
     _dtfta_garment_color: input.color,
     _dtfta_garment_size: input.size,
     _dtfta_print_plan: input.printPlan || "",
+    ...(input.adminProductId !== undefined && input.adminProductId !== null
+      ? { _dtfta_admin_product_id: String(input.adminProductId) }
+      : {}),
+    ...(input.originalProductName?.trim()
+      ? { _dtfta_original_product_name: input.originalProductName.trim() }
+      : {}),
   };
 
   const artworkProps = Object.entries(input.artworksByPlacement || {}).reduce(
@@ -42,12 +50,18 @@ export function buildDtftaLineItem(input: BuildDtftaLineItemArgs) {
 
       if (!safePlacement) return acc;
 
+      const customArtworkUrl = artwork.meta?.custom_artwork_url;
+      const artworkUrl =
+        typeof customArtworkUrl === "string" && customArtworkUrl.trim()
+          ? customArtworkUrl.trim()
+          : artwork.artwork_url;
+
       // if (artwork.id != null) {
       //   acc[`dtfta_artwork_${safePlacement}`] = String(artwork.id);
       // }
 
-      if (artwork.artwork_url) {
-        acc[`_dtfta_artwork_${safePlacement}_url`] = String(artwork.artwork_url);
+      if (artworkUrl) {
+        acc[`_dtfta_artwork_${safePlacement}_url`] = String(artworkUrl);
       }
 
       // if (artwork.title) {

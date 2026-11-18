@@ -26,6 +26,33 @@ type TemplateVariant = {
   dtfta?: VariantDtfta;
 };
 
+type CustomProductTemplate = {
+  id?: string | number;
+  product_key?: string;
+  print_plan?: string | null;
+  base_product?: {
+    id?: string | number | null;
+    original_product_name?: string | null;
+    brand?: string | null;
+    style?: string | null;
+  };
+  variants?: TemplateVariant[];
+  artworks_by_placement?: Record<
+    string,
+    {
+      id?: string | number;
+      artwork_url?: string | null;
+      custom_product_variant_id?: string | number | null;
+      meta?: Record<string, unknown> | null;
+    }
+  >;
+};
+
+type CustomProductApiResponse = {
+  data?: CustomProductTemplate;
+  message?: string;
+};
+
 function extractNumericVariantId(id: string) {
   return id.includes("/") ? id.split("/").pop() || id : id;
 }
@@ -144,7 +171,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     const rawText = await res.text();
-    let apiData: { data?: unknown; message?: string } = {};
+    let apiData: CustomProductApiResponse = {};
     try {
       apiData = rawText ? JSON.parse(rawText) : {};
     } catch {
@@ -154,7 +181,7 @@ export async function action({ request }: ActionFunctionArgs) {
         rawText.slice(0, 500),
       );
     }
-    const template = (apiData as { data?: any })?.data;
+    const template = apiData.data;
 
     if (!res.ok || !template) {
       console.error("[dtfta-line-item] External API error", {
@@ -212,8 +239,10 @@ export async function action({ request }: ActionFunctionArgs) {
     const properties = buildDtftaLineItem({
       templateId: variantDtfta.templateId || String(template.id || ""),
       productKey: variantDtfta.productKey || template.product_key || "",
-      garmentBrand: variantDtfta.garmentBrand || template.garment_brand || "",
-      garmentStyle: variantDtfta.garmentStyle || template.garment_style || "",
+      garmentBrand: variantDtfta.garmentBrand || template.base_product?.brand || "",
+      garmentStyle: variantDtfta.garmentStyle || template.base_product?.style || "",
+      adminProductId: template.base_product?.id,
+      originalProductName: template.base_product?.original_product_name || "",
       color,
       size,
       printPlan: variantDtfta.printPlan || template.print_plan || "",
