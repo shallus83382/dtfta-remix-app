@@ -6,6 +6,7 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
+import { requestWithFresherSessionToken } from "./lib/authenticate-admin.server";
 import { syncInstallToLaravel } from "./lib/shopify-lifecycle.server";
 
 const shopify = shopifyApp({
@@ -51,7 +52,11 @@ export default shopify;
 export const apiVersion = ApiVersion.October25;
 export const addDocumentResponseHeaders =
   shopify.addDocumentResponseHeaders;
-export const authenticate = shopify.authenticate;
+export const authenticate = {
+  ...shopify.authenticate,
+  admin: (request: Request) =>
+    shopify.authenticate.admin(requestWithFresherSessionToken(request)),
+};
 export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
 export const registerWebhooks = shopify.registerWebhooks;

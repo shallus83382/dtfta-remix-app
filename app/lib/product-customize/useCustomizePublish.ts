@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useFetcher, useLocation } from "react-router";
+import { useFetcher } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import type { CustomizeSubmitResult } from "./types";
 
@@ -14,7 +14,6 @@ export function useCustomizePublish({
   buildFormData,
 }: UseCustomizePublishArgs) {
   const fetcher = useFetcher<CustomizeSubmitResult>();
-  const routerLocation = useLocation();
   const shopify = useAppBridge();
   const successHandled = useRef(false);
   const errorHandled = useRef(false);
@@ -33,12 +32,22 @@ export function useCustomizePublish({
         return;
       }
 
+      // Composing several print areas can outlast the session token from page load.
+      // Put a fresh token on the page URL as well as the action URL so the publish
+      // request and the following loader revalidation both present it.
+      const sessionToken = await shopify.idToken();
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set("id_token", sessionToken);
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`
+      );
+
       const actionUrl = new URL(
-        `${routerLocation.pathname}${routerLocation.search}`,
+        `${currentUrl.pathname}${currentUrl.search}`,
         window.location.origin
       );
-      // Artwork generation can outlast the session token captured when the page loaded.
-      actionUrl.searchParams.set("id_token", await shopify.idToken());
 
       fetcher.submit(result.formData, {
         method: "POST",
@@ -52,7 +61,7 @@ export function useCustomizePublish({
     } finally {
       isBuilding.current = false;
     }
-  }, [buildFormData, fetcher, routerLocation.pathname, routerLocation.search, shopify]);
+  }, [buildFormData, fetcher, shopify]);
 
   useEffect(() => {
     if (fetcher.state === "idle") {
