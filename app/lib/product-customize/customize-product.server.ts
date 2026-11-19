@@ -244,14 +244,23 @@ export async function publishCustomizeProduct({
       }
     );
 
-    const data = await res.json().catch(() => ({}));
+    const rawBody = await res.text();
+    let data: Record<string, unknown> | null = null;
+    try {
+      data = rawBody.trim() ? (JSON.parse(rawBody) as Record<string, unknown>) : null;
+    } catch {
+      data = null;
+    }
 
-    if (!res.ok) {
+    if (!res.ok || !data || data.success !== true) {
+      const message = typeof data?.message === "string" ? data.message.trim() : "";
+      const detail = typeof data?.error === "string" ? data.error.trim() : "";
       let errorMessage =
-        (typeof data.message === "string" && data.message) ||
-        (typeof data.error === "string" && data.error) ||
-        `Request failed: ${res.status}`;
-      const errors = data.errors;
+        [message, detail].filter((part, index, parts) => part && parts.indexOf(part) === index).join("\n") ||
+        (!data
+          ? "The product was not created. The upload was rejected because the design images were too large."
+          : `Request failed: ${res.status}`);
+      const errors = data?.errors;
       if (errors && typeof errors === "object" && !Array.isArray(errors)) {
         const parts = Object.entries(errors as Record<string, unknown>).map(([key, val]) => {
           const msg = Array.isArray(val) ? val.join(" ") : String(val);
@@ -267,11 +276,20 @@ export async function publishCustomizeProduct({
       };
     }
 
+    const responseData = data.data;
+    const shopifyData =
+      responseData && typeof responseData === "object"
+        ? (responseData as { shopify?: { product?: { id?: string } }; product?: { id?: string } })
+        : undefined;
+
     return {
       ok: true,
-      productId: data?.data?.shopify?.product?.id ?? "",
+      productId:
+        shopifyData?.shopify?.product?.id ??
+        shopifyData?.product?.id ??
+        "",
       productKey,
-      handle: data?.handle,
+      handle: typeof data.handle === "string" ? data.handle : undefined,
     };
   } catch (error) {
     return { ok: false, error: String(error) };

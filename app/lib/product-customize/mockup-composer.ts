@@ -444,7 +444,19 @@ export async function buildPlacementMockups(
   let canvasWidth = input.savedCanvasSize?.width ?? MOCKUP_CANVAS_SIZE;
   let canvasHeight = input.savedCanvasSize?.height ?? MOCKUP_CANVAS_SIZE;
 
-  if (input.liveCanvas) {
+  const liveCanvasHasArtwork = (() => {
+    if (!input.liveCanvas) return false;
+    try {
+      return input.liveCanvas.getObjects().some((obj) => {
+        const data = (obj as { data?: { __internal?: boolean } }).data;
+        return !data?.__internal;
+      });
+    } catch {
+      return false;
+    }
+  })();
+
+  if (liveCanvasHasArtwork && input.liveCanvas) {
     const exported = exportCanvasToDataUrl(input.liveCanvas, {
       region: input.region,
       includeBackground: false,

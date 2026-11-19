@@ -30,6 +30,41 @@ import {
   type ColorMockupOption,
 } from "./mockup-composer";
 
+function compressImageDataUrl(
+  dataUrl: string,
+  options: { maxEdge: number; type: "image/jpeg" | "image/png"; quality?: number }
+): Promise<string> {
+  if (!dataUrl.startsWith("data:image/") || typeof document === "undefined") {
+    return Promise.resolve(dataUrl);
+  }
+
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const longest = Math.max(image.width, image.height) || 1;
+      const scale = Math.min(1, options.maxEdge / longest);
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(dataUrl);
+        return;
+      }
+      if (options.type === "image/jpeg") {
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, width, height);
+      }
+      context.drawImage(image, 0, 0, width, height);
+      resolve(canvas.toDataURL(options.type, options.quality ?? 0.82));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
 /** Laravel expects `productId` to be a DB integer; omit non-numeric template keys. */
 function sanitizeDbProductId(raw: string): string {
   const s = String(raw ?? "").trim();
@@ -242,19 +277,35 @@ export async function buildCustomizeSubmission({
       designLayersByPlacement?.[placement],
       area.unit
     );
+    const printOnlyUrl = result.printOnlyUrl
+      ? await compressImageDataUrl(result.printOnlyUrl, {
+          maxEdge: 2000,
+          type: "image/png",
+        })
+      : "";
+    let attachedPrintFile = false;
 
     for (const colorCode of allColorCodes) {
-      const mockupUrl = result.mockupsByColor[colorCode] ?? "";
+      const rawMockup = result.mockupsByColor[colorCode] ?? "";
+      const mockupUrl = rawMockup
+        ? await compressImageDataUrl(rawMockup, {
+            maxEdge: 1400,
+            type: "image/jpeg",
+            quality: 0.82,
+          })
+        : "";
+      const includePrintFile = !attachedPrintFile && Boolean(printOnlyUrl);
+      if (includePrintFile) attachedPrintFile = true;
 
       /**
        * artworkUrl = product variation media/mockup.
-       * customArtworkUrl = transparent print-only art.
+       * customArtworkUrl = transparent print-only art, sent once per placement.
        */
       artworkUrls[`${colorCode}_${placement}`] = {
         colorCode,
         placement,
         artworkUrl: mockupUrl,
-        customArtworkUrl: result.printOnlyUrl,
+        ...(includePrintFile ? { customArtworkUrl: printOnlyUrl } : {}),
         designableRegion: region,
         printSize,
         ...(libraryArtworkId ? { libraryArtworkId } : {}),

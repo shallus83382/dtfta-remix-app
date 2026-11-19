@@ -105,11 +105,14 @@ export function useProductCustomize({
     editor.savePlacementSnapshot(editor.placement);
     editor.saveAllPlacements();
 
+    const activePlacement = normalizePlacementKey(editor.placement);
     const result = await buildCustomizeSubmission({
       productKey,
       productName,
       productId,
-      canvases: editor.canvases,
+      canvases: {
+        [activePlacement]: editor.canvases[activePlacement] ?? null,
+      },
       canvasStateByPlacement: editor.canvasStateRef.current,
       artworkByPlacement: editor.artworkRef.current,
       canvasSizesByPlacement: editor.canvasSizeRef.current,
@@ -240,6 +243,8 @@ export function useProductCustomize({
 
   return {
     fetcher: publish.fetcher,
+    isPublishing: publish.isPublishing,
+    publishNotice: publish.publishNotice,
     placement: editor.placement,
     selectedPrintArea: editor.selectedPrintArea,
     selectedRegion: editor.selectedRegion,

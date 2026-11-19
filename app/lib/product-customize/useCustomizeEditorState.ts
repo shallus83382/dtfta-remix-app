@@ -20,6 +20,20 @@ import {
 import { exportCanvasToDataUrl, FABRIC_EXPORT_MULTIPLIER } from "../../components/DesignCanvas";
 import { getPhysicalPrintSize } from "./print-area-dimensions";
 
+function countDesignObjects(canvas: Canvas | null | undefined): number | null {
+  if (!canvas) return null;
+  try {
+    const objects = canvas.getObjects?.();
+    if (!objects) return null;
+    return objects.filter((obj) => {
+      const data = (obj as FabricObject & { data?: { __internal?: boolean } }).data;
+      return !data?.__internal;
+    }).length;
+  } catch {
+    return null;
+  }
+}
+
 type UseCustomizeEditorStateArgs = {
   printAreas: DtftaPrintArea[];
   selectedColor: string;
@@ -270,7 +284,15 @@ export function useCustomizeEditorState({
       const normalizedPlacement = normalizePlacementKey(placementKey);
 
       const nextCanvasState = serializePlacementState(normalizedPlacement);
-      const nextArtwork = exportPlacementArtwork(normalizedPlacement);
+      const canvas = canvases[normalizedPlacement];
+      // A placement that is not on screen can still hold a disposed Fabric
+      // canvas. Exporting that canvas yields a blank image and would replace
+      // the artwork saved when the merchant left that print area.
+      const designCount = countDesignObjects(canvas);
+      const nextArtwork =
+        designCount !== null && designCount > 0
+          ? exportPlacementArtwork(normalizedPlacement)
+          : "";
 
       if (nextCanvasState) {
         const mergedCanvasState = {

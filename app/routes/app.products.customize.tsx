@@ -49,6 +49,18 @@ export const action = async (args: ActionFunctionArgs) => {
   return publishCustomizeProduct(args);
 };
 
+export function shouldRevalidate({
+  formMethod,
+  defaultShouldRevalidate,
+}: {
+  formMethod?: string;
+  defaultShouldRevalidate: boolean;
+}) {
+  // Reloading the customizer after Add to Store clears the result before it can be shown.
+  if (formMethod === "POST") return false;
+  return defaultShouldRevalidate;
+}
+
 type LoaderData = Awaited<ReturnType<typeof loader>>;
 
 type VariantPriceStore = {
@@ -284,6 +296,8 @@ export default function ProductCustomize() {
     handlePlacementChange,
     handleColorChange,
     handleAddToStore,
+    isPublishing,
+    publishNotice,
     setArtworkLibraryIdForPlacement,
     buildCurrentPreview,
   } = useProductCustomize({
@@ -523,6 +537,7 @@ export default function ProductCustomize() {
     (variant) => variant.is_active !== false
   ).length;
   const isAddToStoreDisabled =
+    isPublishing ||
     fetcher.state !== "idle" ||
     !isVariantPriceStoreReady ||
     !isValidRetailPrice(selectedRetailPrice) ||
@@ -776,19 +791,31 @@ export default function ProductCustomize() {
         }}
       >
       <BlockStack gap="400">
-        {fetcher.data && !fetcher.data.ok ? (
+        {publishNotice ? (
           <Card>
             <div
               style={{
                 borderRadius: 12,
-                border: "1px solid #fecaca",
-                backgroundColor: "#fff1f2",
+                border:
+                  publishNotice.type === "error"
+                    ? "1px solid #fecaca"
+                    : "1px solid #bbf7d0",
+                backgroundColor:
+                  publishNotice.type === "error" ? "#fff1f2" : "#f0fdf4",
                 padding: 14,
               }}
             >
-              <Text as="p" tone="critical">
-                {fetcher.data.error}
-              </Text>
+              <div
+                style={{
+                  color: publishNotice.type === "error" ? "#b91c1c" : "#166534",
+                  fontSize: 13,
+                  lineHeight: 1.45,
+                  whiteSpace: "pre-wrap",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {publishNotice.text}
+              </div>
             </div>
           </Card>
         ) : null}
@@ -1268,7 +1295,7 @@ export default function ProductCustomize() {
                           : brandPrimaryCtaShadow,
                     }}
                   >
-                    {fetcher.state !== "idle" ? "Adding..." : "Add to Store"}
+                    {isPublishing || fetcher.state !== "idle" ? "Adding..." : "Add to Store"}
                   </button>
                   {isVariantPriceStoreReady &&
                   variantPricesForPublish.length !== activeVariantCount ? (
