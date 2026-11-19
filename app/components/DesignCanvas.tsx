@@ -313,6 +313,9 @@ export default function DesignCanvas({
     designLayersRafRef.current = requestAnimationFrame(() => {
       designLayersRafRef.current = null;
       const canvas = canvasRef.current;
+      // A disposed canvas is null while the placement unmounts. Skip that emit
+      // so it does not look like the merchant cleared the artwork.
+      if (!canvas) return;
       const list = computeDesignLayerSummaries(canvas, {
         designableRegion: region,
         canvasPixelWidth: width,

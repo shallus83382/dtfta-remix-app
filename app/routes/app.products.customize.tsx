@@ -130,6 +130,10 @@ export default function ProductCustomize() {
   const [artworkSort, setArtworkSort] = useState<"recent" | "name_asc" | "name_desc">("recent");
   const [artworkSearch, setArtworkSearch] = useState("");
   const [designLayers, setDesignLayers] = useState<DesignLayerSummary[]>([]);
+  /** Design layers per placement, including placements that are not on screen. */
+  const [layersByPlacement, setLayersByPlacement] = useState<
+    Record<string, DesignLayerSummary[]>
+  >({});
   const [selectedSize, setSelectedSize] = useState("");
   const [variantPriceStore, setVariantPriceStore] =
     useState<VariantPriceStore | null>(null);
@@ -241,10 +245,11 @@ export default function ProductCustomize() {
     const productPrice = parseVariantPrice(product?.price);
     const fallbackBasePrice =
       productPrice ?? (knownPrices.length ? Math.min(...knownPrices) : null);
-    const printTotal = printAreas.reduce(
-      (total, area) => total + (parseVariantPrice(area.price) ?? 0),
-      0
-    );
+    const printTotal = printAreas.reduce((total, area) => {
+      const placementKey = normalizePlacementKey(area.title);
+      if (!layersByPlacement[placementKey]?.length) return total;
+      return total + (parseVariantPrice(area.price) ?? 0);
+    }, 0);
 
     return activeVariants.flatMap((variant) => {
       const sku = variant.sku.trim();
@@ -262,7 +267,7 @@ export default function ProductCustomize() {
 
       return sku && price !== null ? [{ sku, price }] : [];
     });
-  }, [product?.variants, product?.price, printAreas, storedVariantPrices]);
+  }, [product?.variants, product?.price, printAreas, storedVariantPrices, layersByPlacement]);
 
   const {
     fetcher,
@@ -391,13 +396,17 @@ export default function ProductCustomize() {
       selectedVariantPrice !== null && basePrice !== null
         ? Math.max(0, selectedVariantPrice - basePrice)
         : 0;
-    const placementCosts = printAreas.map((area) => {
+    const placementCosts = printAreas.flatMap((area) => {
+      const placementKey = normalizePlacementKey(area.title);
+      if (!layersByPlacement[placementKey]?.length) return [];
       const charge = parseVariantPrice(area.price) ?? 0;
-      return {
-        title: area.title,
-        charge,
-        label: charge > 0 ? formatVariantPrice(charge, currency) : "Included",
-      };
+      return [
+        {
+          title: area.title,
+          charge,
+          label: charge > 0 ? formatVariantPrice(charge, currency) : "Included",
+        },
+      ];
     });
     const printTotal = placementCosts.reduce((sum, item) => sum + item.charge, 0);
     const totalStoreCost =
@@ -412,7 +421,15 @@ export default function ProductCustomize() {
       totalStoreCost,
       currency,
     };
-  }, [product?.price, product?.variants, product?.currency, selectedSizeVariants, selectedSize, printAreas]);
+  }, [
+    product?.price,
+    product?.variants,
+    product?.currency,
+    selectedSizeVariants,
+    selectedSize,
+    printAreas,
+    layersByPlacement,
+  ]);
 
   const selectedVariantPriceKey = getVariantPriceKey(selectedColor, selectedSize);
   const selectedRetailPrice = Object.prototype.hasOwnProperty.call(
@@ -456,6 +473,18 @@ export default function ProductCustomize() {
   useEffect(() => {
     setDesignLayers([]);
   }, [placement]);
+
+  const handleDesignLayersChange = useCallback(
+    (layers: DesignLayerSummary[]) => {
+      setDesignLayers(layers);
+      const placementKey = normalizePlacementKey(placement);
+      setLayersByPlacement((current) => {
+        if (current[placementKey] === layers) return current;
+        return { ...current, [placementKey]: layers };
+      });
+    },
+    [placement]
+  );
 
   useEffect(() => {
     const result = fetcher.data;
@@ -938,7 +967,7 @@ export default function ProductCustomize() {
               onRegionChange={handleRegionChange}
               onRegisterActions={setCanvasActions}
               onLibraryArtworkBindingChange={handleLibraryArtworkBindingChange}
-              onDesignLayersChange={setDesignLayers}
+              onDesignLayersChange={handleDesignLayersChange}
             />
 
             <ArtworkLayersPanel
