@@ -441,6 +441,57 @@ export async function publishCustomizeInit(formData: FormData, shop: string) {
   }
 }
 
+export async function publishCustomizeMediaBatch(
+  customProductId: number,
+  mockups: Array<{ placement: string; color: string; data_url: string }>,
+  shop: string
+) {
+  const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
+  const payload = {
+    shop,
+    custom_product_id: customProductId,
+    mockups,
+  };
+
+  const headers = createExternalApiHeaders(payload, { "X-Shop": shop });
+
+  try {
+    const res = await fetch(
+      `${API_BASE.replace(/\/$/, "")}/products/publish/media-batch`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const rawText = await res.text();
+    let data: Record<string, unknown> | null = null;
+    try {
+      data = rawText.trim() ? (JSON.parse(rawText) as Record<string, unknown>) : null;
+    } catch {
+      data = null;
+    }
+
+    if (!res.ok || !data || data.success !== true) {
+      return {
+        ok: false as const,
+        error: parseApiResponseError(res, rawText, data, "Failed to upload media batch."),
+      };
+    }
+
+    return {
+      ok: true as const,
+      data: data.data,
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error: error instanceof Error ? error.message : "Failed to upload media batch",
+    };
+  }
+}
+
 export async function publishCustomizeBatch(
   customProductId: number,
   batchIndex: number,

@@ -5,7 +5,11 @@ import type { CustomizeSubmitResult } from "./types";
 
 type UseCustomizePublishArgs = {
   buildFormData: () => Promise<
-    | { ok: true; formData: FormData }
+    | {
+        ok: true;
+        formData: FormData;
+        secondaryMockups?: Array<{ placement: string; color: string; data_url: string }>;
+      }
     | { ok: false; error: string }
   >;
 };
@@ -84,11 +88,43 @@ export function useCustomizePublish({
       const totalBatches = Number(initData.data?.total_batches || 0);
       const batchSize = Number(initData.data?.batch_size || 25);
 
-      // Step 2: Create Variants in Batches
+      // Step 2: Upload Secondary Color Mockups in Chunks of 5 (15% to 40%)
+      const secondaryMockups = result.secondaryMockups || [];
+      if (secondaryMockups.length > 0) {
+        const MEDIA_CHUNK_SIZE = 5;
+        const totalMediaChunks = Math.ceil(secondaryMockups.length / MEDIA_CHUNK_SIZE);
+
+        for (let c = 0; c < totalMediaChunks; c++) {
+          const chunk = secondaryMockups.slice(c * MEDIA_CHUNK_SIZE, (c + 1) * MEDIA_CHUNK_SIZE);
+          const currentCount = Math.min((c + 1) * MEDIA_CHUNK_SIZE, secondaryMockups.length);
+          const percent = Math.round(15 + ((c + 1) / totalMediaChunks) * 25);
+          setPublishProgress({
+            percent,
+            message: `Uploading color mockups: ${currentCount} / ${secondaryMockups.length}...`,
+          });
+
+          const mediaRes = await fetch("/app/api/products-publish", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              step: "media",
+              custom_product_id: customProductId,
+              mockups: chunk,
+            }),
+          });
+
+          const mediaData = await mediaRes.json().catch(() => null);
+          if (!mediaRes.ok || !mediaData?.ok) {
+            console.warn("Media chunk upload warning:", mediaData?.error);
+          }
+        }
+      }
+
+      // Step 3: Create Variants in Batches (40% to 90%)
       if (totalBatches > 0) {
         for (let i = 0; i < totalBatches; i++) {
           const currentCount = Math.min((i + 1) * batchSize, totalVariants);
-          const percent = Math.round(20 + ((i + 1) / totalBatches) * 70);
+          const percent = Math.round(40 + ((i + 1) / totalBatches) * 50);
           setPublishProgress({
             percent,
             message: `Adding variants: ${currentCount} / ${totalVariants} (${Math.round((currentCount / totalVariants) * 100)}%)...`,

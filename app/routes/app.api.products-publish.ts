@@ -2,6 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import {
   publishCustomizeInit,
+  publishCustomizeMediaBatch,
   publishCustomizeBatch,
   publishCustomizeFinalize,
 } from "../lib/product-customize/customize-product.server";
@@ -35,6 +36,13 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const body = await request.json().catch(() => ({}));
   const step = body?.step;
+
+  if (step === "media") {
+    const customProductId = Number(body?.custom_product_id);
+    const mockups = Array.isArray(body?.mockups) ? body.mockups : [];
+    const result = await publishCustomizeMediaBatch(customProductId, mockups, shop);
+    return Response.json(result, { status: result.ok ? 200 : 422 });
+  }
 
   if (step === "batch") {
     const customProductId = Number(body?.custom_product_id);

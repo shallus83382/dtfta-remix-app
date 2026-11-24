@@ -130,6 +130,12 @@ type BuildCustomizeSubmissionArgs = {
   variantPrices: VariantRetailPrice[];
 };
 
+export type SecondaryMockup = {
+  placement: string;
+  color: string;
+  data_url: string;
+};
+
 type BuildCustomizeSubmissionResult =
   | {
       ok: true;
@@ -137,6 +143,7 @@ type BuildCustomizeSubmissionResult =
       printableAreas: PrintableAreaPayload[];
       printPlan: string;
       artworkUrls: Record<string, ArtworkUrlPayload>;
+      secondaryMockups?: SecondaryMockup[];
     }
   | {
       ok: false;
@@ -237,6 +244,7 @@ export async function buildCustomizeSubmission({
   );
 
   const artworkUrls: Record<string, ArtworkUrlPayload> = {};
+  const secondaryMockups: SecondaryMockup[] = [];
 
   /**
    * Build per-placement print-only artwork + per-color mockups using the
@@ -284,6 +292,7 @@ export async function buildCustomizeSubmission({
         })
       : "";
     let attachedPrintFile = false;
+    const normSelectedColor = selectedColor.trim().toLowerCase();
 
     for (const colorCode of allColorCodes) {
       const rawMockup = result.mockupsByColor[colorCode] ?? "";
@@ -297,20 +306,28 @@ export async function buildCustomizeSubmission({
       const includePrintFile = !attachedPrintFile && Boolean(printOnlyUrl);
       if (includePrintFile) attachedPrintFile = true;
 
-      /**
-       * artworkUrl = product variation media/mockup.
-       * customArtworkUrl = transparent print-only art, sent once per placement.
-       */
-      artworkUrls[`${colorCode}_${placement}`] = {
-        colorCode,
-        placement,
-        artworkUrl: mockupUrl,
-        ...(includePrintFile ? { customArtworkUrl: printOnlyUrl } : {}),
-        designableRegion: region,
-        printSize,
-        ...(libraryArtworkId ? { libraryArtworkId } : {}),
-        ...(layersMeta?.length ? { layersMeta } : {}),
-      };
+      const isPrimary =
+        colorCode.trim().toLowerCase() === normSelectedColor ||
+        (!allColorCodes.some((c) => c.trim().toLowerCase() === normSelectedColor) && colorCode === allColorCodes[0]);
+
+      if (isPrimary) {
+        artworkUrls[`${colorCode}_${placement}`] = {
+          colorCode,
+          placement,
+          artworkUrl: mockupUrl,
+          ...(includePrintFile ? { customArtworkUrl: printOnlyUrl } : {}),
+          designableRegion: region,
+          printSize,
+          ...(libraryArtworkId ? { libraryArtworkId } : {}),
+          ...(layersMeta?.length ? { layersMeta } : {}),
+        };
+      } else if (mockupUrl) {
+        secondaryMockups.push({
+          placement,
+          color: colorCode,
+          data_url: mockupUrl,
+        });
+      }
     }
   }
 
@@ -369,5 +386,6 @@ export async function buildCustomizeSubmission({
     printableAreas,
     printPlan,
     artworkUrls,
+    secondaryMockups,
   };
 }

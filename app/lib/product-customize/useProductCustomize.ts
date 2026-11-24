@@ -131,7 +131,11 @@ export function useProductCustomize({
       return { ok: false as const, error: result.error };
     }
 
-    return { ok: true as const, formData: result.formData };
+    return {
+      ok: true as const,
+      formData: result.formData,
+      secondaryMockups: result.secondaryMockups,
+    };
   }, [
     productKey,
     productName,
