@@ -69,6 +69,11 @@ export function resolveCatalogProductImage(
   const key = typeof imageKey === "string" ? imageKey.trim() : "";
   if (!key) return "";
 
+  // If already an absolute or relative image URL (e.g. custom showcase image uploaded in Laravel, S3, or CDN), return directly
+  if (/^(?:https?:)?\/\//i.test(key) || key.startsWith("/") || key.startsWith("data:")) {
+    return key;
+  }
+
   const defaultColorCode =
     normalized?.variants?.find((v) => v.is_active !== false)?.colorCode?.trim() ?? "";
 
