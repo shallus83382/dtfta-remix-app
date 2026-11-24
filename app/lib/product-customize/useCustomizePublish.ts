@@ -115,7 +115,9 @@ export function useCustomizePublish({
 
           const mediaData = await mediaRes.json().catch(() => null);
           if (!mediaRes.ok || !mediaData?.ok) {
-            console.warn("Media chunk upload warning:", mediaData?.error);
+            const errorMsg = mediaData?.error || `Failed to upload color mockups chunk ${c + 1}`;
+            setPublishProgress(null);
+            return { ok: false, error: errorMsg };
           }
         }
       }
