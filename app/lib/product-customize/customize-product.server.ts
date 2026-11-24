@@ -295,3 +295,166 @@ export async function publishCustomizeProduct({
     return { ok: false, error: String(error) };
   }
 }
+
+export async function publishCustomizeInit(formData: FormData, shop: string) {
+  const productKey = String(formData.get("productKey") || "");
+  const title = String(formData.get("title") || "") || undefined;
+  const productId = String(formData.get("productId") || "");
+  const printPlan = String(formData.get("printPlan") || "");
+  const printableAreasRaw = String(formData.get("printableAreas") || "[]");
+  const artworkUrlsRaw = String(formData.get("artworkUrls") || "{}");
+  const variantPricesRaw = formData.get("variantPrices");
+  const selectedColor = String(formData.get("selectedColor") || "");
+
+  if (!productKey.trim()) {
+    return { ok: false as const, error: "Missing product key" };
+  }
+
+  const flatArtworkUrls = collectArtworkUrls(formData);
+  const printableAreas = parsePrintableAreas(printableAreasRaw);
+  const artworkUrlsPayload = parseArtworkUrlsPayload(artworkUrlsRaw);
+  let variantPrices: VariantRetailPrice[] | undefined;
+  if (typeof variantPricesRaw === "string") {
+    variantPrices = parseVariantRetailPrices(variantPricesRaw);
+  }
+
+  const printableAreasWithArtwork = attachArtworkToPrintableAreas({
+    printableAreas,
+    flatArtworkUrls,
+    artworkUrlsPayload,
+    selectedColor,
+  });
+  const printableAreasWithoutArtwork = stripPrintableAreaArtwork(printableAreasWithArtwork);
+
+  const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
+  const payload = {
+    shop,
+    productKey,
+    productId,
+    title,
+    printPlan,
+    artworkUrls: artworkUrlsPayload,
+    printableAreas: printableAreasWithoutArtwork,
+    selectedColor,
+    selectedColorName: "",
+    ...(variantPrices !== undefined ? { variantPrices } : {}),
+    selectedVariantId: "",
+    selectedVariantSku: "",
+  };
+
+  const headers = createExternalApiHeaders(payload, { "X-Shop": shop });
+
+  try {
+    const res = await fetch(
+      `${API_BASE.replace(/\/$/, "")}/products/publish/init`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.success !== true) {
+      return {
+        ok: false as const,
+        error: data?.message || "Failed to initialize product in Shopify.",
+      };
+    }
+
+    return {
+      ok: true as const,
+      data: data.data,
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error: error instanceof Error ? error.message : "Failed to connect to backend",
+    };
+  }
+}
+
+export async function publishCustomizeBatch(
+  customProductId: number,
+  batchIndex: number,
+  batchSize: number,
+  shop: string
+) {
+  const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
+  const payload = {
+    shop,
+    custom_product_id: customProductId,
+    batch_index: batchIndex,
+    batch_size: batchSize,
+  };
+
+  const headers = createExternalApiHeaders(payload, { "X-Shop": shop });
+
+  try {
+    const res = await fetch(
+      `${API_BASE.replace(/\/$/, "")}/products/publish/variants-batch`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.success !== true) {
+      return {
+        ok: false as const,
+        error: data?.message || `Failed to create variant batch ${batchIndex + 1}.`,
+      };
+    }
+
+    return {
+      ok: true as const,
+      data: data.data,
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error: error instanceof Error ? error.message : `Network error on batch ${batchIndex + 1}`,
+    };
+  }
+}
+
+export async function publishCustomizeFinalize(customProductId: number, shop: string) {
+  const API_BASE = process.env.EXTERNAL_API_BASE || "/api";
+  const payload = {
+    shop,
+    custom_product_id: customProductId,
+  };
+
+  const headers = createExternalApiHeaders(payload, { "X-Shop": shop });
+
+  try {
+    const res = await fetch(
+      `${API_BASE.replace(/\/$/, "")}/products/publish/finalize`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.success !== true) {
+      return {
+        ok: false as const,
+        error: data?.message || "Failed to finalize product setup in Shopify.",
+      };
+    }
+
+    return {
+      ok: true as const,
+      data: data.data,
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error: error instanceof Error ? error.message : "Failed to finalize product",
+    };
+  }
+}

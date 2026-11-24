@@ -245,6 +245,7 @@ export function useProductCustomize({
     fetcher: publish.fetcher,
     isPublishing: publish.isPublishing,
     publishNotice: publish.publishNotice,
+    publishProgress: publish.publishProgress,
     placement: editor.placement,
     selectedPrintArea: editor.selectedPrintArea,
     selectedRegion: editor.selectedRegion,

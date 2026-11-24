@@ -15,6 +15,7 @@ import {
   Thumbnail,
   Scrollable,
   TextField,
+  ProgressBar,
   useMediaQuery,
 } from "@shopify/polaris";
 import translations from "@shopify/polaris/locales/en.json";
@@ -298,6 +299,7 @@ export default function ProductCustomize() {
     handleAddToStore,
     isPublishing,
     publishNotice,
+    publishProgress,
     setArtworkLibraryIdForPlacement,
     buildCurrentPreview,
   } = useProductCustomize({
@@ -1295,8 +1297,23 @@ export default function ProductCustomize() {
                           : brandPrimaryCtaShadow,
                     }}
                   >
-                    {isPublishing || fetcher.state !== "idle" ? "Adding..." : "Add to Store"}
+                    {isPublishing ? "Adding to Store..." : "Add to Store"}
                   </button>
+                  {publishProgress && isPublishing ? (
+                    <div style={{ marginTop: 8 }}>
+                      <BlockStack gap="100">
+                        <InlineStack align="space-between">
+                          <Text as="span" variant="bodySm" fontWeight="medium">
+                            {publishProgress.message}
+                          </Text>
+                          <Text as="span" variant="bodySm" tone="subdued">
+                            {publishProgress.percent}%
+                          </Text>
+                        </InlineStack>
+                        <ProgressBar progress={publishProgress.percent} size="small" tone="primary" />
+                      </BlockStack>
+                    </div>
+                  ) : null}
                   {isVariantPriceStoreReady &&
                   variantPricesForPublish.length !== activeVariantCount ? (
                     <Text as="p" tone="critical" variant="bodySm">
