@@ -296,6 +296,66 @@ export async function publishCustomizeProduct({
   }
 }
 
+function parseApiResponseError(
+  res: Response,
+  rawText: string,
+  data: Record<string, unknown> | null,
+  fallbackMessage: string
+): string {
+  const message = typeof data?.message === "string" ? data.message.trim() : "";
+  const detail = typeof data?.error === "string" ? data.error.trim() : "";
+  let errorMsg = [message, detail].filter(Boolean).join(" — ");
+
+  const errors = data?.errors;
+  if (errors && typeof errors === "object") {
+    if (Array.isArray(errors)) {
+      const parts = errors
+        .map((e) => {
+          if (typeof e === "string") return e;
+          if (e && typeof e === "object") {
+            const field = (e as any).field
+              ? Array.isArray((e as any).field)
+                ? (e as any).field.join(".")
+                : String((e as any).field)
+              : "";
+            const msg = (e as any).message || JSON.stringify(e);
+            return field ? `${field}: ${msg}` : msg;
+          }
+          return String(e);
+        })
+        .filter(Boolean);
+      if (parts.length) {
+        errorMsg = errorMsg ? `${errorMsg} (${parts.join("; ")})` : parts.join("; ");
+      }
+    } else {
+      const parts = Object.entries(errors as Record<string, unknown>).map(([key, val]) => {
+        const msg = Array.isArray(val) ? val.join(" ") : String(val);
+        return `${key}: ${msg}`;
+      });
+      if (parts.length) {
+        errorMsg = errorMsg ? `${errorMsg} (${parts.join("; ")})` : parts.join("; ");
+      }
+    }
+  }
+
+  if (errorMsg) {
+    return errorMsg;
+  }
+
+  if (!res.ok) {
+    if (res.status === 413) {
+      return "Payload too large (HTTP 413) — the design images exceed the server upload limit. Please try using smaller image files.";
+    }
+    const cleanText = rawText.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (cleanText) {
+      return `Backend error (HTTP ${res.status}): ${cleanText.slice(0, 250)}`;
+    }
+    return `Backend error (HTTP ${res.status}: ${res.statusText || "Request failed"})`;
+  }
+
+  return fallbackMessage;
+}
+
 export async function publishCustomizeInit(formData: FormData, shop: string) {
   const productKey = String(formData.get("productKey") || "");
   const title = String(formData.get("title") || "") || undefined;
@@ -354,11 +414,18 @@ export async function publishCustomizeInit(formData: FormData, shop: string) {
       }
     );
 
-    const data = await res.json().catch(() => null);
+    const rawText = await res.text();
+    let data: Record<string, unknown> | null = null;
+    try {
+      data = rawText.trim() ? (JSON.parse(rawText) as Record<string, unknown>) : null;
+    } catch {
+      data = null;
+    }
+
     if (!res.ok || !data || data.success !== true) {
       return {
         ok: false as const,
-        error: data?.message || "Failed to initialize product in Shopify.",
+        error: parseApiResponseError(res, rawText, data, "Failed to initialize product in Shopify."),
       };
     }
 
@@ -400,11 +467,18 @@ export async function publishCustomizeBatch(
       }
     );
 
-    const data = await res.json().catch(() => null);
+    const rawText = await res.text();
+    let data: Record<string, unknown> | null = null;
+    try {
+      data = rawText.trim() ? (JSON.parse(rawText) as Record<string, unknown>) : null;
+    } catch {
+      data = null;
+    }
+
     if (!res.ok || !data || data.success !== true) {
       return {
         ok: false as const,
-        error: data?.message || `Failed to create variant batch ${batchIndex + 1}.`,
+        error: parseApiResponseError(res, rawText, data, `Failed to create variant batch ${batchIndex + 1}.`),
       };
     }
 
@@ -439,11 +513,18 @@ export async function publishCustomizeFinalize(customProductId: number, shop: st
       }
     );
 
-    const data = await res.json().catch(() => null);
+    const rawText = await res.text();
+    let data: Record<string, unknown> | null = null;
+    try {
+      data = rawText.trim() ? (JSON.parse(rawText) as Record<string, unknown>) : null;
+    } catch {
+      data = null;
+    }
+
     if (!res.ok || !data || data.success !== true) {
       return {
         ok: false as const,
-        error: data?.message || "Failed to finalize product setup in Shopify.",
+        error: parseApiResponseError(res, rawText, data, "Failed to finalize product setup in Shopify."),
       };
     }
 

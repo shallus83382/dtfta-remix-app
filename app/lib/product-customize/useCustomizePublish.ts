@@ -72,7 +72,10 @@ export function useCustomizePublish({
 
       const initData = await initRes.json().catch(() => null);
       if (!initRes.ok || !initData?.ok) {
-        throw new Error(initData?.error || "Failed to create base product in Shopify.");
+        const fallback = initRes.status === 413
+          ? "Upload too large (HTTP 413) — please reduce mockup images."
+          : `Failed to initialize product in Shopify (HTTP ${initRes.status}).`;
+        throw new Error(initData?.error || fallback);
       }
 
       const customProductId = initData.data?.custom_product_id;
