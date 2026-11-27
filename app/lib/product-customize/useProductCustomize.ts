@@ -28,6 +28,9 @@ type UseProductCustomizeArgs = {
   colorMockups?: DtftaColorMockups;
   defaultColor?: string;
   variantPrices: VariantRetailPrice[];
+  selectedSize: string;
+  artworkTargetColors: string[] | null;
+  artworkTargetSizes: string[] | null;
 };
 
 export function useProductCustomize({
@@ -39,6 +42,9 @@ export function useProductCustomize({
   colorMockups,
   defaultColor = "",
   variantPrices,
+  selectedSize,
+  artworkTargetColors,
+  artworkTargetSizes,
 }: UseProductCustomizeArgs) {
   const designAssetOptions = useMemo(
     () => ({ colorMockups: colorMockups ?? null }),
@@ -125,6 +131,10 @@ export function useProductCustomize({
       variants,
       colorMockups,
       variantPrices,
+      selectedColors:
+        artworkTargetColors ?? (selectedColor ? [selectedColor] : []),
+      selectedSizes:
+        artworkTargetSizes ?? (selectedSize ? [selectedSize] : []),
     });
 
     if (!result.ok) {
@@ -142,6 +152,9 @@ export function useProductCustomize({
     productId,
     printAreas,
     selectedColor,
+    selectedSize,
+    artworkTargetColors,
+    artworkTargetSizes,
     variantPrices,
     variants,
     editor.placement,

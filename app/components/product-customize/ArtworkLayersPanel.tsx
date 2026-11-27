@@ -12,6 +12,7 @@ type Props = {
   dimensionUnit: string;
   printWidth: number;
   printHeight: number;
+  onDeleteLayer?: (layerId: string) => void;
 };
 
 function fmtDegrees(n: number): string {
@@ -26,6 +27,7 @@ export default function ArtworkLayersPanel({
   dimensionUnit,
   printWidth,
   printHeight,
+  onDeleteLayer,
 }: Props) {
   const unitLabel =
     normalizePrintUnitDisplay(dimensionUnit) || dimensionUnit.trim() || "units";
@@ -80,8 +82,37 @@ export default function ArtworkLayersPanel({
                 gap: 12,
                 alignItems: "flex-start",
                 flexWrap: "wrap",
+                position: "relative",
+                paddingRight: 42,
               }}
             >
+              <button
+                type="button"
+                aria-label={`Delete ${layer.label}`}
+                title={`Delete ${layer.label}`}
+                onClick={() => onDeleteLayer?.(layer.id)}
+                disabled={!onDeleteLayer}
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  width: 26,
+                  height: 26,
+                  borderRadius: 6,
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  color: "#475569",
+                  fontSize: 20,
+                  lineHeight: 1,
+                  cursor: onDeleteLayer ? "pointer" : "not-allowed",
+                  opacity: onDeleteLayer ? 1 : 0.6,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ×
+              </button>
               <div style={{ flexShrink: 0 }}>
                 {layer.previewUrl ? (
                   <Thumbnail

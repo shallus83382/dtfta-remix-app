@@ -114,6 +114,7 @@ interface DesignCanvasProps {
       options?: { libraryArtworkId?: string }
     ) => Promise<void>;
     deleteSelected: () => void;
+    deleteLayer: (layerId: string) => void;
     clear: () => void;
   } | null) => void;
   /** Fired when design layers change (add/move/scale/rotate/select). Values use the same unit as product print area `unit`. */
@@ -1307,12 +1308,30 @@ export default function DesignCanvas({
     }
   }, []);
 
+  const handleDeleteLayer = useCallback((layerId: string) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const object = canvas.getObjects().find((item) => {
+      const data = (item as FabricObject & { data?: { layerId?: string } }).data;
+      return data?.layerId === layerId;
+    });
+    if (!object) return;
+
+    if (canvas.getActiveObjects().includes(object)) {
+      canvas.discardActiveObject();
+    }
+    canvas.remove(object);
+    canvas.requestRenderAll();
+  }, []);
+
   useEffect(() => {
     onRegisterActionsRef.current?.({
       addText: handleAddText,
       addImage: handleAddImage,
       addImageFromUrl: handleAddImageFromUrl,
       deleteSelected: handleDeleteSelected,
+      deleteLayer: handleDeleteLayer,
       clear: handleClear,
     });
 
@@ -1325,6 +1344,7 @@ export default function DesignCanvas({
     handleAddText,
     handleClear,
     handleDeleteSelected,
+    handleDeleteLayer,
   ]);
 
   const maxLeft = CANVAS_SIZE - 1;

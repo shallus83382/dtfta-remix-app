@@ -183,6 +183,7 @@ function placementFromPrintAreaTitle(title: string): DesignPlacement | null {
 export type PrintAreaImageSource = {
   title: string;
   image?: string | null;
+  image_url?: string | null;
 };
 
 export function resolveDesignPlacementFromPrintArea(
@@ -282,6 +283,10 @@ export function getPrintAreaBackgroundImageUrl(
     if (mockupUrl) {
       return mockupUrl;
     }
+  }
+
+  if (printArea.image_url?.trim()) {
+    return printArea.image_url.trim();
   }
 
   if (printArea.image?.trim()) {

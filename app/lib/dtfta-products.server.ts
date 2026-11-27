@@ -46,6 +46,7 @@ export interface DtftaPrintArea {
   display_order: number;
   is_active: boolean;
   image: string;
+  image_url?: string;
   price?: number;
   /** Optional explicit physical print width in `unit` (when set, overrides heuristic / DPI derivation). */
   physical_print_width?: string;
@@ -501,6 +502,11 @@ export function normalizeDtftaPrintArea(input: unknown): DtftaPrintArea | null {
           ? input.isActive
           : true,
     image,
+    ...(typeof input.image_url === "string"
+      ? { image_url: input.image_url }
+      : typeof input.imageUrl === "string"
+        ? { image_url: input.imageUrl }
+        : {}),
     ...((): { price?: number } => {
       const rawPrice = input.price;
       const price =

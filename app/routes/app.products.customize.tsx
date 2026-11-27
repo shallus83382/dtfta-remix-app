@@ -8,6 +8,7 @@ import {
   BlockStack,
   Badge,
   InlineStack,
+  Checkbox,
   List,
   Text,
   Modal,
@@ -23,6 +24,7 @@ import CustomizeCanvasSection from "../components/product-customize/CustomizeCan
 import ArtworkLayersPanel from "../components/product-customize/ArtworkLayersPanel";
 import type { DesignLayerSummary } from "../lib/product-customize/design-layer-summary";
 import ColorSelector from "../components/product-customize/ColorSelector";
+import VariantInclusionCheckbox from "../components/product-customize/VariantInclusionCheckbox";
 import ProductMeta from "../components/product-customize/ProductMeta";
 import AppHeroBanner from "../common/AppHeroBanner";
 import { useProductCustomize } from "../lib/product-customize/useProductCustomize";
@@ -80,6 +82,21 @@ function getVariantPriceKey(colorCode: string, size: string): string {
   ]);
 }
 
+function togglePriceSelection(
+  selected: string[],
+  activeValue: string,
+  value: string
+): string[] {
+  const currentSelection = selected.length
+    ? selected
+    : activeValue
+      ? [activeValue]
+      : [];
+  return currentSelection.includes(value)
+    ? currentSelection.filter((item) => item !== value)
+    : [...currentSelection, value];
+}
+
 function isValidRetailPrice(value: string): boolean {
   if (!/^\d+(?:\.\d{1,2})?$/.test(value.trim())) return false;
   const price = Number(value);
@@ -116,6 +133,7 @@ export default function ProductCustomize() {
       options?: { libraryArtworkId?: string }
     ) => Promise<void>;
     deleteSelected: () => void;
+    deleteLayer: (layerId: string) => void;
     clear: () => void;
   } | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -148,6 +166,10 @@ export default function ProductCustomize() {
     Record<string, DesignLayerSummary[]>
   >({});
   const [selectedSize, setSelectedSize] = useState("");
+  const [artworkTargetColors, setArtworkTargetColors] = useState<string[] | null>(null);
+  const [artworkTargetSizes, setArtworkTargetSizes] = useState<string[] | null>(null);
+  const [priceSelectedSizes, setPriceSelectedSizes] = useState<string[]>([]);
+  const [priceSelectedColors, setPriceSelectedColors] = useState<string[]>([]);
   const [variantPriceStore, setVariantPriceStore] =
     useState<VariantPriceStore | null>(null);
   const [variantPriceStorageError, setVariantPriceStorageError] = useState<{
@@ -167,10 +189,13 @@ export default function ProductCustomize() {
     searchParams.get("productId") ||
     "";
   const variantPriceStorageKey = getVariantPriceStorageKey(productKey);
-  const storedVariantPrices =
-    variantPriceStore?.storageKey === variantPriceStorageKey
-      ? variantPriceStore.prices
-      : {};
+  const storedVariantPrices = useMemo(
+    () =>
+      variantPriceStore?.storageKey === variantPriceStorageKey
+        ? variantPriceStore.prices
+        : {},
+    [variantPriceStore, variantPriceStorageKey]
+  );
   const isVariantPriceStoreReady =
     variantPriceStore?.storageKey === variantPriceStorageKey;
   const currentVariantPriceStorageError =
@@ -311,6 +336,9 @@ export default function ProductCustomize() {
     colorMockups: product?.color_mockups,
     defaultColor: product?.variants?.[0]?.colorCode ?? "",
     variantPrices: variantPricesForPublish,
+    selectedSize,
+    artworkTargetColors,
+    artworkTargetSizes,
   });
 
   const selectedColorVariantPrices = useMemo(() => {
@@ -447,20 +475,83 @@ export default function ProductCustomize() {
     layersByPlacement,
   ]);
 
-  const selectedVariantPriceKey = getVariantPriceKey(selectedColor, selectedSize);
-  const selectedRetailPrice = Object.prototype.hasOwnProperty.call(
+  const priceTargetColors = priceSelectedColors.length
+    ? priceSelectedColors
+    : selectedColor
+      ? [selectedColor]
+      : [];
+  const priceTargetSizes = priceSelectedSizes.length
+    ? priceSelectedSizes
+    : selectedSize
+      ? [selectedSize]
+      : [];
+  const priceTargetVariants = useMemo(
+    () => {
+      const targetColors = priceSelectedColors.length
+        ? priceSelectedColors
+        : selectedColor
+          ? [selectedColor]
+          : [];
+      const targetSizes = priceSelectedSizes.length
+        ? priceSelectedSizes
+        : selectedSize
+          ? [selectedSize]
+          : [];
+
+      return (product?.variants ?? []).filter(
+        (variant) =>
+          variant.is_active !== false &&
+          targetColors.includes(variant.colorCode) &&
+          targetSizes.includes(variant.size)
+      );
+    },
+    [
+      product?.variants,
+      priceSelectedColors,
+      priceSelectedSizes,
+      selectedColor,
+      selectedSize,
+    ]
+  );
+  const selectedRetailPrice = useMemo(() => {
+    const activeVariants = (product?.variants ?? []).filter(
+      (variant) => variant.is_active !== false
+    );
+    const knownPrices = activeVariants
+      .map((variant) => parseVariantPrice(variant.price))
+      .filter((price): price is number => price !== null);
+    const fallbackBasePrice =
+      parseVariantPrice(product?.price) ??
+      (knownPrices.length ? Math.min(...knownPrices) : null);
+    const prices = priceTargetVariants.map((variant) => {
+      const savedPrice =
+        storedVariantPrices[getVariantPriceKey(variant.colorCode, variant.size)];
+      if (savedPrice !== undefined) return savedPrice;
+
+      const variantPrice =
+        parseVariantPrice(variant.price) ?? fallbackBasePrice;
+      return variantPrice === null
+        ? ""
+        : (variantPrice + costBreakdown.printTotal).toFixed(2);
+    });
+
+    return prices.length && prices.every((price) => price === prices[0])
+      ? prices[0]
+      : "";
+  }, [
+    product?.variants,
+    product?.price,
+    priceTargetVariants,
     storedVariantPrices,
-    selectedVariantPriceKey
-  )
-    ? storedVariantPrices[selectedVariantPriceKey]
-    : costBreakdown.totalStoreCost?.toFixed(2) ?? "";
+    costBreakdown.printTotal,
+  ]);
 
   const handleRetailPriceChange = useCallback(
     (value: string) => {
-      const nextPrices = {
-        ...storedVariantPrices,
-        [selectedVariantPriceKey]: value,
-      };
+      const nextPrices = { ...storedVariantPrices };
+      priceTargetVariants.forEach((variant) => {
+        nextPrices[getVariantPriceKey(variant.colorCode, variant.size)] = value;
+      });
       setVariantPriceStore({
         storageKey: variantPriceStorageKey,
         prices: nextPrices,
@@ -481,10 +572,102 @@ export default function ProductCustomize() {
     },
     [
       storedVariantPrices,
-      selectedVariantPriceKey,
+      priceTargetVariants,
       variantPriceStorageKey,
     ]
   );
+
+  const handlePriceColorChange = useCallback(
+    (colorCode: string, additive = false) => {
+      setPriceSelectedColors((current) =>
+        additive
+          ? togglePriceSelection(current, selectedColor, colorCode)
+          : []
+      );
+      handleColorChange(colorCode);
+    },
+    [handleColorChange, selectedColor]
+  );
+
+  const handlePriceSizeChange = useCallback(
+    (size: string, additive: boolean) => {
+      setPriceSelectedSizes((current) =>
+        additive ? togglePriceSelection(current, selectedSize, size) : []
+      );
+      setSelectedSize(size);
+    },
+    [selectedSize]
+  );
+
+  const artworkColorsForPublish =
+    artworkTargetColors ?? (selectedColor ? [selectedColor] : []);
+  const artworkSizesForPublish =
+    artworkTargetSizes ?? (selectedSize ? [selectedSize] : []);
+  const artworkSizeOptions = useMemo(
+    () => [...new Set(selectedSizeVariants.map((variant) => variant.size))],
+    [selectedSizeVariants]
+  );
+  const artworkColorOptions = useMemo(
+    () => availableColors.map((color) => color.colorCode),
+    [availableColors]
+  );
+  const selectedArtworkSizeCount = artworkSizeOptions.filter((size) =>
+    artworkSizesForPublish.includes(size)
+  ).length;
+  const selectedArtworkColorCount = artworkColorOptions.filter((colorCode) =>
+    artworkColorsForPublish.includes(colorCode)
+  ).length;
+
+  const handleArtworkColorToggle = useCallback(
+    (colorCode: string) => {
+      setArtworkTargetColors((current) => {
+        const selected = current ?? (selectedColor ? [selectedColor] : []);
+        return selected.includes(colorCode)
+          ? selected.filter((item) => item !== colorCode)
+          : [...selected, colorCode];
+      });
+    },
+    [selectedColor]
+  );
+
+  const handleArtworkColorsToggleAll = useCallback(() => {
+    setArtworkTargetColors((current) => {
+      const selected = current ?? (selectedColor ? [selectedColor] : []);
+      const allSelected = artworkColorOptions.every((colorCode) =>
+        selected.includes(colorCode)
+      );
+      return allSelected ? [] : artworkColorOptions;
+    });
+  }, [artworkColorOptions, selectedColor]);
+
+  const handleArtworkSizeToggle = useCallback(
+    (size: string) => {
+      setArtworkTargetSizes((current) => {
+        const selected = current ?? (selectedSize ? [selectedSize] : []);
+        return selected.includes(size)
+          ? selected.filter((item) => item !== size)
+          : [...selected, size];
+      });
+    },
+    [selectedSize]
+  );
+
+  const handleArtworkSizesToggleAll = useCallback(() => {
+    setArtworkTargetSizes((current) => {
+      const selected = current ?? (selectedSize ? [selectedSize] : []);
+      const allSelected = artworkSizeOptions.every((size) =>
+        selected.includes(size)
+      );
+      return allSelected
+        ? selected.filter((size) => !artworkSizeOptions.includes(size))
+        : [...new Set([...selected, ...artworkSizeOptions])];
+    });
+  }, [artworkSizeOptions, selectedSize]);
+
+  useEffect(() => {
+    setArtworkTargetColors(null);
+    setArtworkTargetSizes(null);
+  }, [productKey]);
 
   useEffect(() => {
     setDesignLayers([]);
@@ -538,11 +721,18 @@ export default function ProductCustomize() {
   const activeVariantCount = (product?.variants ?? []).filter(
     (variant) => variant.is_active !== false
   ).length;
+  const artworkTargetVariantCount = (product?.variants ?? []).filter(
+    (variant) =>
+      variant.is_active !== false &&
+      artworkColorsForPublish.includes(variant.colorCode) &&
+      artworkSizesForPublish.includes(variant.size)
+  ).length;
   const isAddToStoreDisabled =
     isPublishing ||
     fetcher.state !== "idle" ||
     !isVariantPriceStoreReady ||
     !isValidRetailPrice(selectedRetailPrice) ||
+    artworkTargetVariantCount === 0 ||
     variantPricesForPublish.length !== activeVariantCount;
 
   const handleLibraryArtworkBindingChange = useCallback(
@@ -1004,6 +1194,7 @@ export default function ProductCustomize() {
               dimensionUnit={selectedPrintArea?.unit ?? ""}
               printWidth={selectedPrintSize.width}
               printHeight={selectedPrintSize.height}
+              onDeleteLayer={canvasActions?.deleteLayer}
             />
           </div>
 
@@ -1045,38 +1236,75 @@ export default function ProductCustomize() {
 
                   <div>
                     <InlineStack align="space-between" blockAlign="center">
-                      <Text as="p" fontWeight="semibold">Choose Size</Text>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="p" fontWeight="semibold">Choose Size</Text>
+                        <Checkbox
+                          label="Select all"
+                          disabled={artworkSizeOptions.length === 0}
+                          checked={
+                            artworkSizeOptions.length > 0 &&
+                            selectedArtworkSizeCount === artworkSizeOptions.length
+                              ? true
+                              : selectedArtworkSizeCount > 0
+                                ? "indeterminate"
+                                : false
+                          }
+                          onChange={handleArtworkSizesToggleAll}
+                        />
+                      </InlineStack>
                       <Badge tone="info">Step 1</Badge>
                     </InlineStack>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                       {selectedSizeVariants.map((variant) => {
-                        const isSelected = selectedSize === variant.size;
+                        const isActive = selectedSize === variant.size;
+                        const isPriceSelected = priceTargetSizes.includes(variant.size);
+                        const isArtworkSelected = artworkSizesForPublish.includes(variant.size);
                         return (
-                          <button
-                            type="button"
+                          <div
                             key={`${variant.colorCode}-${variant.size}`}
-                            onClick={() => setSelectedSize(variant.size)}
-                            style={{
-                              minWidth: 44,
-                              height: 34,
-                              borderRadius: 8,
-                              border: isSelected
-                                ? "1px solid transparent"
-                                : "1px solid #cbd5e1",
-                              background: isSelected
-                                ? brandPrimaryButtonBg
-                                : "#ffffff",
-                              color: isSelected ? "#ffffff" : brandColors.text,
-                              boxShadow: isSelected
-                                ? brandPrimaryCtaShadow
-                                : "0 1px 3px rgba(15,23,42,0.08)",
-                              fontSize: 12,
-                              fontWeight: 700,
-                              cursor: "pointer",
-                            }}
+                            style={{ position: "relative" }}
                           >
-                            {variant.size}
-                          </button>
+                            <button
+                              type="button"
+                              aria-pressed={isPriceSelected}
+                              title="Ctrl/Cmd-click to select for bulk pricing"
+                              onClick={(event) =>
+                                handlePriceSizeChange(
+                                  variant.size,
+                                  event.ctrlKey || event.metaKey
+                                )
+                              }
+                              style={{
+                                minWidth: 44,
+                                height: 34,
+                                borderRadius: 8,
+                                border: isActive
+                                  ? "1px solid transparent"
+                                  : isPriceSelected
+                                    ? "2px solid #f97316"
+                                    : "1px solid #cbd5e1",
+                                background: isActive
+                                  ? brandPrimaryButtonBg
+                                  : "#ffffff",
+                                color: isActive ? "#ffffff" : brandColors.text,
+                                boxShadow: isActive
+                                  ? brandPrimaryCtaShadow
+                                  : isPriceSelected
+                                    ? "0 0 0 2px rgba(249,115,22,0.16)"
+                                    : "0 1px 3px rgba(15,23,42,0.08)",
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {variant.size}
+                            </button>
+                            <VariantInclusionCheckbox
+                              checked={isArtworkSelected}
+                              label={`Include size ${variant.size} when adding to store`}
+                              onChange={() => handleArtworkSizeToggle(variant.size)}
+                            />
+                          </div>
                         );
                       })}
                     </div>
@@ -1084,17 +1312,44 @@ export default function ProductCustomize() {
 
                   <div>
                     <InlineStack align="space-between" blockAlign="center">
-                      <Text as="p" fontWeight="semibold">Choose Color</Text>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="p" fontWeight="semibold">Choose Color</Text>
+                        <Checkbox
+                          label="Select all"
+                          disabled={artworkColorOptions.length === 0}
+                          checked={
+                            artworkColorOptions.length > 0 &&
+                            selectedArtworkColorCount === artworkColorOptions.length
+                              ? true
+                              : selectedArtworkColorCount > 0
+                                ? "indeterminate"
+                                : false
+                          }
+                          onChange={handleArtworkColorsToggleAll}
+                        />
+                      </InlineStack>
                       <Badge tone="info">Step 2</Badge>
                     </InlineStack>
                     <div style={{ marginTop: 8 }}>
                       <ColorSelector
                         colors={availableColors}
                         selectedColor={selectedColor}
-                        onChange={handleColorChange}
+                        selectedColors={priceTargetColors}
+                        artworkColors={artworkColorsForPublish}
+                        onChange={handlePriceColorChange}
+                        onToggleArtworkColor={handleArtworkColorToggle}
                       />
                     </div>
                   </div>
+
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {"Round checks select the sizes and colors to add to your store. Ctrl/Cmd-click sizes or colors to set one retail price for multiple variants."}
+                  </Text>
+                  {artworkTargetVariantCount === 0 ? (
+                    <Text as="p" variant="bodySm" tone="critical">
+                      Select at least one size and color to add the product.
+                    </Text>
+                  ) : null}
 
                   <div
                     style={{
@@ -1107,7 +1362,9 @@ export default function ProductCustomize() {
                     <InlineStack align="space-between" blockAlign="center">
                       <Text as="h3" variant="headingSm">Cost breakdown</Text>
                       <Badge tone="info">
-                        {`${selectedSize || "Size"} / ${selectedColor || "Color"}`}
+                        {priceTargetVariants.length > 1
+                          ? `${priceTargetVariants.length} variants`
+                          : `${selectedSize || "Size"} / ${selectedColor || "Color"}`}
                       </Badge>
                     </InlineStack>
                     <div
@@ -1165,12 +1422,21 @@ export default function ProductCustomize() {
                       <div style={{ marginTop: 2 }}>
                         <TextField
                           label="Customer retail price"
-                          helpText="Saved for this color and size in this browser."
+                          helpText={
+                            priceTargetVariants.length > 1
+                              ? `Saved for all ${priceTargetVariants.length} selected variants in this browser.`
+                              : "Saved for this color and size in this browser."
+                          }
                           type="number"
                           value={selectedRetailPrice}
+                          placeholder={
+                            priceTargetVariants.length > 1 && !selectedRetailPrice
+                              ? "Enter one price for all selected variants"
+                              : undefined
+                          }
                           prefix={costBreakdown.currency === "USD" ? "$" : undefined}
                           onChange={handleRetailPriceChange}
-                          disabled={!isVariantPriceStoreReady || !selectedColor || !selectedSize}
+                          disabled={!isVariantPriceStoreReady || !priceTargetVariants.length}
                           error={
                             selectedRetailPrice !== "" &&
                             !isValidRetailPrice(selectedRetailPrice)

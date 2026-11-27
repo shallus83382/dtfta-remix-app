@@ -125,6 +125,8 @@ type BuildCustomizeSubmissionArgs = {
   printSizes: PlacementPrintSizeMap;
   regions: PlacementRegionMap;
   selectedColor: string;
+  selectedColors: string[];
+  selectedSizes: string[];
   variants: DtftaVariant[];
   colorMockups?: DtftaColorMockups;
   variantPrices: VariantRetailPrice[];
@@ -225,6 +227,8 @@ export async function buildCustomizeSubmission({
   printSizes,
   regions,
   selectedColor,
+  selectedColors,
+  selectedSizes,
   variants,
   colorMockups,
   variantPrices,
@@ -233,15 +237,44 @@ export async function buildCustomizeSubmission({
     colorMockups: colorMockups ?? null,
   };
 
-  const allColorCodes = Array.from(
-    new Set([
-      selectedColor,
-      ...variants
-        .filter((variant) => variant.is_active)
-        .map((variant) => String(variant.colorCode || "").trim())
-        .filter(Boolean),
-    ])
+  const targetVariants = variants.filter(
+    (variant) =>
+      variant.is_active !== false &&
+      selectedColors.includes(String(variant.colorCode || "").trim()) &&
+      selectedSizes.includes(String(variant.size || "").trim())
   );
+  if (!targetVariants.length) {
+    return {
+      ok: false,
+      error: "Select at least one size and color to add the product.",
+    };
+  }
+  const selectedVariantSkus = targetVariants
+    .map((variant) => variant.sku.trim())
+    .filter(Boolean);
+  if (selectedVariantSkus.length !== targetVariants.length) {
+    return {
+      ok: false,
+      error: "Every selected variant must have a SKU before adding the product.",
+    };
+  }
+  if (new Set(selectedVariantSkus).size !== selectedVariantSkus.length) {
+    return {
+      ok: false,
+      error: "Selected variants must have unique SKUs before adding the product.",
+    };
+  }
+
+  const allColorCodes = Array.from(
+    new Set(
+      targetVariants
+        .map((variant) => String(variant.colorCode || "").trim())
+        .filter(Boolean)
+    )
+  );
+  const primaryColor = allColorCodes.includes(selectedColor)
+    ? selectedColor
+    : allColorCodes[0];
 
   const artworkUrls: Record<string, ArtworkUrlPayload> = {};
   const secondaryMockups: SecondaryMockup[] = [];
@@ -332,7 +365,7 @@ export async function buildCustomizeSubmission({
   }
 
   const printableAreas = buildPrintableAreasForSelectedColor({
-    selectedColor,
+    selectedColor: primaryColor,
     printAreas,
     printSizes,
     regions,
@@ -376,8 +409,10 @@ export async function buildCustomizeSubmission({
   }));
 
   formData.set("printableAreas", JSON.stringify(printableAreasPayload));
-  formData.set("selectedColor", selectedColor || "");
+  formData.set("selectedColor", primaryColor);
+  // The publish API validates prices for every active variant, even when artwork is scoped.
   formData.set("variantPrices", JSON.stringify(variantPrices));
+  formData.set("selectedVariantSkus", JSON.stringify(selectedVariantSkus));
   formData.set("artworkUrls", JSON.stringify(artworkUrls));
 
   return {

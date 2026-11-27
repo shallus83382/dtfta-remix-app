@@ -23,6 +23,7 @@ type CanvasActions = {
     options?: { libraryArtworkId?: string }
   ) => Promise<void>;
   deleteSelected: () => void;
+  deleteLayer: (layerId: string) => void;
   clear: () => void;
 };
 
@@ -95,6 +96,7 @@ export default function CustomizeCanvasSection({
         },
         addImageFromUrl: actions.addImageFromUrl,
         deleteSelected: actions.deleteSelected,
+        deleteLayer: actions.deleteLayer,
         clear: () => {
           actions.clear();
           onLibraryArtworkBindingChange?.(null);

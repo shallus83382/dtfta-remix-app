@@ -24,6 +24,85 @@ export type PublishProgress = {
   message: string;
 };
 
+type ProductMockup = {
+  placement: string;
+  color: string;
+  data_url: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function collectProductMockups(
+  formData: FormData,
+  secondaryMockups: ProductMockup[]
+): ProductMockup[] {
+  const rawArtworkUrls = formData.get("artworkUrls");
+  if (typeof rawArtworkUrls !== "string") {
+    throw new Error("Generated product artwork is missing.");
+  }
+
+  let artworkUrls: unknown;
+  try {
+    artworkUrls = JSON.parse(rawArtworkUrls);
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? `Generated product artwork is invalid: ${error.message}`
+        : "Generated product artwork is invalid."
+    );
+  }
+  if (!isRecord(artworkUrls)) {
+    throw new Error("Generated product artwork is not a valid object.");
+  }
+
+  const primaryMockups = Object.values(artworkUrls).flatMap((value) => {
+    if (!isRecord(value)) return [];
+    const color = value.colorCode;
+    const placement = value.placement;
+    const dataUrl =
+      typeof value.artworkUrl === "string" && value.artworkUrl
+        ? value.artworkUrl
+        : value.customArtworkUrl;
+    if (!dataUrl) return [];
+    if (
+      typeof color !== "string" ||
+      typeof placement !== "string" ||
+      typeof dataUrl !== "string" ||
+      !dataUrl.startsWith("data:image/")
+    ) {
+      throw new Error("A generated product mockup is not a valid image.");
+    }
+
+    return [{ color, placement, data_url: dataUrl }];
+  });
+
+  const uniqueMockups = new Map<string, ProductMockup>();
+  for (const mockup of [...primaryMockups, ...secondaryMockups]) {
+    if (!mockup.data_url.startsWith("data:image/")) {
+      throw new Error("A generated product mockup is not a valid image.");
+    }
+    uniqueMockups.set(`${mockup.color}:${mockup.placement}`, mockup);
+  }
+
+  return Array.from(uniqueMockups.values());
+}
+
+async function postShopifyProductSyncStep(
+  payload: Record<string, unknown>
+): Promise<void> {
+  const response = await fetch("/app/api/products-publish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.ok) {
+    throw new Error(data?.error || "Failed to sync the Shopify product.");
+  }
+}
+
 function showToast(
   shopify: ReturnType<typeof useAppBridge>,
   message: string,
@@ -166,6 +245,50 @@ export function useCustomizePublish({
         throw new Error(finalizeData?.error || "Failed to finalize product setup in Shopify.");
       }
 
+      if (
+        (typeof shopifyProductId !== "string" && typeof shopifyProductId !== "number") ||
+        !String(shopifyProductId).trim()
+      ) {
+        throw new Error(
+          "The publish API did not return a Shopify product ID for variant and image sync."
+        );
+      }
+
+      const productId = String(shopifyProductId);
+      const productSyncToken = initData.productSyncToken;
+      if (typeof productSyncToken !== "string" || !productSyncToken) {
+        throw new Error(
+          "The publish API did not authorize selected variant and image sync."
+        );
+      }
+      const productMockups = collectProductMockups(
+        result.formData,
+        result.secondaryMockups ?? []
+      );
+
+      setPublishProgress({
+        percent: 96,
+        message: "Removing unselected product variants...",
+      });
+      await postShopifyProductSyncStep({
+        step: "filter-variants",
+        sync_token: productSyncToken,
+      });
+
+      for (let index = 0; index < productMockups.length; index += 5) {
+        const batch = productMockups.slice(index, index + 5);
+        setPublishProgress({
+          percent: 98,
+          message: `Fixing product images: ${Math.min(index + batch.length, productMockups.length)} / ${productMockups.length}...`,
+        });
+        await postShopifyProductSyncStep({
+          step: "shopify-media",
+          sync_token: productSyncToken,
+          mockups: batch,
+          replace_existing: index === 0,
+        });
+      }
+
       // Step 4: Complete!
       setPublishProgress({ percent: 100, message: "Product created successfully!" });
       setIsPublishing(false);
@@ -175,7 +298,7 @@ export function useCustomizePublish({
       if (shopifyProductId) {
         try {
           shopify.intents.invoke?.("edit:shopify/Product", {
-            value: shopifyProductId,
+            value: productId,
           });
         } catch {
           // The success notice stays on the page when the product editor cannot open.

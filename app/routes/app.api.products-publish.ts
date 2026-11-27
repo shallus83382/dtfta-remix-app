@@ -6,13 +6,22 @@ import {
   publishCustomizeBatch,
   publishCustomizeFinalize,
 } from "../lib/product-customize/customize-product.server";
+import {
+  retainSelectedShopifyVariants,
+  syncShopifyProductMedia,
+} from "../lib/product-customize/shopify-product-sync.server";
+import {
+  createProductSyncToken,
+  parseSelectedVariantSkus,
+  verifyProductSyncToken,
+} from "../lib/product-customize/shopify-sync-token.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== "POST") {
     return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
   }
 
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
 
   const contentType = request.headers.get("content-type") || "";
@@ -24,10 +33,49 @@ export async function action({ request }: ActionFunctionArgs) {
     if (step === "init") {
       try {
         const result = await publishCustomizeInit(formData, shop);
-        return Response.json(result, { status: result.ok ? 200 : 422 });
+        if (!result.ok) {
+          return Response.json(result, { status: 422 });
+        }
+
+        const publishData = result.data;
+        if (
+          !publishData ||
+          typeof publishData !== "object" ||
+          Array.isArray(publishData)
+        ) {
+          throw new Error("Publish API returned invalid product data.");
+        }
+        const shopifyProductId = (publishData as Record<string, unknown>)
+          .shopify_product_id;
+        if (
+          (typeof shopifyProductId !== "string" &&
+            typeof shopifyProductId !== "number") ||
+          !String(shopifyProductId).trim()
+        ) {
+          throw new Error("Publish API did not return a Shopify product ID.");
+        }
+
+        const selectedSkus = parseSelectedVariantSkus(
+          formData.get("selectedVariantSkus")?.toString() ?? null
+        );
+        const productSyncToken = createProductSyncToken(
+          shop,
+          String(shopifyProductId),
+          selectedSkus
+        );
+        return Response.json(
+          { ...result, productSyncToken },
+          { status: 200 }
+        );
       } catch (err) {
         return Response.json(
-          { ok: false, error: err instanceof Error ? err.message : "Failed to initialize product." },
+          {
+            ok: false,
+            error:
+              err instanceof Error
+                ? err.message
+                : "Failed to initialize product.",
+          },
           { status: 500 }
         );
       }
@@ -36,6 +84,70 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const body = await request.json().catch(() => ({}));
   const step = body?.step;
+
+  if (step === "shopify-media") {
+    try {
+      if (
+        !Array.isArray(body?.mockups) ||
+        body.mockups.some(
+          (mockup: unknown) =>
+            !mockup ||
+            typeof mockup !== "object" ||
+            typeof (mockup as Record<string, unknown>).placement !== "string" ||
+            typeof (mockup as Record<string, unknown>).color !== "string" ||
+            typeof (mockup as Record<string, unknown>).data_url !== "string"
+        )
+      ) {
+        throw new Error("Invalid Shopify mockup payload.");
+      }
+
+      const result = await syncShopifyProductMedia(
+        admin,
+        verifyProductSyncToken(String(body?.sync_token ?? ""), shop).productId,
+        body.mockups,
+        body?.replace_existing === true
+      );
+      return Response.json({ ok: true, data: result });
+    } catch (error) {
+      return Response.json(
+        {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to sync product mockups to Shopify.",
+        },
+        { status: 422 }
+      );
+    }
+  }
+
+  if (step === "filter-variants") {
+    try {
+      const syncToken = verifyProductSyncToken(
+        String(body?.sync_token ?? ""),
+        shop
+      );
+
+      const result = await retainSelectedShopifyVariants(
+        admin,
+        syncToken.productId,
+        syncToken.selectedSkus
+      );
+      return Response.json({ ok: true, data: result });
+    } catch (error) {
+      return Response.json(
+        {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to remove unselected product variants.",
+        },
+        { status: 422 }
+      );
+    }
+  }
 
   if (step === "media") {
     const customProductId = Number(body?.custom_product_id);
